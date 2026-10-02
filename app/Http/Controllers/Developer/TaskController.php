@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Developer;
 
 use App\Http\Controllers\Controller;
-use App\Models\DeveloperSkill;
+use App\Models\DailyWorkLog;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Client;
@@ -32,12 +32,32 @@ class TaskController extends Controller
         $completedTasks = Task::where('assigned_to', $developer->id)
             ->where('status', 'completed')
             ->count();
-        $upcomingDeadlines = Task::where('assigned_to', $developer->id)
-            ->whereNotNull('dev_deadline')
-            ->whereBetween('dev_deadline', [now(), now()->addDays(7)])
-            ->count();
 
-        return view('developer.dashboard', compact('tasks', 'totalTasks', 'inProgressTasks', 'completedTasks', 'upcomingDeadlines'));
+        // Deadlines only matter while the work is still with the developer
+        $openTasks = Task::where('assigned_to', $developer->id)
+            ->whereIn('status', ['todo', 'inprogress'])
+            ->whereNotNull('dev_deadline');
+
+        $upcomingDeadlines = (clone $openTasks)
+            ->whereBetween('dev_deadline', [today()->toDateString(), today()->addDays(7)->toDateString()])
+            ->count();
+        $overdueTasks = (clone $openTasks)
+            ->where('dev_deadline', '<', today()->toDateString())
+            ->count();
+        $deadlineTasks = (clone $openTasks)
+            ->orderBy('dev_deadline')
+            ->limit(5)
+            ->get();
+
+        $todayLog = DailyWorkLog::where('user_id', $developer->id)
+            ->whereDate('log_date', today())
+            ->withSum('entries', 'hours')
+            ->first();
+
+        return view('developer.dashboard', compact(
+            'tasks', 'totalTasks', 'inProgressTasks', 'completedTasks',
+            'upcomingDeadlines', 'overdueTasks', 'deadlineTasks', 'todayLog'
+        ));
     }
 
     public function tasks(Request $request)
@@ -45,10 +65,14 @@ class TaskController extends Controller
         $developer = Auth::user();
         $scope = $request->get('scope', 'my');
 
-        $query = Task::with(['client', 'assignee', 'creator']);
+        $query = Task::with(['client', 'assignee', 'creator', 'comments.user'])
+            ->withSum('workLogEntries as logged_hours', 'hours');
 
         if ($scope !== 'all') {
             $query->where('assigned_to', $developer->id);
+        } else {
+            // "All team tasks" means the development team, not every task in the company
+            $query->whereHas('assignee', fn ($q) => $q->where('role', 'developer'));
         }
 
         if ($request->filled('search')) {
@@ -75,13 +99,17 @@ class TaskController extends Controller
             $query->where('assigned_to', $request->get('assigned_to'));
         }
 
+        // Active work first, then waiting, then finished; earliest deadline first, no deadline last
         $tasks = $query->orderByRaw("CASE
-                WHEN status = 'todo' THEN 1
-                WHEN status = 'inprogress' THEN 2
-                WHEN status = 'completed' THEN 3
-                ELSE 4
+                WHEN status = 'inprogress' THEN 1
+                WHEN status = 'todo' THEN 2
+                WHEN status = 'review' THEN 3
+                WHEN status = 'pending_approval' THEN 4
+                WHEN status = 'on_hold' THEN 5
+                WHEN status = 'completed' THEN 6
+                ELSE 7
             END")
-            ->orderBy('dev_deadline', 'asc')
+            ->orderByRaw('dev_deadline IS NULL, dev_deadline ASC')
             ->get();
 
         $clients = Client::where('is_active', true)->orderBy('name')->get();
@@ -123,66 +151,14 @@ class TaskController extends Controller
         ]);
     }
 
-    public function skills()
-    {
-        $skills = DeveloperSkill::where('user_id', Auth::id())
-            ->orderByRaw("CASE WHEN type = 'primary' THEN 0 ELSE 1 END")
-            ->orderBy('name')
-            ->get();
-
-        return view('developer.skills', compact('skills'));
-    }
-
-    public function storeSkill(Request $request)
-    {
-        $request->merge([
-            'name' => trim((string) $request->input('name')),
-        ]);
-
-        $validated = $request->validate([
-            'name' => [
-                'required',
-                'string',
-                'max:100',
-                Rule::unique('developer_skills', 'name')->where(fn ($query) => $query->where('user_id', Auth::id())),
-            ],
-            'type' => ['required', Rule::in(['primary', 'secondary'])],
-        ], [
-            'name.unique' => 'You already added this skill.',
-        ]);
-
-        DeveloperSkill::create([
-            'user_id' => Auth::id(),
-            'name' => $validated['name'],
-            'type' => $validated['type'],
-        ]);
-
-        return redirect()
-            ->route('developer.skills')
-            ->with('success', 'Skill added successfully.');
-    }
-
-    public function deleteSkill(DeveloperSkill $skill)
-    {
-        if ($skill->user_id !== Auth::id()) {
-            abort(403);
-        }
-
-        $skill->delete();
-
-        return redirect()
-            ->route('developer.skills')
-            ->with('success', 'Skill removed successfully.');
-    }
-
     public function start(Request $request, Task $task)
     {
         if ($task->assigned_to !== Auth::id()) {
-            return back()->with('error', 'You are not assigned to this task.');
+            return $this->failure($request, 'You are not assigned to this task.', 403);
         }
 
         if ($task->status !== 'todo') {
-            return back()->with('error', 'Task is not in To Do status.');
+            return $this->failure($request, 'Task is not in To Do status.', 422);
         }
 
         $task->status = 'inprogress';
@@ -207,7 +183,11 @@ class TaskController extends Controller
         ]);
 
         if ($task->assigned_to !== Auth::id()) {
-            return back()->with('error', 'You are not assigned to this task.');
+            return $this->failure($request, 'You are not assigned to this task.', 403);
+        }
+
+        if ($task->status !== 'inprogress') {
+            return $this->failure($request, 'Only tasks in progress can be submitted for review.', 422);
         }
 
         $task->dev_submission_link = $request->link;
@@ -216,8 +196,10 @@ class TaskController extends Controller
         $task->submitted_at = now();
         $task->save();
 
-        // Notify admins and strategists
-        $recipients = User::whereIn('role', ['admin', 'strategist'])->get();
+        // Notify whoever created the task; fall back to admins when there is no creator
+        $recipients = $task->creator
+            ? collect([$task->creator])
+            : User::where('role', 'admin')->get();
 
         foreach ($recipients as $user) {
             Notification::create([
@@ -226,7 +208,9 @@ class TaskController extends Controller
                 'icon' => 'task',
                 'title' => 'New Task Submission',
                 'subtitle' => "Developer submitted {$task->title} for review. Link: {$task->dev_submission_link}",
-                'link' => route('strategist.tasks.show', $task),
+                'link' => $user->role === 'admin'
+                    ? route('admin.tasks.show', $task)
+                    : route('strategist.tasks.show', $task),
             ]);
         }
 
@@ -286,7 +270,8 @@ class TaskController extends Controller
             ->first();
 
         if ($pauseRecord) {
-            $duration = now()->diffInSeconds($pauseRecord->created_at);
+            // Carbon 3 diffs are signed: measure from the pause start forward to stay positive
+            $duration = (int) $pauseRecord->created_at->diffInSeconds(now());
             $pauseRecord->update([
                 'resumed_at' => now(),
                 'duration_seconds' => $duration
@@ -330,7 +315,11 @@ class TaskController extends Controller
     public function addComment(Request $request, Task $task)
     {
         $request->validate(['body' => 'required|string|max:2000']);
-        
+
+        if ($task->assigned_to !== Auth::id()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
         \App\Models\Comment::create([
             'task_id' => $task->id,
             'user_id' => Auth::id(),
@@ -365,6 +354,10 @@ class TaskController extends Controller
             'media' => 'required|array',
             'media.*' => 'required|file|max:51200',
         ]);
+
+        if ($task->assigned_to !== Auth::id()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
 
         $uploadedCount = 0;
         $failedFiles = [];
@@ -409,6 +402,10 @@ class TaskController extends Controller
 
     public function deleteMedia(Request $request, Task $task)
     {
+        if ($task->assigned_to !== Auth::id()) {
+            abort(403);
+        }
+
         $media = \App\Models\Media::findOrFail($request->media_id);
         
         if ($media->model_type !== Task::class || $media->model_id !== $task->id) {
@@ -421,5 +418,17 @@ class TaskController extends Controller
         $media->delete();
 
         return response()->json(['success' => true, 'message' => 'Media deleted.']);
+    }
+
+    /**
+     * Error response that works for both AJAX callers and normal form posts.
+     */
+    private function failure(Request $request, string $message, int $status)
+    {
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['success' => false, 'message' => $message], $status);
+        }
+
+        return back()->with('error', $message);
     }
 }

@@ -149,6 +149,11 @@
                 <span class="nav-text">Team</span>
                 <span class="nav-tooltip">Team</span>
             </a>
+            <a href="{{ route('daily-logs.report') }}" class="nav-item {{ request()->routeIs('daily-logs.report') ? 'active' : '' }}" title="Dev Daily Logs">
+                <span class="icon"><i class="fas fa-clipboard-list"></i></span>
+                <span class="nav-text">Dev Daily Logs</span>
+                <span class="nav-tooltip">Dev Daily Logs</span>
+            </a>
             {{--<a href="{{ route('admin.members') }}" class="nav-item {{ request()->routeIs('admin.members') ? 'active' : '' }}" title="Members">
                 <span class="icon"><i class="fas fa-user-friends"></i></span>
                 <span class="nav-text">Members</span>
@@ -236,6 +241,11 @@
                     <span class="nav-badge-dot"></span>
                 @endif
             </a>
+            <a href="{{ route('daily-logs.report') }}" class="nav-item {{ request()->routeIs('daily-logs.report') ? 'active' : '' }}" title="Dev Daily Logs">
+                <span class="icon"><i class="fas fa-clipboard-list"></i></span>
+                <span class="nav-text">Dev Daily Logs</span>
+                <span class="nav-tooltip">Dev Daily Logs</span>
+            </a>
             <a href="{{ route('strategist.approvals') }}" class="nav-item {{ request()->routeIs('strategist.approvals') ? 'active' : '' }}" title="Approval Tracker" data-force-loader>
                 <span class="icon"><i class="fas fa-bell"></i></span>
                 <span class="nav-text">Approvals</span>
@@ -271,7 +281,6 @@
             </a>
         </div>
         <div class="nav-section">
-
             <a href="{{ route('developer.tasks') }}" class="nav-item {{ request()->routeIs('developer.tasks') ? 'active' : '' }}" title="My Tasks">
                 <span class="icon"><i class="fas fa-code"></i></span>
                 <span class="nav-text">My Tasks</span>
@@ -280,25 +289,23 @@
                     <span class="nav-badge-dot"></span>
                 @endif
             </a>
+            @php
+                $devLoggedToday = \App\Models\DailyWorkLog::where('user_id', auth()->id())->whereDate('log_date', today())->exists();
+            @endphp
+            <a href="{{ route('developer.daily-log') }}" class="nav-item {{ request()->routeIs('developer.daily-log') ? 'active' : '' }}" title="Daily Log">
+                <span class="icon"><i class="fas fa-clipboard-list"></i></span>
+                <span class="nav-text">Daily Log</span>
+                <span class="nav-tooltip">{{ $devLoggedToday ? 'Daily Log' : "Daily Log · today's log pending" }}</span>
+                @unless($devLoggedToday)
+                    <span class="nav-badge-dot"></span>
+                @endunless
+            </a>
             <a href="{{ route('developer.calendar') }}" class="nav-item {{ request()->routeIs('developer.calendar') ? 'active' : '' }}" title="My Calendar">
                 <span class="icon"><i class="fas fa-calendar-alt"></i></span>
                 <span class="nav-text">Calendar</span>
                 <span class="nav-tooltip">Calendar</span>
             </a>
-
-            <a href="{{ route('developer.skills') }}"
-                class="nav-item {{ request()->routeIs('developer.skills') ? 'active' : '' }}"
-                title="My Skills">
-
-                <span class="icon"><i class="fas fa-bolt"></i></span>
-                <span class="nav-text">My Skills</span>
-                <span class="nav-tooltip">My Skills</span>
-            </a>
         </div>
-
-
-
-
     @elseif($role === 'designer')
         <div class="nav-section">
             <a href="{{ route('designer.dashboard') }}" class="nav-item {{ request()->routeIs('designer.dashboard') ? 'active' : '' }}" title="My Dashboard">

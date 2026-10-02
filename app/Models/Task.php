@@ -129,6 +129,11 @@ class Task extends Model
         return $this->belongsTo(Task::class, 'parent_task_id');
     }
 
+    public function workLogEntries()
+    {
+        return $this->hasMany(DailyWorkLogEntry::class);
+    }
+
     public function childTasks()
     {
         return $this->hasMany(Task::class, 'parent_task_id');
