@@ -349,6 +349,10 @@ body.dark-mode .dt-wrap, body.dark-mode .dt-drawer {
 .dt-btn:hover { border-color: var(--dt-brand); color: var(--dt-brand); }
 .dt-btn-primary { background: linear-gradient(135deg, #f43f3f, #dc2626); border-color: transparent; color: #fff; box-shadow: 0 6px 16px -6px rgba(220,38,38,0.6); }
 .dt-btn-primary:hover { color: #fff; filter: brightness(1.06); transform: translateY(-1px); }
+.dt-btn-amber { background: linear-gradient(135deg, #f59e0b, #d97706); border-color: transparent; color: #fff; box-shadow: 0 6px 16px -6px rgba(217,119,6,0.5); }
+.dt-btn-amber:hover { color: #fff; filter: brightness(1.06); transform: translateY(-1px); }
+.dt-btn-success { background: linear-gradient(135deg, #10b981, #059669); border-color: transparent; color: #fff; box-shadow: 0 6px 16px -6px rgba(5,150,105,0.5); }
+.dt-btn-success:hover { color: #fff; filter: brightness(1.06); transform: translateY(-1px); }
 .dt-btn-lg { height: 42px; padding: 0 18px; font-size: 13.5px; border-radius: 12px; }
 .dt-btn[disabled] { opacity: .6; pointer-events: none; }
 
@@ -884,6 +888,13 @@ textarea.dt-input { resize: vertical; min-height: 76px; line-height: 1.5; }
                 @if($row->isMine && $task->status === 'todo')
                     <button type="button" class="dt-btn dt-btn-primary" data-start="{{ route('developer.tasks.start', $task) }}" data-task-id="{{ $task->id }}"><i class="fas fa-play"></i> Start working</button>
                 @endif
+                @if($row->isMine && in_array($task->status, ['todo', 'inprogress']))
+                    @if($task->is_paused)
+                        <button type="button" class="dt-btn dt-btn-success" data-resume="{{ route('developer.tasks.resume', $task) }}" data-task-id="{{ $task->id }}"><i class="fas fa-play"></i> Resume working</button>
+                    @elseif($task->status === 'inprogress')
+                        <button type="button" class="dt-btn dt-btn-amber" data-open-pause="{{ route('developer.tasks.pause', $task) }}" data-task-id="{{ $task->id }}" data-task-title="{{ $task->title }}"><i class="fas fa-pause"></i> Pause task</button>
+                    @endif
+                @endif
             </div>
         </div>
     </template>
@@ -894,6 +905,43 @@ textarea.dt-input { resize: vertical; min-height: 76px; line-height: 1.5; }
     <button type="button" class="dt-drawer-close" id="dtDrawerClose" aria-label="Close details"><i class="fas fa-xmark"></i></button>
     <div class="dt-drawer-content" id="dtDrawerContent"></div>
 </aside>
+
+{{-- ═══ PAUSE TASK MODAL ═══ --}}
+<div id="dtPauseModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,0.55);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px">
+    <div style="background:var(--card,#fff);border:1px solid var(--border,#e2e6ef);border-radius:20px;max-width:460px;width:100%;box-shadow:0 25px 65px rgba(0,0,0,0.25);overflow:hidden;animation:dtDrawerIn .25s ease">
+        <div style="padding:24px 24px 0">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+                <h3 style="font-size:18px;font-weight:800;color:var(--text,#0f172a);display:flex;align-items:center;gap:8px;margin:0">
+                    <span style="color:#d97706">⏸️</span> Pause Task
+                </h3>
+                <button type="button" id="dtClosePauseModal" style="background:none;border:none;font-size:22px;color:var(--text3,#94a3b8);cursor:pointer;line-height:1;padding:4px">&times;</button>
+            </div>
+            <div style="padding:12px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:12px;font-size:12.5px;color:#92400e;line-height:1.5;margin-bottom:18px">
+                <strong id="dtPauseTaskTitle">Task</strong> will be paused. Your progress will be saved and you can resume anytime.
+            </div>
+        </div>
+        <form id="dtPauseForm" method="POST" action="">
+            <div style="padding:0 24px 24px">
+                <div style="margin-bottom:14px">
+                    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text2,#475569);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">
+                        What did you accomplish in this session? (optional)
+                    </label>
+                    <textarea name="work_logged" rows="3" class="dt-input" style="width:100%;box-sizing:border-box" placeholder="E.g. Implemented the API endpoints and set up database migrations..."></textarea>
+                </div>
+                <div style="margin-bottom:18px">
+                    <label style="display:block;font-size:11.5px;font-weight:700;color:var(--text2,#475569);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">
+                        Why are you pausing? <span style="color:#ef4444">*</span>
+                    </label>
+                    <textarea name="reason" required rows="2" class="dt-input" style="width:100%;box-sizing:border-box" placeholder="E.g. Waiting on client credentials, daily standup, shifting to urgent hotfix..."></textarea>
+                </div>
+                <div style="display:flex;gap:10px">
+                    <button type="button" id="dtCancelPauseBtn" class="dt-btn" style="flex:1">Cancel</button>
+                    <button type="submit" class="dt-btn dt-btn-amber" style="flex:1"><i class="fas fa-pause"></i> Pause Task</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
 
 <script>
 (function () {
@@ -1133,11 +1181,67 @@ textarea.dt-input { resize: vertical; min-height: 76px; line-height: 1.5; }
         if (submitBtn) {
             e.preventDefault();
             openDrawer(submitBtn.dataset.openSubmit, true);
+            return;
+        }
+
+        const pauseBtn = e.target.closest('[data-open-pause]');
+        if (pauseBtn) {
+            e.preventDefault();
+            const modal = document.getElementById('dtPauseModal');
+            const form = document.getElementById('dtPauseForm');
+            const titleEl = document.getElementById('dtPauseTaskTitle');
+            if (modal && form) {
+                form.action = pauseBtn.dataset.openPause;
+                form.dataset.taskId = pauseBtn.dataset.taskId;
+                if (titleEl) titleEl.textContent = `"${pauseBtn.dataset.taskTitle || 'This task'}"`;
+                form.reset();
+                modal.style.display = 'flex';
+            }
+            return;
+        }
+
+        const resumeBtn = e.target.closest('[data-resume]');
+        if (resumeBtn) {
+            e.preventDefault();
+            setBusy(resumeBtn, true, 'Resuming');
+            try {
+                const fd = new FormData();
+                fd.append('_token', csrf);
+                const data = await postForm(resumeBtn.dataset.resume, fd);
+                toast(data.message || 'Task resumed.');
+                setTimeout(() => reloadWithTask(resumeBtn.dataset.taskId), 600);
+            } catch (err) {
+                toast(err.message, true);
+                setBusy(resumeBtn, false);
+            }
+            return;
+        }
+
+        if (e.target.closest('#dtClosePauseModal') || e.target.closest('#dtCancelPauseBtn') || e.target.id === 'dtPauseModal') {
+            const modal = document.getElementById('dtPauseModal');
+            if (modal) modal.style.display = 'none';
+            return;
         }
     });
 
     document.addEventListener('submit', async (e) => {
         const form = e.target;
+
+        if (form.id === 'dtPauseForm') {
+            e.preventDefault();
+            const btn = form.querySelector('button[type="submit"]');
+            setBusy(btn, true, 'Pausing');
+            try {
+                const data = await postForm(form.action, new FormData(form));
+                toast(data.message || 'Task paused.');
+                document.getElementById('dtPauseModal').style.display = 'none';
+                setTimeout(() => reloadWithTask(form.dataset.taskId), 600);
+            } catch (err) {
+                toast(err.message, true);
+                setBusy(btn, false);
+            }
+            return;
+        }
 
         if (form.classList.contains('dt-submit-form')) {
             e.preventDefault();
