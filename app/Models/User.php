@@ -196,8 +196,8 @@ class User extends Authenticatable
         return $this->hasMany(ActionItem::class, 'created_by');
     }
 
-    public function developerSkills()
+    public function dailyWorkLogs()
     {
-        return $this->hasMany(DeveloperSkill::class);
+        return $this->hasMany(DailyWorkLog::class);
     }
 }

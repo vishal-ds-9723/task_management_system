@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Client;
-use App\Models\DeveloperSkill;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -47,41 +46,7 @@ class DeveloperSeeder extends Seeder
             ]
         );
 
-        // 2. Add Developer Skills
-        $skillsData = [
-            $john->id => [
-                ['name' => 'Laravel / PHP', 'type' => 'primary'],
-                ['name' => 'MySQL / Database Architecture', 'type' => 'primary'],
-                ['name' => 'REST APIs & WebSockets', 'type' => 'primary'],
-                ['name' => 'Docker & DevOps', 'type' => 'secondary'],
-                ['name' => 'Redis', 'type' => 'secondary'],
-            ],
-            $sarah->id => [
-                ['name' => 'Flutter / Dart', 'type' => 'primary'],
-                ['name' => 'Riverpod State Management', 'type' => 'primary'],
-                ['name' => 'Mobile UI / UX Engineering', 'type' => 'primary'],
-                ['name' => 'Firebase / Push Notifications', 'type' => 'secondary'],
-                ['name' => 'iOS & Android Build Pipelines', 'type' => 'secondary'],
-            ],
-            $mike->id => [
-                ['name' => 'Vue.js / React', 'type' => 'primary'],
-                ['name' => 'Tailwind CSS / Frontend', 'type' => 'primary'],
-                ['name' => 'TypeScript / JavaScript', 'type' => 'primary'],
-                ['name' => 'Vite & Build Tools', 'type' => 'secondary'],
-                ['name' => 'Performance Optimization', 'type' => 'secondary'],
-            ],
-        ];
-
-        foreach ($skillsData as $userId => $skills) {
-            foreach ($skills as $skill) {
-                DeveloperSkill::firstOrCreate(
-                    ['user_id' => $userId, 'name' => $skill['name']],
-                    ['type' => $skill['type']]
-                );
-            }
-        }
-
-        // 3. Create Sample Development Tasks
+        // 2. Create Sample Development Tasks
         $client = Client::first();
         $admin = User::where('role', 'admin')->first() ?? User::first();
 

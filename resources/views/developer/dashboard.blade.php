@@ -176,7 +176,7 @@
 /* ── Quick Nav ── */
 .dv-nav-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 16px;
     margin-bottom: 24px;
 }
@@ -217,6 +217,9 @@
     flex-shrink: 0;
 }
 .dv-nav-card:hover .dv-nav-card-arrow { background: var(--dev-red); color: #fff; }
+.dv-nav-card-alert { border-color: var(--dev-red); background: var(--dev-red-dim); }
+.dv-nav-card-alert .dv-nav-card-sub { color: var(--dev-red); font-weight: 600; }
+.dv-deadline-diff.is-overdue { color: var(--dev-red); font-weight: 700; }
 
 /* ── Main grid ── */
 .dv-main-grid {
@@ -332,6 +335,7 @@
 @media (max-width: 1024px) {
     .dv-stats { grid-template-columns: repeat(2, 1fr); }
     .dv-main-grid { grid-template-columns: 1fr; }
+    .dv-nav-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
     .dv-hero { flex-direction: column; align-items: flex-start; padding: 24px 20px; }
@@ -370,9 +374,9 @@
     {{-- ── STAT CARDS ── --}}
     <div class="dv-stats">
         <div class="dv-stat dv-stat-red">
-            <div class="dv-stat-icon"><i class="fas fa-layer-group"></i></div>
-            <div class="dv-stat-val">{{ $totalTasks }}</div>
-            <div class="dv-stat-label">Total Projects</div>
+            <div class="dv-stat-icon"><i class="fas fa-triangle-exclamation"></i></div>
+            <div class="dv-stat-val">{{ $overdueTasks }}</div>
+            <div class="dv-stat-label">Overdue</div>
         </div>
         <div class="dv-stat dv-stat-orange">
             <div class="dv-stat-icon"><i class="fas fa-spinner"></i></div>
@@ -393,6 +397,20 @@
 
     {{-- ── QUICK NAV ── --}}
     <div class="dv-nav-grid">
+        <a href="{{ route('developer.daily-log') }}" class="dv-nav-card {{ $todayLog ? '' : 'dv-nav-card-alert' }}">
+            <div class="dv-nav-card-icon"><i class="fas fa-clipboard-list"></i></div>
+            <div class="dv-nav-card-info">
+                <div class="dv-nav-card-title">Daily Work Log</div>
+                <div class="dv-nav-card-sub">
+                    @if($todayLog)
+                        Submitted today · {{ round((float) $todayLog->entries_sum_hours, 2) }} h logged
+                    @else
+                        Today's log is not submitted yet
+                    @endif
+                </div>
+            </div>
+            <div class="dv-nav-card-arrow"><i class="fas fa-arrow-right"></i></div>
+        </a>
         <a href="{{ route('developer.calendar') }}" class="dv-nav-card">
             <div class="dv-nav-card-icon"><i class="fas fa-calendar-days"></i></div>
             <div class="dv-nav-card-info">
@@ -460,11 +478,8 @@
                     <div class="dv-card-title"><i class="fas fa-clock"></i> Upcoming Deadlines</div>
                 </div>
                 <div class="dv-card-body">
-                    @php
-                        $upcomingTasks = $tasks->filter(fn($t) => $t->dev_deadline && $t->dev_deadline->isFuture())->sortBy('dev_deadline');
-                    @endphp
-                    @if($upcomingTasks->count() > 0)
-                        @foreach($upcomingTasks->take(5) as $t)
+                    @if($deadlineTasks->count() > 0)
+                        @foreach($deadlineTasks as $t)
                             <div class="dv-deadline-row">
                                 <div class="dv-deadline-cal">
                                     <div class="dv-deadline-cal-mon">{{ $t->dev_deadline->format('M') }}</div>
@@ -472,9 +487,16 @@
                                 </div>
                                 <div class="dv-deadline-info">
                                     <div class="dv-deadline-title">{{ $t->title }}</div>
-                                    <div class="dv-deadline-diff">
-                                        @php $dl = $t->dev_deadline->diffInDays(now()); @endphp
-                                        {{ $dl }} day{{ $dl !== 1 ? 's' : '' }} left
+                                    {{-- Carbon 3 diffs are signed: positive = days left, negative = days overdue --}}
+                                    @php $dl = (int) today()->diffInDays($t->dev_deadline); @endphp
+                                    <div class="dv-deadline-diff {{ $dl < 0 ? 'is-overdue' : '' }}">
+                                        @if($dl < 0)
+                                            Overdue by {{ abs($dl) }} {{ Str::plural('day', abs($dl)) }}
+                                        @elseif($dl === 0)
+                                            Due today
+                                        @else
+                                            {{ $dl }} {{ Str::plural('day', $dl) }} left
+                                        @endif
                                     </div>
                                 </div>
                             </div>

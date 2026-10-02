@@ -303,9 +303,6 @@ Route::prefix('developer')
         Route::get('/dashboard', 'dashboard')->name('dashboard');
         Route::get('/tasks', 'tasks')->name('tasks');
         Route::get('/calendar', 'calendar')->name('calendar');
-        Route::get('/skills', 'skills')->name('skills');
-        Route::post('/skills', 'storeSkill')->name('skills.store');
-        Route::delete('/skills/{skill}', 'deleteSkill')->name('skills.delete');
         Route::post('/tasks/{task}/start', 'start')->name('tasks.start');
         Route::post('/tasks/{task}/submit', 'submit')->name('tasks.submit');
         Route::post('/tasks/{task}/pause', 'pauseTask')->name('tasks.pause');
@@ -317,4 +314,12 @@ Route::prefix('developer')
         Route::delete('/tasks/{task}/delete-media', 'deleteMedia')->name('tasks.delete-media');
     });
 
+    Route::get('/daily-log', [\App\Http\Controllers\Developer\DailyLogController::class, 'index'])->name('daily-log');
+    Route::post('/daily-log', [\App\Http\Controllers\Developer\DailyLogController::class, 'store'])->name('daily-log.store');
+
 });
+
+// ──────────── TEAM DAILY LOGS (developer work reports) ────────────
+Route::get('/team/daily-logs', [\App\Http\Controllers\DailyLogReportController::class, 'index'])
+    ->middleware(['auth', 'role:admin,strategist,manager'])
+    ->name('daily-logs.report');
