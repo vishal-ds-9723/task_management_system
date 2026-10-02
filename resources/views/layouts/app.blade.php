@@ -61,8 +61,18 @@
         html.sidebar-pre-expanded body:not(.preload-done) .sidebar-footer { padding: 8px 10px 0; justify-content: stretch; }
         html.sidebar-pre-expanded body:not(.preload-done) .user-pill { justify-content: flex-start; gap: 10px; padding: 8px 10px; }
         html.sidebar-pre-expanded body:not(.preload-done) .user-pill > div:not(.avatar) { display: block; }
-        html.sidebar-pre-expanded body:not(.preload-done) .user-pill .nav-tooltip { display: none !important; }
         html.sidebar-pre-expanded body:not(.preload-done) .sidebar ~ .main { margin-left: 220px; }
+
+        /* Ensure page loader / logo preloader is completely suppressed across all page navigation */
+        #pageLoader,
+        .page-loader,
+        .loader-container,
+        .loader-logo {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
     </style>
 </head>
 <body>
@@ -82,13 +92,7 @@
         : (auth()->user()->role === 'strategist' ? route('strategist.tracking') : (auth()->user()->role === 'developer' ? route('developer.tasks') : route('admin.tasks')));
 @endphp
 
-{{-- Page Loader --}}
-<div class="page-loader" id="pageLoader" hidden>
-    <div class="loader-container">
-        <img src="{{ asset('images/logo.png') }}" alt="The Layout" class="loader-logo">
-        <div class="loader-spinner"></div>
-    </div>
-</div>
+{{-- Page Loader Completely Disabled to prevent logo/loader flashing on page transitions --}}
 
 {{-- Logout Farewell Overlay --}}
 <div class="logout-farewell" id="logoutFarewell" aria-hidden="true">
@@ -667,6 +671,7 @@ function triggerLogoutFarewell(form) {
 
 function shouldTriggerPageLoader(link, event) {
     if (!link || event.defaultPrevented) return false;
+    if (link.closest('.sidebar')) return false;
 
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
         return false;
@@ -717,26 +722,8 @@ window.addEventListener('load', () => {
     hidePageLoader(true);
 });
 
-// Show loader on navigation
-document.addEventListener('click', (e) => {
-    const link = e.target.closest('a[href]');
-    if (shouldTriggerPageLoader(link, e)) {
-        const isSidebarNav = !!link.closest('.sidebar a.nav-item');
-        if (currentUserRole === 'strategist' && !link.hasAttribute('data-force-loader')) {
-            return;
-        }
-
-        if (isSidebarNav && pageLoader) {
-            pageLoader.setAttribute('data-fast', '1');
-        } else {
-            if (pageLoader) {
-                pageLoader.removeAttribute('data-fast');
-            }
-        }
-
-        showPageLoader();
-    }
-});
+// Page navigation loader completely disabled to ensure instant, seamless transitions without logo flash
+// Form submission loader can still be used if explicitly desired
 
 // Show loader on form submission
 document.addEventListener('submit', (e) => {
@@ -750,12 +737,9 @@ document.addEventListener('submit', (e) => {
     }
 });
 
-// Show loader on full-page refresh/navigation (F5, browser reload, location change).
+// Do not show loader on full-page refresh/navigation
 window.addEventListener('beforeunload', () => {
-    if (!pageLoader) return;
-
-    pageLoader.setAttribute('data-fast', '1');
-    showPageLoader();
+    // Disabled to prevent logo flash when moving between pages
 });
 
 // Hide loader on browser back/forward (bfcache restore — must be instant, no delay)

@@ -236,6 +236,14 @@ class Task extends Model
         return in_array((string) $type, self::URGENT_TYPES, true);
     }
 
+    /**
+     * The task's target platforms as a clean list, whatever format they were stored in.
+     */
+    public function platformList(): array
+    {
+        return $this->normalizedPlatforms();
+    }
+
     private function normalizedPlatforms(): array
     {
         if (is_array($this->platform)) {

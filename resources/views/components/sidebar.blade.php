@@ -58,7 +58,7 @@
 
 <aside class="sidebar" id="appSidebar">
     <div class="sidebar-brand" onclick="if(window.innerWidth > 900) toggleSidebar()" style="cursor:pointer" title="Toggle sidebar">
-        <img src="{{ asset('images/logo.png') }}" alt="The Layout" class="brand-logo">
+        <img src="{{ asset('images/logo.png') }}" alt="The Layout" class="brand-logo" width="160" height="auto" style="max-width:100%;height:auto;display:block;">
     </div>
 
     @if($role === 'admin')
