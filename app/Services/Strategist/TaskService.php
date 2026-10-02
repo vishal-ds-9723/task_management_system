@@ -30,23 +30,53 @@ class TaskService
         $validated['created_by'] = Auth::id();
         $validated['reference_links'] = $validated['reference_links'] ?? null;
 
-        // Boolean conversions
-        $validated['logo_received'] = isset($validated['logo_received']) ? (bool) $validated['logo_received'] : false;
-        $validated['images_received'] = isset($validated['images_received']) ? (bool) $validated['images_received'] : false;
-        $validated['content_received'] = isset($validated['content_received']) ? (bool) $validated['content_received'] : false;
+        // Asset questions left unanswered stay unknown (null) instead of being recorded as "No"
+        foreach (['logo_received', 'images_received', 'content_received', 'domain_purchased', 'hosting_access'] as $field) {
+            $validated[$field] = isset($validated[$field]) ? (bool) $validated[$field] : null;
+        }
         $validated['has_wireframes'] = isset($validated['has_wireframes']) ? (bool) $validated['has_wireframes'] : false;
-        $validated['domain_purchased'] = isset($validated['domain_purchased']) ? (bool) $validated['domain_purchased'] : false;
-        $validated['hosting_access'] = isset($validated['hosting_access']) ? (bool) $validated['hosting_access'] : false;
 
         $type = strtolower((string) ($validated['type'] ?? ''));
-        if (!in_array($type, ['website', 'software'], true) && !empty($validated['post_date'])) {
+        // Designer views and workload sort by `deadline`; give dev projects their dev deadline there too
+        if (Task::isDevType($type) && empty($validated['deadline']) && !empty($validated['dev_deadline'])) {
+            $validated['deadline'] = $validated['dev_deadline'];
+        }
+        if (!Task::isDevType($type) && !empty($validated['post_date'])) {
             $postDate = Carbon::parse($validated['post_date'])->startOfDay();
             if ($postDate->isToday()) {
                 $validated['deadline'] = $postDate->toDateString();
             }
         }
 
-        return Task::create($validated);
+        $task = Task::create($validated);
+        $this->notifyAssignee($task);
+
+        return $task;
+    }
+
+    /**
+     * Tell the assignee a new task is waiting for them, linking to their own panel.
+     */
+    private function notifyAssignee(Task $task): void
+    {
+        if (!$task->assigned_to || $task->assigned_to === Auth::id()) {
+            return;
+        }
+
+        $assignee = User::find($task->assigned_to);
+        if (!$assignee) {
+            return;
+        }
+
+        $task->loadMissing('client');
+        Notification::create([
+            'user_id'  => $assignee->id,
+            'task_id'  => $task->id,
+            'icon'     => Task::isDevType($task->type) ? '💻' : '📌',
+            'title'    => Task::isDevType($task->type) ? 'New project assigned' : 'New task assigned',
+            'subtitle' => ($task->title ?? 'Untitled') . ' · ' . ($task->client?->name ?? 'Unknown Client'),
+            'link'     => $task->linkFor($assignee),
+        ]);
     }
 
     public function updateTask(Task $task, array $validated)

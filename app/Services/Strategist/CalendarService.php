@@ -12,9 +12,6 @@ use Illuminate\Support\Collection;
 
 class CalendarService
 {
-    /** Development work is tracked in the developer panel, not on the content calendar. */
-    private const NON_CONTENT_TYPES = ['website', 'software', 'maintenance'];
-
     /**
      * Delivery states, ordered from "done" to "most at risk".
      * label/icon/tone are used by the view; the order drives sorting inside a cell.
@@ -119,7 +116,7 @@ class CalendarService
     {
         return Task::query()
             ->with(['client:id,name,logo,color,emoji', 'assignee:id,name', 'creator:id,name', 'socialMediaPosts'])
-            ->whereNotIn('type', self::NON_CONTENT_TYPES)
+            ->whereNotIn('type', Task::DEV_TYPES) // dev work lives in the developer panel
             ->whereDoesntHave('assignee', fn ($q) => $q->where('role', 'developer'))
             ->when($clientId, fn ($q) => $q->where('client_id', $clientId))
             ->when($mine, fn ($q) => $q->where('created_by', $userId));

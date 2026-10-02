@@ -210,26 +210,36 @@ class TaskService
             $data['platform'] = [$data['platform']];
         }
 
-        $designDeadline = Task::calculateDesignDeadline(
-            $data['deadline'] ?? null,
-            $data['post_date'] ?? null
-        );
-        if ($designDeadline) {
-            $data['design_deadline'] = $designDeadline->toDateString();
+        if (Task::isDevType($data['type'] ?? null)) {
+            // Designer views and workload sort by `deadline`; dev projects use their dev deadline there.
+            // No social design deadline applies to a build project.
+            if (empty($data['deadline']) && !empty($data['dev_deadline'])) {
+                $data['deadline'] = $data['dev_deadline'];
+            }
+        } else {
+            $designDeadline = Task::calculateDesignDeadline(
+                $data['deadline'] ?? null,
+                $data['post_date'] ?? null
+            );
+            if ($designDeadline) {
+                $data['design_deadline'] = $designDeadline->toDateString();
+            }
         }
 
         $task = Task::create($data);
 
         $this->logAudit('Created', $task);
 
-        if (!empty($task->assigned_to)) {
+        $assignee = $task->assigned_to ? User::find($task->assigned_to) : null;
+        if ($assignee) {
             Notification::create([
-                'user_id' => $task->assigned_to,
+                'user_id' => $assignee->id,
                 'task_id' => $task->id,
-                'icon' => '📌',
-                'title' => 'New task assigned',
+                'icon' => Task::isDevType($task->type) ? '💻' : '📌',
+                'title' => Task::isDevType($task->type) ? 'New project assigned' : 'New task assigned',
                 'subtitle' => ($task->title ?? 'Untitled') . ' · ' . ($task->client?->name ?? 'Unknown Client'),
-                'link' => '/designer/tasks',
+                // Link into the assignee's own panel (developers can't open /designer pages)
+                'link' => $task->linkFor($assignee),
             ]);
         }
 

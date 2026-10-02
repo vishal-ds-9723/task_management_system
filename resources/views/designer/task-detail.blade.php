@@ -225,6 +225,10 @@
                         @endif
                     </div>
 
+                    @if(\App\Models\Task::isDevType($task->type))
+                        <x-dev-project-summary :task="$task" />
+                    @endif
+
                     @if($task->is_urgent_task && $urgentBrief !== '')
                         <div class="task-brief">
                             <div class="task-brief-label">
@@ -249,7 +253,7 @@
                         <div class="task-brief" style="margin-top:12px">
                             <div class="task-brief-label">
                                 <i class="fa-solid fa-pen"></i>
-                                <span>Content Brief</span>
+                                <span>{{ \App\Models\Task::isDevType($task->type) ? 'Project Brief' : 'Content Brief' }}</span>
                             </div>
                             <div class="task-brief-body">{{ $task->brief }}</div>
                         </div>

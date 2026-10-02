@@ -249,6 +249,7 @@ class DatabaseSeeder extends Seeder
             DummyUserSeeder::class,
             PostInsightsSeeder::class,
             TaskApprovalFakeDataSeeder::class,
+            TeamCalendarSeeder::class,
         ]);
     }
 }

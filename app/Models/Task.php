@@ -17,6 +17,26 @@ class Task extends Model
     public const SOCIAL_TYPES = ['reel', 'post', 'story', 'video', 'carousel'];
     public const DESIGN_TYPES = ['brochure', 'banner', 'flyer'];
     public const URGENT_TYPES = ['reel', 'post', 'story', 'video', 'carousel', 'brochure', 'banner', 'flyer'];
+    public const DEV_TYPES = ['website', 'software', 'maintenance'];
+    /** Roles allowed to own a development project (designers also build sites in this firm). */
+    public const DEV_ASSIGNEE_ROLES = ['developer', 'designer', 'admin', 'manager'];
+    public const BUSINESS_TYPES = [
+        'business_website' => 'Business website',
+        'ecommerce'        => 'E-commerce store',
+        'landing_page'     => 'Landing page',
+        'portfolio'        => 'Portfolio',
+        'blog'             => 'Blog / Magazine',
+        'custom_software'  => 'Custom software',
+        'etc'              => 'Other',
+    ];
+    /** Client-side handover items tracked on development projects. */
+    public const PROJECT_ASSETS = [
+        'logo_received'    => 'Logo',
+        'images_received'  => 'Images',
+        'content_received' => 'Content / copy',
+        'domain_purchased' => 'Domain',
+        'hosting_access'   => 'Hosting access',
+    ];
 
     protected $fillable = [
         'title',
@@ -224,6 +244,40 @@ class Task extends Model
     public static function isSocialType(?string $type): bool
     {
         return in_array((string) $type, self::SOCIAL_TYPES, true);
+    }
+
+    public static function isDevType(?string $type): bool
+    {
+        return in_array(strtolower((string) $type), self::DEV_TYPES, true);
+    }
+
+    /**
+     * Validation rule for assigned_to on development projects.
+     */
+    public static function devAssigneeRule(): \Closure
+    {
+        return function ($attribute, $value, $fail) {
+            if (!$value) {
+                return;
+            }
+            $user = User::find($value);
+            if ($user && !$user->hasAnyRole(self::DEV_ASSIGNEE_ROLES)) {
+                $fail('Website and software projects can only be assigned to a developer or designer.');
+            }
+        };
+    }
+
+    /**
+     * The page a user should land on when notified about this task.
+     */
+    public function linkFor(User $user): string
+    {
+        return match ($user->role) {
+            'developer' => route('developer.tasks', ['task' => $this->id]),
+            'designer' => route('designer.tasks.show', $this),
+            'admin' => route('admin.tasks.show', $this),
+            default => route('strategist.tracking', ['task' => $this->id]),
+        };
     }
 
     public static function isDesignType(?string $type): bool

@@ -278,7 +278,41 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
     min-height: 132px; padding: 8px; display: flex; flex-direction: column; gap: 5px; text-decoration: none; color: inherit;
     border-right: 1px solid var(--border, #e2e6ef); border-bottom: 1px solid var(--border, #e2e6ef); transition: background .15s;
 }
-.cp-mday:nth-child(7n) { border-right: none; }
+/* nth-of-type ignores the per-day <template>s, so every 7th day still ends the row */
+.cp-mday:nth-of-type(7n) { border-right: none; }
+.cp-mday.is-empty { cursor: default; }
+.cp-mday.is-empty:hover { background: transparent; }
+.cp-mday.is-out.is-empty:hover { background: var(--card2, #f8fafc); }
+.cp-mday:focus-visible { outline: 3px solid var(--cp-brand-soft); outline-offset: -3px; }
+.cp-mmore { cursor: pointer; }
+.cp-mmore:hover { text-decoration: underline; }
+
+/* Day panel */
+.cp-day-list { display: flex; flex-direction: column; gap: 8px; }
+.cp-day-item {
+    display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 12px; border-radius: 13px; cursor: pointer; text-align: left;
+    font: inherit; color: inherit; background: var(--card, #fff); border: 1px solid var(--border, #e2e6ef);
+    border-left: 4px solid var(--tone); transition: transform .15s, box-shadow .15s;
+}
+.cp-day-item:hover { transform: translateX(-2px); box-shadow: var(--cp-shadow-md); }
+.cp-day-item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.cp-day-item-main b { font-size: 13.5px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cp-day-item-main > span { font-size: 11.5px; color: var(--text3, #94a3b8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cp-day-item-channels { display: flex; gap: 5px; margin-top: 2px; }
+.cp-day-item-channels i {
+    width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; font-size: 11px;
+    color: var(--ch); background: color-mix(in srgb, var(--ch) 12%, transparent); position: relative;
+}
+.cp-day-item-channels i.is-posted { background: var(--ch); color: #fff; }
+.cp-day-item-channels i.is-posted::after {
+    content: '\f00c'; font-family: 'Font Awesome 6 Free'; font-weight: 900; font-size: 7px; position: absolute; right: -4px; bottom: -4px;
+    width: 12px; height: 12px; border-radius: 50%; display: grid; place-items: center; background: var(--s-green); color: #fff; border: 1.5px solid var(--card, #fff);
+}
+.cp-back {
+    display: inline-flex; align-items: center; gap: 7px; margin-bottom: 10px; padding: 5px 10px; border-radius: 8px; cursor: pointer;
+    font: inherit; font-size: 12px; font-weight: 700; border: 1px solid var(--border, #e2e6ef); background: var(--card, #fff); color: var(--text2, #475569);
+}
+.cp-back:hover { color: var(--cp-brand); border-color: var(--cp-brand); }
 .cp-mday:hover { background: var(--card2, #f8fafc); }
 .cp-mday.is-out { background: var(--card2, #f8fafc); }
 .cp-mday.is-out .cp-mday-num { color: var(--text3, #94a3b8); opacity: .6; }
@@ -609,13 +643,12 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
                             $dayDone = $dayCards->where('state', 'done')->count();
                             $inMonth = $day->month === $periodStart->month;
                         @endphp
-                        <div data-week-url="{{ $url(['view' => 'week', 'date' => $day->toDateString()]) }}" tabindex="0" role="link"
-                           class="cp-mday {{ $inMonth ? '' : 'is-out' }} {{ $day->isToday() ? 'is-today' : '' }}"
-                           title="Open the week of {{ $day->format('M d') }}">
+                        <div @if($dayTasks->isNotEmpty()) data-open-day="{{ $day->toDateString() }}" tabindex="0" role="button" title="See all {{ $dayTasks->count() }} posts on {{ $day->format('M d') }}" @endif
+                           class="cp-mday {{ $inMonth ? '' : 'is-out' }} {{ $day->isToday() ? 'is-today' : '' }} {{ $dayTasks->isEmpty() ? 'is-empty' : '' }}">
                             <span class="cp-mday-top">
                                 <span class="cp-mday-num">{{ $day->format('j') }}</span>
                                 @if($dayCards->isNotEmpty())
-                                    <span class="cp-mday-ratio {{ $dayDone === $dayCards->count() ? 'is-complete' : '' }}">{{ $dayDone }}/{{ $dayCards->count() }}</span>
+                                    <span class="cp-mday-ratio {{ $dayDone === $dayCards->count() ? 'is-complete' : '' }}">{{ $dayDone }}/{{ $dayCards->count() }} posted</span>
                                 @endif
                             </span>
                             @if($dayCards->isNotEmpty())
@@ -631,9 +664,56 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
                                 </button>
                             @endforeach
                             @if($dayTasks->count() > 3)
-                                <span class="cp-mmore">+{{ $dayTasks->count() - 3 }} more</span>
+                                <span class="cp-mmore">+{{ $dayTasks->count() - 3 }} more · view all</span>
                             @endif
                         </div>
+
+                        @if($dayTasks->isNotEmpty())
+                            {{-- Full list for this day, shown in the drawer --}}
+                            <template id="cp-day-{{ $day->toDateString() }}">
+                                <div class="cp-d-head">
+                                    <div class="cp-d-client"><i class="fas fa-calendar-day" style="color:var(--cp-brand)"></i> {{ $day->isToday() ? 'Today' : $day->format('l') }}</div>
+                                    <h2 class="cp-d-title">{{ $day->format('F j, Y') }}</h2>
+                                    <div class="cp-d-tags">
+                                        <span class="cp-pill tone-green"><i class="fas fa-circle-check"></i> {{ $dayDone }}/{{ $dayCards->count() }} posted</span>
+                                        <span class="cp-tag"><i class="fas fa-layer-group"></i> {{ $dayTasks->count() }} {{ Str::plural('task', $dayTasks->count()) }}</span>
+                                    </div>
+                                </div>
+                                <div class="cp-d-body">
+                                    <div class="cp-day-list">
+                                        @foreach($dayTasks as $item)
+                                            @php $st = $states[$item->state]; @endphp
+                                            <button type="button" class="cp-day-item tone-{{ $st['tone'] }}" data-open-task="{{ $item->task->id }}" data-from-day="{{ $day->toDateString() }}">
+                                                <span class="cp-logo" style="width:34px;height:34px;background: {{ $item->task->client->color ?? $hue($item->task->client->name ?? '') }}">
+                                                    @if($item->task->client?->logo)
+                                                        <img src="{{ asset('storage/' . $item->task->client->logo) }}" alt="">
+                                                    @else
+                                                        {{ $initials($item->task->client->name ?? '?') }}
+                                                    @endif
+                                                </span>
+                                                <span class="cp-day-item-main">
+                                                    <b>{{ $item->task->title ?? 'Untitled' }}</b>
+                                                    <span>
+                                                        {{ $item->task->client->name ?? 'No client' }} · <span style="text-transform:capitalize">{{ $item->task->type ?? 'post' }}</span> · {{ $item->task->assignee->name ?? 'Unassigned' }}
+                                                    </span>
+                                                    <span class="cp-day-item-channels">
+                                                        @foreach($item->channels as $channel)
+                                                            @php $pm = $platformMeta($channel['platform']); @endphp
+                                                            <i class="{{ $pm->icon }} {{ $channel['state'] === 'done' ? 'is-posted' : '' }}" style="--ch: {{ $pm->color }}" title="{{ $pm->label }}: {{ $states[$channel['state']]['label'] }}"></i>
+                                                        @endforeach
+                                                    </span>
+                                                </span>
+                                                <span class="cp-pill tone-{{ $st['tone'] }}"><i class="fas {{ $st['icon'] }}"></i> {{ $st['label'] }}</span>
+                                            </button>
+                                        @endforeach
+                                    </div>
+                                </div>
+                                <div class="cp-d-foot">
+                                    <span class="cp-muted">Click a post for channel details</span>
+                                    <a href="{{ $url(['view' => 'week', 'date' => $day->toDateString()]) }}" class="cp-btn"><i class="fas fa-table-cells"></i> Open this week</a>
+                                </div>
+                            </template>
+                        @endif
                     @endforeach
                 </div>
             </div>
@@ -785,16 +865,36 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
     const content = document.getElementById('cpDrawerContent');
     let lastFocus = null;
 
-    function openTask(id) {
-        const template = document.getElementById('cp-task-' + id);
-        if (!template) return;
-        lastFocus = document.activeElement;
+    function showInDrawer(template) {
+        if (!drawer.classList.contains('is-open')) lastFocus = document.activeElement;
         content.replaceChildren(template.content.cloneNode(true));
+        content.querySelector('.cp-d-body')?.scrollTo(0, 0);
         drawer.classList.add('is-open');
         overlay.classList.add('is-open');
         drawer.setAttribute('aria-hidden', 'false');
         document.body.style.overflow = 'hidden';
         document.getElementById('cpDrawerClose').focus();
+    }
+
+    function openDay(date) {
+        const template = document.getElementById('cp-day-' + date);
+        if (template) showInDrawer(template);
+    }
+
+    // fromDay: the month day this post was opened from, so the panel can offer a way back
+    function openTask(id, fromDay) {
+        const template = document.getElementById('cp-task-' + id);
+        if (!template) return;
+        showInDrawer(template);
+        if (fromDay) {
+            const back = document.createElement('button');
+            back.type = 'button';
+            back.className = 'cp-back';
+            back.innerHTML = '<i class="fas fa-arrow-left"></i> ';
+            back.append('Back to ' + new Date(fromDay + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
+            back.addEventListener('click', () => openDay(fromDay));
+            content.querySelector('.cp-d-head')?.prepend(back);
+        }
     }
 
     function closeTask() {
@@ -808,16 +908,18 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
 
     document.addEventListener('click', (e) => {
         const trigger = e.target.closest('[data-open-task]');
-        if (!trigger) return;
-        // Month-view posts sit inside a clickable day; open the drawer instead of navigating
-        e.preventDefault();
-        openTask(trigger.dataset.openTask);
+        if (trigger) {
+            e.preventDefault();
+            openTask(trigger.dataset.openTask, trigger.dataset.fromDay);
+            return;
+        }
+        // Month view: clicking a day (or its "+N more") lists every post that day
+        const day = e.target.closest('[data-open-day]');
+        if (day) openDay(day.dataset.openDay);
     });
-    // Month view: clicking a day (outside its posts) opens that week
-    document.querySelectorAll('[data-week-url]').forEach(day => {
-        day.addEventListener('click', (e) => { if (!e.target.closest('[data-open-task]')) window.location.href = day.dataset.weekUrl; });
-        day.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target === day) window.location.href = day.dataset.weekUrl; });
-    });
+    document.querySelectorAll('[data-open-day]').forEach(day => day.addEventListener('keydown', (e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && e.target === day) { e.preventDefault(); openDay(day.dataset.openDay); }
+    }));
     document.getElementById('cpDrawerClose').addEventListener('click', closeTask);
     overlay.addEventListener('click', closeTask);
     document.addEventListener('keydown', (e) => {
@@ -827,8 +929,9 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
     });
 
     // Allow linking straight to a post's details: /strategist/calendar?task=ID
-    const linked = new URL(window.location.href).searchParams.get('task');
-    if (linked) openTask(linked);
+    const params = new URL(window.location.href).searchParams;
+    if (params.get('task')) openTask(params.get('task'));
+    else if (params.get('day')) openDay(params.get('day'));
 })();
 </script>
 @endsection

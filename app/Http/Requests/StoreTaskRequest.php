@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Task;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -15,14 +16,14 @@ class StoreTaskRequest extends FormRequest
     public function rules(): array
     {
         $type = $this->input('type', '');
-        $isDevProject = in_array($type, ['website', 'software']);
+        $isDevProject = in_array($type, Task::DEV_TYPES, true);
 
         $rules = [
             'title'       => ['required', 'string', 'max:255'],
             'additional_titles'   => ['nullable', 'array', 'max:19'],
             'additional_titles.*' => ['required', 'string', 'max:255', 'distinct', 'different:title'],
             'assigned_to' => ['nullable', 'exists:users,id'],
-            'type'        => ['required', 'in:reel,post,story,video,carousel,brochure,banner,flyer,website,software,others'],
+            'type'        => ['required', 'in:reel,post,story,video,carousel,brochure,banner,flyer,website,software,maintenance,others'],
             'priority'    => ['required', 'in:normal,high,urgent'],
             'status'      => ['required', 'in:todo,inprogress'],
             'brief'       => ['nullable', 'string'],
@@ -53,6 +54,13 @@ class StoreTaskRequest extends FormRequest
             $rules['client_id']   = ['required', 'exists:clients,id'];
             $rules['platform']    = ['nullable', 'array'];
             $rules['platform.*']  = ['string', 'max:50'];
+            $rules['assigned_to'][] = Task::devAssigneeRule();
+
+            // Timeline must run forwards from the project start
+            if ($this->filled('project_start_date')) {
+                $rules['launch_date'][]  = 'after_or_equal:project_start_date';
+                $rules['dev_deadline'][] = 'after_or_equal:project_start_date';
+            }
         } else {
             // Social/design tasks: client, platform, assignee, post date, brief are all required
             $rules['client_id']   = ['required', 'exists:clients,id'];
@@ -79,6 +87,8 @@ class StoreTaskRequest extends FormRequest
             'additional_titles.*.required' => 'Every additional task needs a title.',
             'additional_titles.*.distinct' => 'Additional task titles must be unique.',
             'additional_titles.*.different' => 'Each task title must be unique.',
+            'launch_date.after_or_equal' => 'Launch date cannot be before the project start date.',
+            'dev_deadline.after_or_equal' => 'Development deadline cannot be before the project start date.',
         ];
     }
 }

@@ -48,6 +48,7 @@
                         <optgroup label="Development">
                             <option value="website">Website</option>
                             <option value="software">Software</option>
+                            <option value="maintenance">Maintenance / Support</option>
                         </optgroup>
                         <option value="others">Others</option>
                     </select>
@@ -91,13 +92,13 @@
                         @endforelse
                     </select>
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="modalPostDateGroup">
                     <label>Post Date <span style="color:var(--red)">*</span></label>
                     <input type="date" name="post_date" id="modalPostDateInput" required>
                     <span class="field-error" id="err-post_date" style="display:none;color:var(--red);font-size:11px;margin-top:4px;font-weight:600"></span>
                     <div style="font-size:10px;color:var(--text3);margin-top:4px">ⓘ Today or future dates only</div>
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="modalDeadlineGroup">
                     <label>Deadline <span id="modalDeadlineAutoTag" style="font-size:9px;font-weight:700;color:var(--teal);background:var(--teal-dim);padding:2px 8px;border-radius:4px;margin-left:6px;display:none">AUTO</span></label>
                     <input type="date" name="deadline" id="modalDeadlineInput" readonly style="background:var(--card2);color:var(--text2);cursor:not-allowed;opacity:0.75">
                     <div id="modalDeadlineInfo" style="font-size:10px;color:var(--text3);margin-top:4px">Auto-calculated from post date</div>
@@ -109,6 +110,8 @@
                         <option value="inprogress">In Progress</option>
                     </select>
                 </div>
+                {{-- Website / software / maintenance setup (shared with the strategist create page) --}}
+                <x-dev-project-builder id="modalDevSection" :members="$assignableMembers" type-select="#modalTypeSelect" assign-select="#modalAssignSelect" />
                 <div class="form-group full">
                     <label>Task Brief</label>
                     <textarea name="brief" placeholder="Write the creative or project brief for the team…">{{ old('brief') }}</textarea>
@@ -237,6 +240,43 @@ function loadModalSocialMediaLinks(clientId) {
     };
     const platformAccountGroup = document.getElementById('modalPlatformAccountGroup');
     const socialContentTypes = ['reel', 'post', 'story', 'video', 'carousel'];
+    const devProjectTypes = @json(\App\Models\Task::DEV_TYPES);
+    const devFields = {
+        start: form.querySelector('[name="project_start_date"]'),
+        deadline: form.querySelector('[name="dev_deadline"]'),
+        launch: form.querySelector('[name="launch_date"]'),
+    };
+
+    function isDevProject() {
+        return devProjectTypes.includes(fields.type?.value || '');
+    }
+
+    // Dev projects are planned with dev dates instead of a social post date
+    function syncDevProjectFields() {
+        const dev = isDevProject();
+        ['modalPostDateGroup', 'modalDeadlineGroup'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = dev ? 'none' : '';
+        });
+        const devSection = document.getElementById('modalDevSection');
+        if (devSection) devSection.style.display = dev ? '' : 'none';
+        if (fields.postDate) {
+            fields.postDate.required = !dev;
+            if (dev) {
+                clearFieldVisual(fields.postDate);
+                clearFeedback('err-post_date');
+            }
+        }
+    }
+
+    function validateDevDates() {
+        // The project builder shows date problems inline; just block submission here
+        if (!isDevProject() || !devFields.start?.value) return true;
+        const start = devFields.start.value;
+        const backwards = (devFields.deadline?.value && devFields.deadline.value < start) || (devFields.launch?.value && devFields.launch.value < start);
+        if (backwards) form.querySelector('[data-date-error]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return !backwards;
+    }
 
     function requiresSocialAccount() {
         return socialContentTypes.includes(fields.type?.value || '');
@@ -373,6 +413,7 @@ function loadModalSocialMediaLinks(clientId) {
     }
 
     function validatePostDate(showSuccess = true) {
+        if (isDevProject()) return true;
         const value = fields.postDate?.value || '';
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -412,6 +453,7 @@ function loadModalSocialMediaLinks(clientId) {
             validateType(showSuccess),
             validateSocial(showSuccess),
             validatePostDate(showSuccess),
+            validateDevDates(),
         ].every(Boolean);
     }
 
@@ -438,7 +480,9 @@ function loadModalSocialMediaLinks(clientId) {
     fields.type?.addEventListener('change', () => {
         validateType(true);
         syncPlatformAccountVisibility();
+        syncDevProjectFields();
     });
+    Object.values(devFields).forEach(input => input?.addEventListener('change', validateDevDates));
     fields.social?.addEventListener('change', () => validateSocial(true));
     fields.postDate?.addEventListener('change', () => validatePostDate(true));
 
@@ -448,12 +492,14 @@ function loadModalSocialMediaLinks(clientId) {
             if (modal.classList.contains('show')) {
                 resetValidationUI();
                 syncPlatformAccountVisibility();
+                syncDevProjectFields();
             }
         });
         observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
     }
 
     syncPlatformAccountVisibility();
+    syncDevProjectFields();
 })();
 
 // ===== Smart Deadline & Priority Auto-Calculation =====
@@ -553,11 +599,11 @@ function loadModalSocialMediaLinks(clientId) {
         
         let allowedRoles = null;
         const printMediaTypes = ['brochure', 'banner', 'flyer'];
-        const devMediaTypes = ['website', 'software'];
+        const devMediaTypes = @json(\App\Models\Task::DEV_TYPES);
         const socialMediaTypes = ['reel', 'post', 'story', 'carousel', 'video'];
 
         if (devMediaTypes.includes(typeVal)) {
-            allowedRoles = ['developer'];
+            allowedRoles = @json(\App\Models\Task::DEV_ASSIGNEE_ROLES);
         } else if (printMediaTypes.includes(typeVal)) {
             allowedRoles = ['designer'];
         } else if (socialMediaTypes.includes(typeVal)) {

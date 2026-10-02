@@ -474,6 +474,7 @@
                     <optgroup label="Development">
                         <option value="website"  {{ old('type') == 'website'  ? 'selected' : '' }}>Website</option>
                         <option value="software" {{ old('type') == 'software' ? 'selected' : '' }}>Software</option>
+                        <option value="maintenance" {{ old('type') == 'maintenance' ? 'selected' : '' }}>Maintenance / Support</option>
                     </optgroup>
                     <option value="others" {{ old('type') == 'others' ? 'selected' : '' }}>Others</option>
                 </select>
@@ -511,149 +512,8 @@
 
 
 
-            <div id="devSection" style="display:none;grid-column:1/-1;">
-    <div class="dev-card">
-
-        <div class="dev-title">
-            💻 Developer / Website & Software Details
-        </div>
-
-        <div class="dev-grid">
-
-            <div class="form-group">
-                <label>Project Start Date</label>
-                <input type="date" name="project_start_date">
-            </div>
-
-            <div class="form-group">
-                <label>Launch Date</label>
-                <input type="date" name="launch_date">
-            </div>
-
-            <div class="form-group">
-                <label>Development Deadline</label>
-                <input type="date" name="dev_deadline">
-            </div>
-
-            <div class="form-group">
-                <label>Preferred Technology</label>
-                <select name="preferred_tech">
-                    <option value="">Need Developer Suggestion</option>
-                    <option>Laravel</option>
-                    <option>Node.js</option>
-                    <option>React</option>
-                    <option>WordPress</option>
-                    <option>Custom Solution</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Pages / Modules</label>
-                <textarea name="modules" placeholder="Home, About, Contact OR Billing, Users, Reports"></textarea>
-            </div>
-
-            <div class="form-group">
-                <label>Business Type</label>
-                <select name="business_type">
-                    <option value="">Select Business Type...</option>
-                    <option value="ecommerce">E-Commerce</option>
-                    <option value="portfolio">Portfolio</option>
-                    <option value="business_website">Business Website</option>
-                    <option value="blog">Blog / Magazine</option>
-                    <option value="landing_page">Landing Page</option>
-                    <option value="custom_software">Custom Software</option>
-                    <option value="etc">Etc / Other</option>
-                </select>
-            </div>
-
-        </div>
-
-
-
-        <div class="form-group full-width">
-    <label>Assets & Access</label>
-
-    <div class="asset-grid">
-
-
-
-
-
-
-
-        <div class="asset-row">
-    <span>Logo</span>
-    <div class="asset-actions">
-        <label class="yes-btn">
-            <input type="radio" name="logo_received" value="1"> Yes
-        </label>
-        <label class="no-btn">
-            <input type="radio" name="logo_received" value="0"> No
-        </label>
-    </div>
-</div>
-
-<div class="asset-row">
-    <span>Images</span>
-    <div class="asset-actions">
-        <label class="yes-btn">
-            <input type="radio" name="images_received" value="1"> Yes
-        </label>
-        <label class="no-btn">
-            <input type="radio" name="images_received" value="0"> No
-        </label>
-    </div>
-</div>
-
-<div class="asset-row">
-    <span>Content</span>
-    <div class="asset-actions">
-        <label class="yes-btn">
-            <input type="radio" name="content_received" value="1"> Yes
-        </label>
-        <label class="no-btn">
-            <input type="radio" name="content_received" value="0"> No
-        </label>
-    </div>
-</div>
-
-<div class="asset-row">
-    <span>Domain Purchased?</span>
-    <div class="asset-actions">
-        <label class="yes-btn">
-            <input type="radio" name="domain_purchased" value="1"> Yes
-        </label>
-        <label class="no-btn">
-            <input type="radio" name="domain_purchased" value="0"> No
-        </label>
-    </div>
-</div>
-
-<div class="asset-row">
-    <span>Hosting Access?</span>
-    <div class="asset-actions">
-        <label class="yes-btn">
-            <input type="radio" name="hosting_access" value="1"> Yes
-        </label>
-        <label class="no-btn">
-            <input type="radio" name="hosting_access" value="0"> No
-        </label>
-    </div>
-</div>
-
-
-
-    </div>
-</div>
-
-
-
-
-    </div>
-</div>
-
-
-
+            {{-- Website / software / maintenance setup (shared with the admin create form) --}}
+            <x-dev-project-builder id="devProjectBuilder" :members="$users" type-select="#typeSelect" assign-select="#assignSelect" />
 
             {{-- SECTION 2: PLATFORMS --}}
             <div id="socialHeading" style="grid-column:1/-1;padding:20px 0 14px 0;margin-top:14px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
@@ -966,7 +826,7 @@
             </div>
 
             <div id="briefGroup" class="form-group full">
-                <label>Content Brief <span style="color:var(--red)">*</span></label>
+                <label id="briefLabel">Content Brief <span style="color:var(--red)">*</span></label>
                 <textarea id="briefInput" name="brief" placeholder="Write caption..." style="min-height:100px;width:100%;display:block;">{{ old('brief') }}</textarea>
                 <div id="briefOkMsg" class="field-ok-msg" style="display:none"><i class="fas fa-check-circle"></i> Okay</div>
             </div>
@@ -1116,6 +976,9 @@
 </style>
 
 <script>
+// Development project types: hide social fields, show the developer section
+window.DEV_TYPES = @json(\App\Models\Task::DEV_TYPES);
+
 // Global toggle function for received box
 window.toggleReceivedBox = function () {
 
@@ -1174,26 +1037,31 @@ const referenceGroup = document.getElementById('referenceGroup');
         if (platformSection)platformSection.style.display= 'block';
     };
 
-    if (val === 'website') {
-        hideSocialSections();
-        if (devSection) devSection.style.display = 'block';
-        if (clientNote) clientNote.style.display = 'block';
-        notice.style.display = 'block';
-        notice.classList.add('website');
-        notice.innerHTML = '🌐 Website Project — Fill developer details below. Priority &amp; status are always saved.';
-    }
+    const briefLabel = document.getElementById('briefLabel');
+    const briefInputEl = document.getElementById('briefInput');
 
-    else if (val === 'software') {
+    if (window.DEV_TYPES.includes(val)) {
+        const notices = {
+            website: '🌐 Website Project — Fill developer details below. Priority &amp; status are always saved.',
+            software: '💻 Software Project — Fill developer details below. Priority &amp; status are always saved.',
+            maintenance: '🛠️ Maintenance / Support — Describe the fix or change in the brief. Priority &amp; status are always saved.',
+        };
         hideSocialSections();
+        // The developer still needs to know what to build: keep the brief, as a project brief
+        if (briefGroup) briefGroup.style.display = 'block';
+        if (briefLabel) briefLabel.innerHTML = 'Project Brief <span style="font-size:11px;font-weight:600;color:var(--text3)">(recommended)</span>';
+        if (briefInputEl) briefInputEl.placeholder = 'Goals, audience, pages, integrations, anything the developer should know...';
         if (devSection) devSection.style.display = 'block';
         if (clientNote) clientNote.style.display = 'block';
         notice.style.display = 'block';
-        notice.classList.add('software');
-        notice.innerHTML = '💻 Software Project — Fill developer details below. Priority &amp; status are always saved.';
+        notice.classList.add(val === 'maintenance' ? 'software' : val);
+        notice.innerHTML = notices[val];
     }
 
     else {
         showSocialSections();
+        if (briefLabel) briefLabel.innerHTML = 'Content Brief <span style="color:var(--red)">*</span>';
+        if (briefInputEl) briefInputEl.placeholder = 'Write caption...';
         if (devSection) devSection.style.display = 'none';
         if (clientNote) clientNote.style.display = 'none';
     }
@@ -1219,7 +1087,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const statusSelect = form?.querySelector('[name="status"]');
 
     const typeSelect = document.getElementById('typeSelect');
-    const devTypes = ['website', 'software'];
+    const devTypes = window.DEV_TYPES;
 
     function normalizeFieldName(field) {
         if (!field) return '';
@@ -1511,7 +1379,7 @@ document.addEventListener('DOMContentLoaded', function () {
         let recommendedRoles = null;
         
         const printMediaTypes = ['brochure', 'banner', 'flyer'];
-        const devMediaTypes = ['website', 'software'];
+        const devMediaTypes = window.DEV_TYPES;
         const socialMediaTypes = ['reel', 'post', 'story', 'carousel', 'video'];
 
         if (devMediaTypes.includes(typeVal)) {
@@ -1522,13 +1390,23 @@ document.addEventListener('DOMContentLoaded', function () {
             recommendedRoles = ['strategist', 'content_writer', 'editor', 'manager', 'designer', 'admin'];
         }
 
+        // Only development projects are restricted (the server enforces the same roles);
+        // other types keep the full list so any teammate can still be picked.
+        const restrictTo = devMediaTypes.includes(typeVal) ? @json(\App\Models\Task::DEV_ASSIGNEE_ROLES) : null;
+
         const options = assignSelect.querySelectorAll('option');
         options.forEach(opt => {
             if (!opt.value) return;
-            opt.hidden = false;
-            opt.disabled = false;
-            opt.style.display = '';
+            const roles = (opt.dataset.roles || opt.dataset.role || '').split(',');
+            const allowed = !restrictTo || roles.some(role => restrictTo.includes(role));
+            opt.hidden = !allowed;
+            opt.disabled = !allowed;
+            opt.style.display = allowed ? '' : 'none';
         });
+
+        if (assignSelect.selectedOptions[0]?.disabled) {
+            assignSelect.value = '';
+        }
     };
 
 if (typeSelect) {
@@ -1675,7 +1553,7 @@ updateAllFieldValidationStates();
 
     const val = typeSelect.value.toLowerCase();
 
-    if (val === 'website' || val === 'software') {
+    if (window.DEV_TYPES.includes(val)) {
     } else {
     }
 }
@@ -1911,8 +1789,8 @@ togglePostDateRequired();
 
     const typeVal = typeSelect.value.trim().toLowerCase();
 
-    /* website/software don't need platforms */
-    if (typeVal === 'website' || typeVal === 'software') {
+    /* development projects don't need platforms */
+    if (window.DEV_TYPES.includes(typeVal)) {
 
         if (errorEl) errorEl.style.display = 'none';
         return true;
@@ -2353,7 +2231,7 @@ togglePostDateRequired();
 
         // For non-dev tasks, validate platforms
         const typeVal = typeSelect?.value || '';
-        if (!['website', 'software'].includes(typeVal)) {
+        if (!window.DEV_TYPES.includes(typeVal)) {
             if (!briefInput?.value.trim()) {
                 localErrors.brief = ['Content brief is required.'];
                 hasError = true;

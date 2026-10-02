@@ -17,8 +17,9 @@ class StoreTaskRequest extends FormRequest
     public function rules()
     {
         $isSocialType = Task::isSocialType($this->input('type'));
+        $isDevProject = Task::isDevType($this->input('type'));
 
-        return [
+        $rules = [
             'title'       => ['required', 'string', 'max:255'],
             'client_id'   => ['required', 'exists:clients,id'],
             'client_social_media_link_id' => [
@@ -29,13 +30,46 @@ class StoreTaskRequest extends FormRequest
                 }),
             ],
             'assigned_to' => ['nullable', 'exists:users,id'],
-            'type'        => ['required', 'in:reel,post,story,video,carousel,brochure,banner,flyer,website,software,others'],
+            'type'        => ['required', 'in:reel,post,story,video,carousel,brochure,banner,flyer,website,software,maintenance,others'],
             'platform'    => [$isSocialType ? 'required' : 'nullable', 'array', $this->platformRule()],
             'priority'    => ['required', 'in:normal,high,urgent'],
             'status'      => ['required', 'in:todo,inprogress,review,pending_approval,completed,published'],
             'brief'       => ['nullable', 'string'],
             'deadline'    => ['nullable', 'date'],
-            'post_date'   => ['required', 'date'],
+            // Development projects run on dev_deadline/launch_date, not a social post date
+            'post_date'   => [$isDevProject ? 'nullable' : 'required', 'date'],
+        ];
+
+        if ($isDevProject) {
+            $rules['assigned_to'][] = Task::devAssigneeRule();
+            $rules += [
+                'project_start_date' => ['nullable', 'date'],
+                'dev_deadline'       => ['nullable', 'date'],
+                'launch_date'        => ['nullable', 'date'],
+                'preferred_tech'     => ['nullable', 'string', 'max:100'],
+                'modules'            => ['nullable', 'string', 'max:1000'],
+                'business_type'      => ['nullable', 'string', 'max:1000'],
+                'logo_received'      => ['nullable', 'boolean'],
+                'images_received'    => ['nullable', 'boolean'],
+                'content_received'   => ['nullable', 'boolean'],
+                'domain_purchased'   => ['nullable', 'boolean'],
+                'hosting_access'     => ['nullable', 'boolean'],
+                'has_wireframes'     => ['nullable', 'boolean'],
+            ];
+            if ($this->filled('project_start_date')) {
+                $rules['dev_deadline'][] = 'after_or_equal:project_start_date';
+                $rules['launch_date'][] = 'after_or_equal:project_start_date';
+            }
+        }
+
+        return $rules;
+    }
+
+    public function messages()
+    {
+        return [
+            'launch_date.after_or_equal' => 'Launch date cannot be before the project start date.',
+            'dev_deadline.after_or_equal' => 'Development deadline cannot be before the project start date.',
         ];
     }
 
