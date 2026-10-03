@@ -34,7 +34,8 @@ class CalendarController extends Controller
         $planner = $this->service->buildPlanner($anchor, $view, $clientId, $mine, Auth::id());
         $clients = Client::where('is_active', true)->orderBy('name')->get(['id', 'name', 'logo', 'emoji', 'color']);
 
-        return view('strategist.calendar', $planner + [
+        return view('calendar.planner', $planner + [
+            'calendarRoute' => 'strategist.calendar',
             'clients' => $clients,
             'clientId' => $clientId,
             'mine' => $mine,

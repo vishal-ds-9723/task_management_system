@@ -68,6 +68,41 @@ class StrategistCalendarTest extends TestCase
         $this->assertTrue($response->viewData('attention')['missed']->contains(fn ($i) => $i->task->title === 'Yesterday story'));
     }
 
+    public function test_admin_calendar_uses_the_same_planner_with_admin_links(): void
+    {
+        $task = $this->task(['title' => 'Admin visible reel', 'post_date' => today()->addDay()->toDateString()]);
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $response = $this->actingAs($admin)
+            ->get(route('admin.calendar', ['date' => today()->addDay()->toDateString()]))
+            ->assertOk()
+            ->assertSee('Admin visible reel')
+            ->assertSee(route('admin.tasks.show', $task), false)
+            ->assertSee('Drag a post to another day to reschedule');
+
+        // Admin can drag every post; navigation stays on the admin route
+        $this->assertStringContainsString('data-move-task="' . $task->id . '"', $response->getContent());
+        $this->assertStringContainsString(route('admin.calendar'), $response->getContent());
+    }
+
+    public function test_strategists_can_only_drag_their_own_posts(): void
+    {
+        $mine = $this->task(['title' => 'Mine', 'post_date' => today()->addDay()->toDateString()]);
+        $theirs = $this->task([
+            'title' => 'Theirs',
+            'post_date' => today()->addDay()->toDateString(),
+            'created_by' => User::factory()->create(['role' => 'strategist'])->id,
+        ]);
+
+        $html = $this->actingAs($this->strategist)
+            ->get(route('strategist.calendar', ['date' => today()->addDay()->toDateString()]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('data-move-task="' . $mine->id . '"', $html);
+        $this->assertStringNotContainsString('data-move-task="' . $theirs->id . '"', $html);
+    }
+
     public function test_month_view_and_filters_render(): void
     {
         $this->task(['title' => 'Mine']);

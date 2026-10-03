@@ -31,15 +31,21 @@
         ->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))->implode('') ?: '?';
     $hue = fn (?string $name) => 'hsl(' . (crc32((string) $name) % 360) . ', 60%, 50%)';
 
+    // Shared by the admin and strategist panels: $calendarRoute is this page's route name
+    $isAdmin = auth()->user()->role === 'admin';
+    $taskUrl = fn ($task) => $isAdmin ? route('admin.tasks.show', $task) : route('strategist.tracking', ['task' => $task->id]);
+    // Matches the reschedule API: admins can move anything, others only tasks they created
+    $canMove = fn ($task) => $isAdmin || $task->created_by === auth()->id();
+
     // Build calendar URLs that keep the current filters
-    $url = function (array $overrides = []) use ($view, $anchor, $clientId, $mine) {
+    $url = function (array $overrides = []) use ($view, $anchor, $clientId, $mine, $calendarRoute) {
         $params = array_merge([
             'view' => $view,
             'date' => $anchor->toDateString(),
             'client' => $clientId,
             'mine' => $mine ? 1 : null,
         ], $overrides);
-        return route('strategist.calendar', array_filter($params, fn ($v) => $v !== null && $v !== ''));
+        return route($calendarRoute, array_filter($params, fn ($v) => $v !== null && $v !== ''));
     };
     $prevUrl = $url(['date' => ($isWeek ? $periodStart->copy()->subWeek() : $periodStart->copy()->subMonth())->toDateString()]);
     $nextUrl = $url(['date' => ($isWeek ? $periodStart->copy()->addWeek() : $periodStart->copy()->addMonth())->toDateString()]);
@@ -383,6 +389,16 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
 .cp-muted { font-size: 12px; color: var(--text3, #94a3b8); }
 .cp-banner { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-radius: 12px; font-size: 13px; font-weight: 600; background: var(--tone-bg); color: var(--tone-fg); }
 
+/* ── Drag to reschedule ── */
+[data-move-task] { cursor: grab; }
+[data-move-task]:active { cursor: grabbing; }
+.cp-dragging { opacity: .45; }
+.cp-is-dragging [data-drop-date] { transition: background .12s, box-shadow .12s; }
+.cp-is-dragging [data-drop-date].is-drop-over { background: var(--cp-brand-soft) !important; box-shadow: inset 0 0 0 2px var(--cp-brand); }
+.cp-is-dragging .cp-cell:not([data-drop-date]), .cp-is-dragging .cp-mday:not([data-drop-date]) { opacity: .45; }
+.cp-hint { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: var(--text3, #94a3b8); }
+.cp-hint i { color: var(--cp-brand); }
+
 /* ── Responsive & print ── */
 @media (max-width: 1400px) { .cp-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); } .cp-score { grid-column: 1 / -1; } }
 @media (max-width: 1024px) { .cp-attention { grid-template-columns: 1fr; } }
@@ -538,6 +554,9 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
             <div class="cp-board-title">
                 <i class="fas {{ $isWeek ? 'fa-table-cells' : 'fa-calendar-days' }}"></i>
                 {{ $isWeek ? 'Channel plan · ' . $title : $title }}
+                @if($tasks->contains(fn ($item) => $canMove($item->task)))
+                    <span class="cp-hint"><i class="fas fa-up-down-left-right"></i> Drag a post to another day to reschedule</span>
+                @endif
             </div>
             <div class="cp-legend">
                 @foreach($states as $state)
@@ -599,7 +618,7 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
                                     <span>{{ $pm->label }}<small>{{ $channel->done }}/{{ $channel->total }} posted</small></span>
                                 </div>
                                 @foreach($days as $day)
-                                    <div class="cp-cell {{ $day->isToday() ? 'is-today' : '' }}" style="--ch: {{ $pm->color }}">
+                                    <div class="cp-cell {{ $day->isToday() ? 'is-today' : '' }}" style="--ch: {{ $pm->color }}" @unless($day->lt(today())) data-drop-date="{{ $day->toDateString() }}" @endunless>
                                         @foreach($channel->byDate->get($day->toDateString(), collect())->sortBy(fn ($c) => $stateOrder[$c->state] ?? 99) as $card)
                                             @php
                                                 $task = $card->item->task;
@@ -607,6 +626,7 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
                                             @endphp
                                             <button type="button" class="cp-card tone-{{ $st['tone'] }} is-state-{{ $card->state }}"
                                                     data-open-task="{{ $task->id }}" data-state="{{ $card->state }}"
+                                                    @if($canMove($task)) draggable="true" data-move-task="{{ $task->id }}" data-move-field="{{ $task->post_date ? 'post_date' : 'deadline' }}" data-move-from="{{ $card->date }}" @endif
                                                     data-search="{{ mb_strtolower(implode(' ', array_filter([$task->title, $task->client->name ?? null, $task->assignee->name ?? null, $task->type, $pm->label]))) }}"
                                                     title="{{ $task->title }} · {{ $st['label'] }}">
                                                 <span class="cp-card-top">
@@ -643,7 +663,7 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
                             $dayDone = $dayCards->where('state', 'done')->count();
                             $inMonth = $day->month === $periodStart->month;
                         @endphp
-                        <div @if($dayTasks->isNotEmpty()) data-open-day="{{ $day->toDateString() }}" tabindex="0" role="button" title="See all {{ $dayTasks->count() }} posts on {{ $day->format('M d') }}" @endif
+                        <div @if($dayTasks->isNotEmpty()) data-open-day="{{ $day->toDateString() }}" tabindex="0" role="button" title="See all {{ $dayTasks->count() }} posts on {{ $day->format('M d') }}" @endif @unless($day->lt(today())) data-drop-date="{{ $day->toDateString() }}" @endunless
                            class="cp-mday {{ $inMonth ? '' : 'is-out' }} {{ $day->isToday() ? 'is-today' : '' }} {{ $dayTasks->isEmpty() ? 'is-empty' : '' }}">
                             <span class="cp-mday-top">
                                 <span class="cp-mday-num">{{ $day->format('j') }}</span>
@@ -657,6 +677,7 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
                             @foreach($dayTasks->take(3) as $item)
                                 @php $st = $states[$item->state]; @endphp
                                 <button type="button" class="cp-mitem tone-{{ $st['tone'] }}" data-open-task="{{ $item->task->id }}" data-state="{{ $item->state }}"
+                                        @if($canMove($item->task)) draggable="true" data-move-task="{{ $item->task->id }}" data-move-field="{{ $item->task->post_date ? 'post_date' : 'deadline' }}" data-move-from="{{ $item->planDate->toDateString() }}" @endif
                                         data-search="{{ mb_strtolower(implode(' ', array_filter([$item->task->title, $item->task->client->name ?? null, $item->task->assignee->name ?? null, $item->task->type]))) }}"
                                         title="{{ $item->task->client->name ?? '' }} · {{ $item->task->title }} · {{ $st['label'] }}">
                                     <i class="fas {{ $item->state === 'done' ? 'fa-circle-check' : $st['icon'] }}"></i>
@@ -821,7 +842,7 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
         </div>
         <div class="cp-d-foot">
             <span class="cp-muted">Updated {{ $task->updated_at?->diffForHumans() }}</span>
-            <a href="{{ route('strategist.tracking', ['task' => $task->id]) }}" class="cp-btn cp-btn-primary"><i class="fas fa-route"></i> Open in tracking</a>
+            <a href="{{ $taskUrl($task) }}" class="cp-btn cp-btn-primary"><i class="fas {{ $isAdmin ? 'fa-arrow-up-right-from-square' : 'fa-route' }}"></i> {{ $isAdmin ? 'Open task' : 'Open in tracking' }}</a>
         </div>
     </template>
 @endforeach
@@ -928,7 +949,66 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
         if (e.key === '/' && !typing) { e.preventDefault(); search.focus(); }
     });
 
-    // Allow linking straight to a post's details: /strategist/calendar?task=ID
+    // ── Drag a post onto another (today or future) day to move its go-live date ──
+    let dragged = null;
+    document.querySelectorAll('[data-move-task]').forEach(el => {
+        el.addEventListener('dragstart', (e) => {
+            dragged = el;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', el.dataset.moveTask);
+            el.classList.add('cp-dragging');
+            document.body.classList.add('cp-is-dragging');
+        });
+        el.addEventListener('dragend', () => {
+            el.classList.remove('cp-dragging');
+            document.body.classList.remove('cp-is-dragging');
+            document.querySelectorAll('.is-drop-over').forEach(t => t.classList.remove('is-drop-over'));
+            dragged = null;
+        });
+    });
+    document.querySelectorAll('[data-drop-date]').forEach(target => {
+        target.addEventListener('dragover', (e) => {
+            if (!dragged || target.dataset.dropDate === dragged.dataset.moveFrom) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            target.classList.add('is-drop-over');
+        });
+        target.addEventListener('dragleave', (e) => {
+            if (!target.contains(e.relatedTarget)) target.classList.remove('is-drop-over');
+        });
+        target.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            target.classList.remove('is-drop-over');
+            if (!dragged) return;
+            const card = dragged;
+            const newDate = target.dataset.dropDate;
+            const label = card.dataset.moveField === 'post_date' ? 'go-live date' : 'deadline';
+            const title = card.getAttribute('title') || card.textContent.trim();
+            const pretty = new Date(newDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+            if (!confirm(`Move the ${label} of "${title.split(' · ')[0]}" to ${pretty}?\nThe designer and task creator will be notified.`)) return;
+            try {
+                const response = await fetch(`/api/tasks/${card.dataset.moveTask}/reschedule`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                    },
+                    body: JSON.stringify({ date_type: card.dataset.moveField, new_date: newDate }),
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(data.message || 'Could not reschedule this post.');
+                if (typeof ajax !== 'undefined') ajax.showSuccess(`Moved to ${pretty}`);
+                // Reload so summaries, day totals and the attention lists all reflect the move
+                setTimeout(() => window.location.reload(), 500);
+            } catch (err) {
+                if (typeof ajax !== 'undefined') ajax.showError(err.message); else alert(err.message);
+            }
+        });
+    });
+
+    // Allow linking straight to a post's details: ?task=ID
     const params = new URL(window.location.href).searchParams;
     if (params.get('task')) openTask(params.get('task'));
     else if (params.get('day')) openDay(params.get('day'));
