@@ -103,6 +103,11 @@
             </a>
         </div>
         <div class="nav-section">
+            <a href="{{ route('admin.team-board') }}" class="nav-item {{ request()->routeIs('admin.team-board') ? 'active' : '' }}" title="Team Board">
+                <span class="icon"><i class="fas fa-people-group"></i></span>
+                <span class="nav-text">Team Board</span>
+                <span class="nav-tooltip">Team Board · who is doing what</span>
+            </a>
             <a href="{{ route('admin.workload') }}" class="nav-item {{ request()->routeIs('admin.workload') ? 'active' : '' }}" title="Workload View">
                 <span class="icon"><i class="fas fa-users"></i></span>
                 <span class="nav-text">Workload</span>
@@ -233,6 +238,11 @@
         </div>
         <div class="nav-section">
 
+            <a href="{{ route('strategist.team-board') }}" class="nav-item {{ request()->routeIs('strategist.team-board') ? 'active' : '' }}" title="Team Board">
+                <span class="icon"><i class="fas fa-people-group"></i></span>
+                <span class="nav-text">Team Board</span>
+                <span class="nav-tooltip">Team Board · who is doing what</span>
+            </a>
             <a href="{{ route('strategist.tracking') }}" class="nav-item {{ request()->routeIs('strategist.tracking') ? 'active' : '' }}" title="Task Tracking">
                 <span class="icon"><i class="fas fa-route"></i></span>
                 <span class="nav-text">Tracking</span>

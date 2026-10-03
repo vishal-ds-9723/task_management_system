@@ -130,8 +130,9 @@ class CalendarService
 
     /**
      * Work out where a task really stands: per platform, and overall.
+     * Also used by the content plan page so both screens agree on what "posted" means.
      */
-    private function describe(Task $task, Carbon $today): object
+    public function describe(Task $task, Carbon $today): object
     {
         $planDate = Carbon::parse($task->post_date ?? $task->deadline)->startOfDay();
         $posts = $task->socialMediaPosts->keyBy(fn ($post) => strtolower((string) $post->platform));

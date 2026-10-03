@@ -89,6 +89,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::post('/tasks/bulk/update-status', [Admin\TaskController::class, 'bulkUpdateStatus'])->name('tasks.bulk-update-status');
     Route::get('/tasks/export/csv', [Admin\TaskController::class, 'exportCsv'])->name('tasks.export-csv');
     Route::get('/calendar', [Admin\CalendarController::class, 'index'])->name('calendar');
+    Route::get('/team-board', [\App\Http\Controllers\TeamBoardController::class, 'index'])->name('team-board');
     Route::get('/clients/{client}/calendar', [Admin\CalendarController::class, 'clientCalendar'])->name('clients.calendar');
     Route::get('/festival-selections/{selection}', [Admin\FestivalSelectionController::class, 'show'])->name('festival.selection.show');
     Route::get('/workload', [Admin\WorkloadController::class, 'index'])->name('workload');
@@ -215,6 +216,7 @@ Route::prefix('strategist')->name('strategist.')->middleware(['auth', 'role:stra
     Route::post('/tasks/{task}/resume-hold', [Strategist\TaskController::class, 'resumeFromHold'])->name('tasks.resume-hold');
     Route::post('/tasks/{task}/maintenance', [Strategist\TaskController::class, 'createMaintenanceTask'])->name('tasks.maintenance');
     Route::get('/calendar', [Strategist\CalendarController::class, 'index'])->name('calendar');
+    Route::get('/team-board', [\App\Http\Controllers\TeamBoardController::class, 'index'])->name('team-board');
     Route::get('/tracking', [Strategist\TaskController::class, 'tracking'])->name('tracking');
     Route::get('/approvals/data', [Strategist\TaskController::class, 'approvalsData'])->name('approvals.data');
     Route::get('/approvals', [Strategist\TaskController::class, 'approvals'])->name('approvals');

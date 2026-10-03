@@ -452,7 +452,7 @@
 
             <div class="form-group">
                 <label>Client <span style="color:var(--red)">*</span></label>
-                <x-client-select :clients="$clients" name="client_id" id="clientIdInput" value="{{ old('client_id') }}" placeholder="Select a client" />
+                <x-client-select :clients="$clients" name="client_id" id="clientIdInput" value="{{ old('client_id', request('client_id')) }}" placeholder="Select a client" />
             </div>
 
             <div class="form-group">
@@ -460,23 +460,23 @@
                 <select name="type" style="background:var(--card2)" id="typeSelect">
                     <option value="">Choose type...</option>
                     <optgroup label="Social Media">
-                        <option value="reel"     {{ old('type') == 'reel'     ? 'selected' : '' }}>Reel</option>
-                        <option value="post"     {{ old('type') == 'post'     ? 'selected' : '' }}>Post</option>
-                        <option value="story"    {{ old('type') == 'story'    ? 'selected' : '' }}>Story</option>
-                        <option value="carousel" {{ old('type') == 'carousel' ? 'selected' : '' }}>Carousel</option>
-                        <option value="video"    {{ old('type') == 'video'    ? 'selected' : '' }}>Video</option>
+                        <option value="reel"     {{ old('type', request('type')) == 'reel'     ? 'selected' : '' }}>Reel</option>
+                        <option value="post"     {{ old('type', request('type')) == 'post'     ? 'selected' : '' }}>Post</option>
+                        <option value="story"    {{ old('type', request('type')) == 'story'    ? 'selected' : '' }}>Story</option>
+                        <option value="carousel" {{ old('type', request('type')) == 'carousel' ? 'selected' : '' }}>Carousel</option>
+                        <option value="video"    {{ old('type', request('type')) == 'video'    ? 'selected' : '' }}>Video</option>
                     </optgroup>
                     <optgroup label="Print Media">
-                        <option value="brochure" {{ old('type') == 'brochure' ? 'selected' : '' }}>Brochure</option>
-                        <option value="banner"   {{ old('type') == 'banner'   ? 'selected' : '' }}>Banner</option>
-                        <option value="flyer"    {{ old('type') == 'flyer'    ? 'selected' : '' }}>Flyer</option>
+                        <option value="brochure" {{ old('type', request('type')) == 'brochure' ? 'selected' : '' }}>Brochure</option>
+                        <option value="banner"   {{ old('type', request('type')) == 'banner'   ? 'selected' : '' }}>Banner</option>
+                        <option value="flyer"    {{ old('type', request('type')) == 'flyer'    ? 'selected' : '' }}>Flyer</option>
                     </optgroup>
                     <optgroup label="Development">
-                        <option value="website"  {{ old('type') == 'website'  ? 'selected' : '' }}>Website</option>
-                        <option value="software" {{ old('type') == 'software' ? 'selected' : '' }}>Software</option>
-                        <option value="maintenance" {{ old('type') == 'maintenance' ? 'selected' : '' }}>Maintenance / Support</option>
+                        <option value="website"  {{ old('type', request('type')) == 'website'  ? 'selected' : '' }}>Website</option>
+                        <option value="software" {{ old('type', request('type')) == 'software' ? 'selected' : '' }}>Software</option>
+                        <option value="maintenance" {{ old('type', request('type')) == 'maintenance' ? 'selected' : '' }}>Maintenance / Support</option>
                     </optgroup>
-                    <option value="others" {{ old('type') == 'others' ? 'selected' : '' }}>Others</option>
+                    <option value="others" {{ old('type', request('type')) == 'others' ? 'selected' : '' }}>Others</option>
                 </select>
             </div>
 
@@ -2084,6 +2084,12 @@ togglePostDateRequired();
     }
 
     function restoreDraftWorkspace() {
+        // Links like ?client_id=3&type=reel (from Content Plans) pre-fill the form; don't let an old draft override them
+        const prefill = new URLSearchParams(window.location.search);
+        if (prefill.has('client_id') || prefill.has('type')) {
+            typeSelect?.dispatchEvent(new Event('change', { bubbles: true }));
+            return;
+        }
         let draft;
         try {
             draft = JSON.parse(localStorage.getItem(DRAFT_STORAGE_KEY) || 'null');
