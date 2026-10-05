@@ -101,7 +101,7 @@
                 <div class="form-group" id="modalDeadlineGroup">
                     <label>Deadline <span id="modalDeadlineAutoTag" style="font-size:9px;font-weight:700;color:var(--teal);background:var(--teal-dim);padding:2px 8px;border-radius:4px;margin-left:6px;display:none">AUTO</span></label>
                     <input type="date" name="deadline" id="modalDeadlineInput" readonly style="background:var(--card2);color:var(--text2);cursor:not-allowed;opacity:0.75">
-                    <div id="modalDeadlineInfo" style="font-size:10px;color:var(--text3);margin-top:4px">Auto-calculated from post date</div>
+                    <div id="modalDeadlineInfo" style="font-size:10px;color:var(--text3);margin-top:4px">Auto-calculated (3 days before post date)</div>
                 </div>
                 <div class="form-group">
                     <label>Status</label>
@@ -528,7 +528,7 @@ function loadModalSocialMediaLinks(clientId) {
         if (!postDateInput.value) {
             deadlineInput.value = '';
             deadlineAutoTag.style.display = 'none';
-            deadlineInfo.textContent = 'Auto-calculated from post date';
+            deadlineInfo.textContent = 'Auto-calculated (3 days before post date)';
             priorityAutoTag.style.display = 'none';
             priorityInfo.textContent = '';
             prioritySelect.style.borderColor = '';
@@ -538,38 +538,52 @@ function loadModalSocialMediaLinks(clientId) {
 
         const postDate = new Date(postDateInput.value + 'T00:00:00');
         const today = new Date(); today.setHours(0,0,0,0);
-        const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
-        const in3Days = new Date(today); in3Days.setDate(in3Days.getDate() + 3);
+        const days = daysDiff(postDate, today);
 
-        let deadline, priority, message, tagColor, tagBg;
+        // Rule: Deadline must dynamically be 3 days before the post date
+        let deadline = new Date(postDate);
+        deadline.setDate(deadline.getDate() - 3);
 
-        if (postDate.getTime() === tomorrow.getTime()) {
+        let priority = 'normal';
+        let message = '';
+        let tagColor = 'var(--teal)';
+        let tagBg = 'var(--teal-dim)';
+
+        if (postDate.getTime() === today.getTime()) {
+            deadline = new Date(today);
+            priority = 'urgent';
+            message = '<i class="fas fa-circle" style="font-size:8px;color:var(--red)"></i> Post is TODAY — Deadline set to TODAY — AUTO URGENT';
+            tagColor = 'var(--red)'; tagBg = 'var(--red-dim)';
+        } else if (days === 1) {
             deadline = new Date(today);
             priority = 'urgent';
             message = '<i class="fas fa-circle" style="font-size:8px;color:var(--red)"></i> Post is TOMORROW — Deadline set to TODAY — AUTO URGENT';
             tagColor = 'var(--red)'; tagBg = 'var(--red-dim)';
-        } else if (postDate.getTime() <= in3Days.getTime()) {
-            deadline = new Date(postDate); deadline.setDate(deadline.getDate() - 1);
+        } else if (days <= 3) {
+            deadline = new Date(today);
+            priority = 'urgent';
+            message = '<i class="fas fa-circle" style="font-size:8px;color:var(--red)"></i> Post in ' + days + ' days — Deadline set to TODAY (3 days before) — AUTO URGENT';
+            tagColor = 'var(--red)'; tagBg = 'var(--red-dim)';
+        } else if (days <= 5) {
             priority = 'high';
-            const days = daysDiff(postDate, today);
-            message = '<i class="fas fa-circle" style="font-size:8px;color:#F97316"></i> Post in ' + days + ' days — HIGH PRIORITY';
+            const daysToDeadline = daysDiff(deadline, today);
+            message = '<i class="fas fa-circle" style="font-size:8px;color:#F97316"></i> Post in ' + days + ' days — Deadline in ' + daysToDeadline + ' days (3 days before) — HIGH PRIORITY';
             tagColor = 'var(--amber-800)'; tagBg = 'var(--amber-100)';
         } else {
-            deadline = new Date(postDate); deadline.setDate(deadline.getDate() - 5);
             priority = 'normal';
-            const days = daysDiff(postDate, today);
-            message = '<i class="fas fa-circle" style="font-size:8px;color:#EAB308"></i> Post in ' + days + ' days — Deadline ' + (days - 5) + ' days — NORMAL';
+            const daysToDeadline = daysDiff(deadline, today);
+            message = '<i class="fas fa-circle" style="font-size:8px;color:#10B981"></i> Post in ' + days + ' days — Deadline in ' + daysToDeadline + ' days (3 days before) — NORMAL';
             tagColor = 'var(--teal)'; tagBg = 'var(--teal-dim)';
         }
 
         if (deadline < today) {
-            deadline = new Date(today); deadline.setDate(deadline.getDate() + 1);
+            deadline = new Date(today);
         }
 
         deadlineInput.value = fmt(deadline);
         prioritySelect.value = priority;
 
-        deadlineAutoTag.textContent = 'AUTO';
+        deadlineAutoTag.textContent = 'AUTO (-3d)';
         deadlineAutoTag.style.display = 'inline-block';
         deadlineAutoTag.style.background = tagBg;
         deadlineAutoTag.style.color = tagColor;
@@ -656,5 +670,7 @@ function loadModalSocialMediaLinks(clientId) {
     }
 
     postDateInput.addEventListener('change', updateModalDatesAndPriority);
+    postDateInput.addEventListener('input', updateModalDatesAndPriority);
+    if (postDateInput.value) updateModalDatesAndPriority();
 })();
 </script>

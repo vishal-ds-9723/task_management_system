@@ -799,7 +799,7 @@
             <div id="deadlineGroup" class="form-group">
                 <label><i class="fas fa-crosshairs" style="margin-right:3px"></i> Deadline <span id="deadlineAutoTag" style="font-size:9px;font-weight:700;color:var(--teal);background:var(--teal-dim);padding:2px 8px;border-radius:4px;margin-left:6px;display:none">AUTO</span></label>
                 <input type="date" name="deadline" id="deadlineInput" value="{{ old('deadline') }}" readonly style="background:var(--card2);color:var(--text2);cursor:not-allowed;opacity:0.75;border:1px solid var(--border)">
-                <div style="font-size:10px;color:var(--text3);margin-top:6px" id="deadlineInfo">Design deadline auto-calculated</div>
+                <div style="font-size:10px;color:var(--text3);margin-top:6px" id="deadlineInfo">Design deadline auto-calculated (3 days before post date)</div>
             </div>
 
             <div class="form-group">
@@ -1477,7 +1477,7 @@ updateAllFieldValidationStates();
         if (!postDateInput || !postDateInput.value) {
             if (deadlineInput) deadlineInput.value = '';
             if (deadlineAutoTag) deadlineAutoTag.style.display = 'none';
-            if (deadlineInfo) deadlineInfo.textContent = '';
+            if (deadlineInfo) deadlineInfo.textContent = 'Auto-calculated (3 days before post date)';
             if (priorityInfo) priorityInfo.textContent = '';
             return;
         }
@@ -1485,42 +1485,50 @@ updateAllFieldValidationStates();
         const postDate = new Date(postDateInput.value + 'T00:00:00');
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const in3Days = new Date(today);
-        in3Days.setDate(in3Days.getDate() + 3);
 
-        let deadline, priority, message, tagColor, tagBg;
+        const daysUntilPost = getDaysDifference(postDate, today);
+
+        // Rule: Deadline must dynamically be 3 days before the post date
+        let deadline = new Date(postDate);
+        deadline.setDate(deadline.getDate() - 3);
+
+        let priority = 'normal';
+        let message = '';
+        let tagColor = 'var(--teal)';
+        let tagBg = 'var(--teal-dim)';
 
         if (postDate.getTime() === today.getTime()) {
-            deadline = today;
+            deadline = new Date(today);
             priority = 'urgent';
-            message = '<i class="fas fa-circle" style="font-size:8px;color:var(--red)"></i> Post is TODAY - Deadline set to TODAY - AUTO URGENT';
+            message = '<i class="fas fa-circle" style="font-size:8px;color:var(--red)"></i> Post is TODAY — Deadline set to TODAY — AUTO URGENT';
             tagColor = 'var(--red)';
             tagBg = 'var(--red-dim)';
         }
-        else if (postDate.getTime() === tomorrow.getTime()) {
-            deadline = today;
+        else if (daysUntilPost === 1) {
+            deadline = new Date(today);
             priority = 'urgent';
-            message = '<i class="fas fa-circle" style="font-size:8px;color:var(--red)"></i> Post is TOMORROW - Deadline set to TODAY - AUTO URGENT';
+            message = '<i class="fas fa-circle" style="font-size:8px;color:var(--red)"></i> Post is TOMORROW — Deadline set to TODAY — AUTO URGENT';
             tagColor = 'var(--red)';
             tagBg = 'var(--red-dim)';
         }
-        else if (postDate.getTime() <= in3Days.getTime()) {
-            deadline = new Date(postDate);
-            deadline.setDate(deadline.getDate() - 1);
+        else if (daysUntilPost <= 3) {
+            deadline = new Date(today);
+            priority = 'urgent';
+            message = `<i class="fas fa-circle" style="font-size:8px;color:var(--red)"></i> Post in ${daysUntilPost} days — Deadline is TODAY (3 days before) — AUTO URGENT`;
+            tagColor = 'var(--red)';
+            tagBg = 'var(--red-dim)';
+        }
+        else if (daysUntilPost <= 5) {
             priority = 'high';
-            const daysUntilPost = getDaysDifference(postDate, today);
-            message = `<i class="fas fa-circle" style="font-size:8px;color:#F97316"></i> Post in ${daysUntilPost} days - Deadline ${daysUntilPost -1} days - HIGH PRIORITY`;
+            const daysUntilDeadline = getDaysDifference(deadline, today);
+            message = `<i class="fas fa-circle" style="font-size:8px;color:#F97316"></i> Post in ${daysUntilPost} days — Deadline in ${daysUntilDeadline} days (3 days before) — HIGH PRIORITY`;
             tagColor = 'var(--amber-800)';
             tagBg = 'var(--amber-100)';
         }
         else {
-            deadline = new Date(postDate);
-            deadline.setDate(deadline.getDate() - 5);
             priority = 'normal';
-            const daysUntilPost = getDaysDifference(postDate, today);
-            message = `<i class="fas fa-circle" style="font-size:8px;color:#EAB308"></i> Post in ${daysUntilPost} days - Deadline ${daysUntilPost - 5} days - NORMAL`;
+            const daysUntilDeadline = getDaysDifference(deadline, today);
+            message = `<i class="fas fa-circle" style="font-size:8px;color:#10B981"></i> Post in ${daysUntilPost} days — Deadline in ${daysUntilDeadline} days (3 days before) — NORMAL`;
             tagColor = 'var(--teal)';
             tagBg = 'var(--teal-dim)';
         }
@@ -1532,7 +1540,7 @@ updateAllFieldValidationStates();
         if (deadlineInput) deadlineInput.value = getFormattedDate(deadline);
         if (prioritySelect) prioritySelect.value = priority;
         if (deadlineAutoTag) {
-            deadlineAutoTag.textContent = 'AUTO';
+            deadlineAutoTag.textContent = 'AUTO (-3d)';
             deadlineAutoTag.style.display = 'inline-block';
             deadlineAutoTag.style.background = tagBg;
             deadlineAutoTag.style.color = tagColor;
@@ -1544,6 +1552,7 @@ updateAllFieldValidationStates();
     };
 
     postDateInput?.addEventListener('change', updateDatesAndPriority);
+    postDateInput?.addEventListener('input', updateDatesAndPriority);
     if (postDateInput?.value) updateDatesAndPriority();
 
 

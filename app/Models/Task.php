@@ -183,24 +183,25 @@ class Task extends Model
 
     /**
      * Calculate design_deadline from deadline and post_date.
-     * Rule: deadline minus 5 days, but never earlier than post_date.
-     * Returns a Carbon instance or null if deadline is absent.
+     * By default, design deadline matches the design task deadline (3 days before post_date).
+     * Returns a Carbon instance or null if both are absent.
      */
     public static function calculateDesignDeadline(?string $deadline, ?string $postDate): ?\Carbon\Carbon
     {
-        if (!$deadline) return null;
-
-        $deadlineCarbon  = \Carbon\Carbon::parse($deadline);
-        $designDeadline  = $deadlineCarbon->copy()->subDays(5);
-
-        if ($postDate) {
-            $postDateCarbon = \Carbon\Carbon::parse($postDate);
-            if ($designDeadline->lt($postDateCarbon)) {
-                $designDeadline = $postDateCarbon->copy();
-            }
+        if ($deadline) {
+            return \Carbon\Carbon::parse($deadline);
         }
 
-        return $designDeadline;
+        if ($postDate) {
+            $postDateCarbon = \Carbon\Carbon::parse($postDate)->startOfDay();
+            $designDeadline = $postDateCarbon->copy()->subDays(3);
+            if ($designDeadline->lt(\Carbon\Carbon::today())) {
+                $designDeadline = \Carbon\Carbon::today();
+            }
+            return $designDeadline;
+        }
+
+        return null;
     }
 
     /**

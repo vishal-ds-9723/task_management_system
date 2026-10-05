@@ -217,6 +217,11 @@ class TaskService
                 $data['deadline'] = $data['dev_deadline'];
             }
         } else {
+            if (empty($data['deadline']) && !empty($data['post_date'])) {
+                $postDate = Carbon::parse($data['post_date'])->startOfDay();
+                $calcDeadline = $postDate->copy()->subDays(3);
+                $data['deadline'] = $calcDeadline->lt(Carbon::today()) ? Carbon::today()->toDateString() : $calcDeadline->toDateString();
+            }
             $designDeadline = Task::calculateDesignDeadline(
                 $data['deadline'] ?? null,
                 $data['post_date'] ?? null

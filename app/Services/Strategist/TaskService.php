@@ -43,7 +43,10 @@ class TaskService
         }
         if (!Task::isDevType($type) && !empty($validated['post_date'])) {
             $postDate = Carbon::parse($validated['post_date'])->startOfDay();
-            if ($postDate->isToday()) {
+            if (empty($validated['deadline'])) {
+                $calcDeadline = $postDate->copy()->subDays(3);
+                $validated['deadline'] = $calcDeadline->lt(Carbon::today()) ? Carbon::today()->toDateString() : $calcDeadline->toDateString();
+            } elseif ($postDate->isToday()) {
                 $validated['deadline'] = $postDate->toDateString();
             }
         }
