@@ -261,7 +261,7 @@ class TaskService
     {
         $oldStatus = $task->status;
         $task->update([
-            'status'         => 'todo',
+            'status'         => 'inprogress',
             'revision_count' => $task->revision_count + 1,
         ]);
 
@@ -378,34 +378,6 @@ class TaskService
         $media->delete();
 
         return response()->json(['success' => true, 'message' => 'Media removed.']);
-    }
-
-    public function getTrackingData(Request $request)
-    {
-        $perPage = $request->input('per_page', 25);
-        // ... rest of method
-
-        $query = Task::with(['client', 'assignee', 'comments', 'creator'])
-            ->whereHas('creator', fn($q) => $q->where('role', 'strategist'));
-
-        // Filters...
-        // (all filter logic)
-
-        $tasks = $query->paginate($perPage)->withQueryString();
-
-        $stats = $this->getTrackingStats();
-
-        return compact('tasks', 'clients', 'designers', 'stats');
-    }
-
-    protected function getTrackingStats()
-    {
-        $allTasks = Task::whereHas('creator', fn($q) => $q->where('role', 'strategist'));
-        return [
-            'totalCount' => $allTasks->count(),
-            'todoCount'  => $allTasks->where('status', 'todo')->count(),
-            // ... other stats
-        ];
     }
 
     public function putOnHold(Task $task, array $validated)

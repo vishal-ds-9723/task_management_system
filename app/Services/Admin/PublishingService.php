@@ -12,7 +12,7 @@ class PublishingService
     public function getPublishingIndexData(Request $request)
     {
         $query = Task::with(['client', 'assignee', 'creator', 'socialMediaPosts'])
-            ->where('is_urgent_task', false)
+            ->publishable()
             ->whereIn('status', ['completed', 'published']);
 
         if ($request->filled('filter')) {
@@ -45,9 +45,9 @@ class PublishingService
         $query->latest('completed_at');
         $tasks = $query->paginate(15)->withQueryString();
 
-        $awaitingCount = Task::where('is_urgent_task', false)->where('status', 'completed')->whereDoesntHave('socialMediaPosts')->count();
-        $partialCount = Task::where('is_urgent_task', false)->where('status', 'completed')->whereHas('socialMediaPosts')->count();
-        $publishedCount = Task::where('is_urgent_task', false)->where('status', 'published')->count();
+        $awaitingCount = Task::publishable()->where('status', 'completed')->whereDoesntHave('socialMediaPosts')->count();
+        $partialCount = Task::publishable()->where('status', 'completed')->whereHas('socialMediaPosts')->count();
+        $publishedCount = Task::publishable()->where('status', 'published')->count();
         $totalCount = $awaitingCount + $partialCount + $publishedCount;
 
         $clients = Client::where('is_active', true)->orderBy('name')->get();
@@ -61,7 +61,7 @@ class PublishingService
 
     public function getPublishingShowData(Task $task)
     {
-        abort_if($task->is_urgent_task, 404, 'Urgent tasks bypass publishing.');
+        abort_unless($task->inPublishingFlow(), 404, 'This urgent task was delivered before the approval flow.');
         abort_if(!in_array($task->status, ['completed', 'published']), 404);
 
         $task->load(['client', 'assignee', 'creator', 'socialMediaPosts.poster', 'socialMediaPosts.metrics.creator', 'socialMediaPosts.metrics.updater']);

@@ -1,6 +1,8 @@
 {{-- resources/views/components/sidebar.blade.php --}}
 @php
     $role = auth()->user()->role;
+    // Everyone who works in the strategist panel gets its menu
+    $isStrategistPanel = in_array($role, \App\Models\Task::STRATEGIST_PANEL_ROLES, true);
     $initial = strtoupper(substr(auth()->user()->name, 0, 1));
     $userName = auth()->user()->name;
     $avatarColor = auth()->user()->avatar_color ?? '#4F6DF0';
@@ -24,15 +26,15 @@
         : 0;
 
     // Count tasks awaiting proof (completed but not published)
-    $awaitingProofCount = auth()->user()->role === 'strategist'
+    $awaitingProofCount = $isStrategistPanel
         ? \App\Models\Task::query()
-            ->whereHas('creator', fn ($q) => $q->where('role', 'strategist'))
-            ->where('is_urgent_task', false)
+            ->strategistVisible(\App\Models\Task::STRATEGIST_PANEL_ROLES)
+            ->publishable()
             ->where('status', 'completed')
             ->count()
         : 0;
     $adminAwaitingProofCount = auth()->user()->role === 'admin'
-        ? \App\Models\Task::query()->where('is_urgent_task', false)->where('status', 'completed')->count()
+        ? \App\Models\Task::query()->publishable()->where('status', 'completed')->count()
         : 0;
 
     // Urgent tasks self-created by designers in last 48h (admin-only — count for badge)
@@ -191,7 +193,7 @@
             --}}
         </div>
 
-    @elseif($role === 'strategist')
+    @elseif($isStrategistPanel)
         <div class="nav-section">
             <a href="{{ route('strategist.dashboard') }}" class="nav-item {{ request()->routeIs('strategist.dashboard') ? 'active' : '' }}" title="Dashboard">
                 <span class="icon"><i class="fas fa-th-large"></i></span>

@@ -19,9 +19,9 @@ class MobilePublishingController extends Controller
         $user = $request->user();
 
         // 1. Stats
-        $awaitingCount = Task::where('is_urgent_task', false)->where('status', 'completed')->whereDoesntHave('socialMediaPosts')->count();
-        $partialCount = Task::where('is_urgent_task', false)->where('status', 'completed')->whereHas('socialMediaPosts')->count();
-        $publishedCount = Task::where('is_urgent_task', false)->where('status', 'published')->count();
+        $awaitingCount = Task::publishable()->where('status', 'completed')->whereDoesntHave('socialMediaPosts')->count();
+        $partialCount = Task::publishable()->where('status', 'completed')->whereHas('socialMediaPosts')->count();
+        $publishedCount = Task::publishable()->where('status', 'published')->count();
 
         $query = Task::with(['client.socialMediaLinks', 'socialMediaPosts.poster', 'assignee'])
             ->whereIn('status', ['completed', 'published']);

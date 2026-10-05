@@ -91,6 +91,8 @@ class Task extends Model
         'on_hold_since',
         'status_before_hold',
         'parent_task_id',
+        // Without this, revision requests silently never increased the counter
+        'revision_count',
     ];
 
     protected $casts = [
@@ -207,10 +209,7 @@ class Task extends Model
      */
     public function syncPublishingStatus(): void
     {
-        if ($this->is_urgent_task) {
-            return;
-        }
-
+        // Urgent tasks follow the same publishing step as everything else
         if ($this->status === 'completed' && $this->isFullyPublished()) {
             $this->update(['status' => 'published']);
         }
@@ -244,6 +243,44 @@ class Task extends Model
     public static function isSocialType(?string $type): bool
     {
         return in_array((string) $type, self::SOCIAL_TYPES, true);
+    }
+
+    /** Roles that work in the strategist panel. */
+    public const STRATEGIST_PANEL_ROLES = ['strategist', 'manager', 'editor', 'content_writer'];
+    /** Roles whose tasks the strategist panel tracks (admins hand work to strategists too). */
+    public const STRATEGIST_ROLES = [...self::STRATEGIST_PANEL_ROLES, 'admin'];
+
+    /**
+     * Tasks the strategist team is responsible for: anything created by the given roles,
+     * plus urgent tasks designers raise themselves (those go through the same review/approval).
+     */
+    public function scopeStrategistVisible($query, array $creatorRoles = self::STRATEGIST_ROLES)
+    {
+        return $query->where(fn ($q) => $q
+            ->whereHas('creator', fn ($c) => $c->whereIn('role', $creatorRoles))
+            ->orWhere('tasks.is_urgent_task', true));
+    }
+
+    /**
+     * Tasks that belong in the publishing queue. Urgent tasks join once they have passed
+     * admin approval; older urgent tasks were delivered straight to the client and never will.
+     */
+    public function scopePublishable($query)
+    {
+        return $query->where(fn ($q) => $q
+            ->where('tasks.is_urgent_task', false)
+            ->orWhere('tasks.admin_approval_status', 'approved'));
+    }
+
+    public function inPublishingFlow(): bool
+    {
+        return !$this->is_urgent_task || $this->admin_approval_status === 'approved';
+    }
+
+    /** Captions and hashtags only matter for content that gets posted on social media. */
+    public static function needsCaption(?string $type): bool
+    {
+        return self::isSocialType($type);
     }
 
     public static function isDevType(?string $type): bool

@@ -211,9 +211,9 @@ class DashboardService
         $designers = User::where('role', 'designer')->orderBy('name')->get(['id', 'name']);
 
         // Publishing - optimized
-        $publishingAwaitingCount = Task::where('is_urgent_task', false)->where('status', 'completed')->whereDoesntHave('socialMediaPosts')->count();
-        $publishingPartialCount = Task::where('is_urgent_task', false)->where('status', 'completed')->whereHas('socialMediaPosts')->count();
-        $publishingPublishedCount = Task::where('is_urgent_task', false)->where('status', 'published')->count();
+        $publishingAwaitingCount = Task::publishable()->where('status', 'completed')->whereDoesntHave('socialMediaPosts')->count();
+        $publishingPartialCount = Task::publishable()->where('status', 'completed')->whereHas('socialMediaPosts')->count();
+        $publishingPublishedCount = Task::publishable()->where('status', 'published')->count();
         $publishingTotalCount = $publishingAwaitingCount + $publishingPartialCount + $publishingPublishedCount;
 
         $recentPublishing = SocialMediaPost::select('id', 'task_id', 'posted_by', 'platform', 'post_url', 'created_at')
@@ -222,11 +222,11 @@ class DashboardService
                 'task.client:id,name,logo,emoji',
                 'poster:id,name',
             ])
-            ->whereHas('task', fn ($q) => $q->where('is_urgent_task', false))
+            ->whereHas('task', fn ($q) => $q->publishable())
             ->latest()
             ->take(5)
             ->get();
-        $publishingByPlatform = SocialMediaPost::whereHas('task', fn ($q) => $q->where('is_urgent_task', false))
+        $publishingByPlatform = SocialMediaPost::whereHas('task', fn ($q) => $q->publishable())
             ->selectRaw('platform, COUNT(*) as total')
             ->groupBy('platform')
             ->pluck('total', 'platform');

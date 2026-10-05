@@ -16,8 +16,8 @@ class PublishingService
     public function getIndexData(Request $request)
     {
         $query = Task::with(['client', 'assignee', 'creator', 'socialMediaPosts'])
-            ->whereHas('creator', fn($q) => $q->where('role', 'strategist'))
-            ->where('is_urgent_task', false)
+            ->strategistVisible(\App\Models\Task::STRATEGIST_PANEL_ROLES)
+            ->publishable()
             ->whereIn('status', ['completed', 'published']);
 
         // Filter
@@ -48,8 +48,8 @@ class PublishingService
 
         // Stats
         $baseQuery = Task::query()
-            ->whereHas('creator', fn($q) => $q->where('role', 'strategist'))
-            ->where('is_urgent_task', false);
+            ->strategistVisible(\App\Models\Task::STRATEGIST_PANEL_ROLES)
+            ->publishable();
         $awaitingCount = (clone $baseQuery)->where('status', 'completed')->whereDoesntHave('socialMediaPosts')->count();
         $partialCount = (clone $baseQuery)->where('status', 'completed')->whereHas('socialMediaPosts')->count();
         $publishedCount = (clone $baseQuery)->where('status', 'published')->count();
@@ -65,7 +65,7 @@ class PublishingService
 
     public function storeProof(Task $task, array $validated)
     {
-        abort_if($task->is_urgent_task, 403, 'Urgent tasks are delivered without a publishing step.');
+        abort_unless($task->inPublishingFlow(), 403, 'This urgent task was delivered before the approval flow and has no publishing step.');
 
         $allPlatforms = 'instagram,facebook,linkedin,twitter,tiktok,youtube,pinterest,snapchat,whatsapp,telegram,reddit,discord,tumblr,spotify,twitch,threads,behance,dribbble,medium,vimeo,sharechat,moj,koo,quora,github,weibo,signal,clubhouse';
 
@@ -123,7 +123,7 @@ class PublishingService
 
     public function markAsPublished(Task $task)
     {
-        if ($task->is_urgent_task) {
+        if (!$task->inPublishingFlow()) {
             return;
         }
 
@@ -188,7 +188,7 @@ class PublishingService
 
     public function getTaskDetail(Task $task)
     {
-        abort_if($task->is_urgent_task, 404, 'Urgent tasks bypass publishing.');
+        abort_unless($task->inPublishingFlow(), 404, 'This urgent task was delivered before the approval flow.');
 
         $task->load(['client', 'assignee', 'creator', 'socialMediaPosts.poster', 'socialMediaPosts.metrics.creator', 'socialMediaPosts.metrics.updater']);
         $platforms = is_array($task->platform) ? $task->platform : (is_string($task->platform) ? [$task->platform] : []);

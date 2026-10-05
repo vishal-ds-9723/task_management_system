@@ -498,9 +498,8 @@ class TaskController extends Controller
 
     public function approve(Request $request, Task $task)
     {
-        $isDeveloperTask = in_array($task->type, ['software', 'website']);
-
-        if (!$isDeveloperTask && (empty($task->caption) || empty($task->hashtags))) {
+        // Only social posts need a caption; print/design work and dev projects do not
+        if (Task::needsCaption($task->type) && (empty($task->caption) || empty($task->hashtags))) {
             $errorMsg = 'Please add caption and hashtags before approving.';
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => $errorMsg], 422);
@@ -540,8 +539,9 @@ class TaskController extends Controller
         ]);
 
         $oldStatus = $task->status;
+        // Same as admin rejection and the mobile app: back to the designer as in progress
         $task->update([
-            'status'         => 'todo',
+            'status'         => 'inprogress',
             'revision_count' => $task->revision_count + 1,
         ]);
 
@@ -745,7 +745,7 @@ class TaskController extends Controller
         if ($scope === 'my') {
             $query->where('created_by', $strategistId);
         } else {
-            $query->whereHas('creator', fn($q) => $q->whereIn('role', ['strategist', 'manager', 'editor', 'content_writer', 'admin']));
+            $query->strategistVisible();
         }
 
         if ($request->filled('search')) {
@@ -819,7 +819,7 @@ class TaskController extends Controller
 
         $allTasks = ($scope === 'my')
             ? Task::where('created_by', $strategistId)
-            : Task::whereHas('creator', fn($q) => $q->whereIn('role', ['strategist', 'manager', 'editor', 'content_writer', 'admin']));
+            : Task::strategistVisible();
 
         $totalCount     = $allTasks->count();
         $todoCount      = (clone $allTasks)->where('status', 'todo')->count();
@@ -846,7 +846,7 @@ class TaskController extends Controller
             ->get(['id', 'name']);
 
         $pendingReviewCount = Task::query()
-            ->whereHas('creator', fn($q) => $q->whereIn('role', ['strategist', 'manager', 'editor', 'content_writer', 'admin']))
+            ->strategistVisible()
             ->where('status', 'review')
             ->count();
 
@@ -889,13 +889,17 @@ class TaskController extends Controller
                 'tasks.caption',
                 'tasks.hashtags',
                 'tasks.created_at',
+                'tasks.created_by',
+                'tasks.is_urgent_task',
+                'tasks.urgent_requested_by',
             ])
             ->with([
                 'client:id,name,emoji',
                 'assignee:id,name,avatar_color',
+                'creator:id,name',
             ])
             ->withCount('comments')
-            ->whereHas('creator', fn($q) => $q->whereIn('role', ['strategist', 'manager', 'editor', 'content_writer', 'admin']))
+            ->strategistVisible()
             ->where('tasks.status', 'review');
     }
 
@@ -998,8 +1002,16 @@ class TaskController extends Controller
             $platformLabel = ucfirst((string) $platform);
         }
 
+        // Urgent tasks are raised by designers themselves, so say who raised it and for whom
+        $urgentBadge = $task->is_urgent_task
+            ? '<div class="apv-urgent" style="display:inline-flex;align-items:center;gap:5px;margin-top:4px;padding:2px 8px;border-radius:99px;font-size:10.5px;font-weight:800;background:rgba(239,68,68,.12);color:#dc2626">'
+                . '<i class="fas fa-bolt"></i> Urgent · by ' . e($task->creator?->name ?? 'designer')
+                . ($task->urgent_requested_by ? ' for ' . e($task->urgent_requested_by) : '') . '</div>'
+            : '';
+
         return '<div class="apv-task-title">' . e($task->title ?? 'Untitled task') . '</div>'
-            . '<div class="apv-task-sub">' . e($platformLabel) . '</div>';
+            . '<div class="apv-task-sub">' . e($platformLabel) . '</div>'
+            . $urgentBadge;
     }
 
     private function formatApprovalClientCell(Task $task): string

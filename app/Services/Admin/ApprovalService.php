@@ -18,8 +18,8 @@ class ApprovalService
      */
     public function getPendingTasks(Request $request)
     {
+        // Urgent tasks follow the same approval flow as everything else
         $query = Task::whereIn('status', ['review', 'pending_approval'])
-            ->where('is_urgent_task', false)
             ->with('creator', 'assignee', 'client')
             ->latest('updated_at');
 
@@ -53,11 +53,11 @@ class ApprovalService
     {
         abort_if(!in_array($task->status, ['review', 'pending_approval']), 403);
 
-        $isDeveloperTask = in_array($task->type, ['software', 'website']);
         $caption = trim((string) ($task->caption ?? ''));
         $hashtags = trim((string) ($task->hashtags ?? ''));
 
-        if (!$isDeveloperTask && ($caption === '' || $hashtags === '')) {
+        // Only social posts need a caption; print/design work and dev projects do not
+        if (Task::needsCaption($task->type) && ($caption === '' || $hashtags === '')) {
             abort(422, 'Cannot approve: caption and hashtags are required before approving this task.');
         }
 
@@ -92,16 +92,37 @@ class ApprovalService
             ]);
         }
 
-        // Notify strategist only when not in away mode — they can't act on it otherwise
-        if (!Setting::isStrategistAway() && $task->creator) {
-            Notification::create([
-                'user_id'  => $task->creator->id,
-                'task_id'  => $task->id,
-                'icon'     => '📢',
-                'title'    => 'Task Approved — Upload Proof!',
-                'subtitle' => '"' . $task->title . '" is approved. Upload social media proof links to mark as published.',
-                'link'     => '/strategist/publishing',
-            ]);
+        // Urgent tasks were raised by a designer, so the strategists handle publishing for them
+        $publishers = $task->is_urgent_task
+            ? \App\Models\User::where('role', 'strategist')->get()
+            : collect([$task->creator])->filter();
+
+        // Notify strategists only when not in away mode — they can't act on it otherwise
+        if (!Setting::isStrategistAway() && Task::needsCaption($task->type)) {
+            foreach ($publishers as $publisher) {
+                Notification::create([
+                    'user_id'  => $publisher->id,
+                    'task_id'  => $task->id,
+                    'icon'     => '📢',
+                    'title'    => $task->is_urgent_task ? 'Urgent task approved — upload proof!' : 'Task Approved — Upload Proof!',
+                    'subtitle' => '"' . $task->title . '" is approved. Upload social media proof links to mark as published.',
+                    'link'     => $publisher->role === 'admin'
+                        ? route('admin.publishing.show', $task)
+                        : route('strategist.publishing.show', $task),
+                ]);
+            }
+        } elseif (!Setting::isStrategistAway()) {
+            // Print/design and dev work: nothing to publish, approval is the finish line
+            foreach ($publishers as $publisher) {
+                Notification::create([
+                    'user_id'  => $publisher->id,
+                    'task_id'  => $task->id,
+                    'icon'     => '✅',
+                    'title'    => 'Task approved & completed',
+                    'subtitle' => '"' . $task->title . '" was approved by admin and is complete.',
+                    'link'     => $task->linkFor($publisher),
+                ]);
+            }
         }
 
         return $task;

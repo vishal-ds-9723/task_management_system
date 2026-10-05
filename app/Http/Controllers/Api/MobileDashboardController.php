@@ -78,7 +78,7 @@ class MobileDashboardController extends Controller
             ->whereNull('assigned_to')
             ->count();
 
-        $awaitingPublishing = Task::where('is_urgent_task', false)
+        $awaitingPublishing = Task::publishable()
             ->where('status', 'completed')
             ->whereDoesntHave('socialMediaPosts')
             ->count();

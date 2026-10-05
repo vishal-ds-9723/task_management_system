@@ -37,7 +37,7 @@ class PublishingController extends Controller
      */
     public function show(Task $task)
     {
-        abort_if($task->is_urgent_task, 404, 'Urgent tasks bypass publishing.');
+        abort_unless($task->inPublishingFlow(), 404, 'This urgent task was delivered before the approval flow.');
         abort_if(!in_array($task->status, ['completed', 'published']), 403, 'Task is not ready for publishing.');
 
         $task->load(['client', 'assignee', 'creator', 'socialMediaPosts.poster', 'socialMediaPosts.metrics.creator', 'socialMediaPosts.metrics.updater']);
@@ -63,7 +63,7 @@ class PublishingController extends Controller
      */
     public function storeProof(Request $request, Task $task)
     {
-        abort_if($task->is_urgent_task, 403, 'Urgent tasks are delivered without a publishing step.');
+        abort_unless($task->inPublishingFlow(), 403, 'This urgent task was delivered before the approval flow.');
         abort_if(!in_array($task->status, ['completed', 'published']), 403);
 
         $allPlatforms = SocialRegistry::platformValidationList();
@@ -191,7 +191,7 @@ class PublishingController extends Controller
      */
     public function destroyProof(Task $task, SocialMediaPost $proof)
     {
-        abort_if($task->is_urgent_task, 403, 'Urgent tasks do not use publishing proofs.');
+        abort_unless($task->inPublishingFlow(), 403, 'This urgent task was delivered before the approval flow.');
         abort_if($proof->task_id !== $task->id, 403);
 
         $platform = $proof->platform;

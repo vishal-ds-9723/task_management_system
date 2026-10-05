@@ -89,7 +89,7 @@
         ->count();
     $myTasksUrl = auth()->user()->role === 'designer'
         ? route('designer.tasks')
-        : (auth()->user()->role === 'strategist' ? route('strategist.tracking') : (auth()->user()->role === 'developer' ? route('developer.tasks') : route('admin.tasks')));
+        : (in_array(auth()->user()->role, ['strategist', 'manager', 'editor', 'content_writer'], true) ? route('strategist.tracking') : (auth()->user()->role === 'developer' ? route('developer.tasks') : route('admin.tasks')));
 @endphp
 
 {{-- Page Loader Completely Disabled to prevent logo/loader flashing on page transitions --}}

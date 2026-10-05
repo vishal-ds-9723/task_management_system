@@ -78,9 +78,9 @@
         <div class="wf-status-bar wf-done-bar">
             <div style="display:flex;align-items:center;gap:12px">
                 <i class="fas fa-check-circle" style="color:var(--success)"></i>
-                <span>{{ $task->is_urgent_task ? 'Urgent Task Delivered' : 'Task Successfully Completed' }}</span>
+                <span>{{ $task->is_urgent_task ? ($task->admin_approval_status ? 'Urgent Task Approved' : 'Urgent Task Delivered') : 'Task Successfully Completed' }}</span>
             </div>
-            <span style="font-size:14px;color:var(--text-muted)">{{ $task->is_urgent_task ? 'Marked as delivered to client' : 'Approved by Strategist' }}</span>
+            <span style="font-size:14px;color:var(--text-muted)">{{ $task->is_urgent_task && !$task->admin_approval_status ? 'Marked as delivered to client' : 'Approved by strategist & admin' }}</span>
         </div>
     @endif
 
@@ -411,11 +411,11 @@
                     <form method="POST" action="{{ route('designer.tasks.submit', $task) }}" id="submitForm">
                         @csrf
                         <button type="submit" class="wf-submit-btn" id="submitBtn" {{ $task->media()->count() === 0 ? 'disabled' : '' }}>
-                            <i class="fas fa-paper-plane"></i> {{ $task->is_urgent_task ? 'Mark as Delivered to Client' : 'Submit for Review' }}
+                            <i class="fas fa-paper-plane"></i> Submit for Review
                         </button>
                         @if($task->media()->count() === 0)
                             <p class="submit-lock-msg" style="font-size:11px;color:var(--danger);text-align:center;margin-top:12px;font-weight:600">
-                                <i class="fas fa-lock"></i> {{ $task->is_urgent_task ? 'Upload media to mark delivery' : 'Upload media to unlock' }}
+                                <i class="fas fa-lock"></i> Upload media to unlock
                             </p>
                         @endif
                     </form>
@@ -702,7 +702,7 @@ async function submitTaskForReviewAJAX(form) {
         if (!response.ok) throw new Error('Submission failed');
 
         if (window.ajax && window.ajax.showSuccess) {
-            window.ajax.showSuccess(isUrgentTask ? 'Urgent task marked as delivered to client!' : 'Task submitted for review!');
+            window.ajax.showSuccess(isUrgentTask ? 'Urgent task submitted for review!' : 'Task submitted for review!');
         }
         setTimeout(() => location.reload(), 1500);
 

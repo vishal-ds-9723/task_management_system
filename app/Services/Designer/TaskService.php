@@ -231,47 +231,25 @@ class TaskService
         $isUrgentTask = (bool) $task->is_urgent_task;
         $awayMode = Setting::isStrategistAway();
 
-        $newStatus = $isUrgentTask ? 'completed' : ($awayMode ? 'pending_approval' : 'review');
+        // Urgent tasks go through the same review → admin approval flow as every other task
+        $newStatus = $awayMode ? 'pending_approval' : 'review';
 
-        $updateData = [
+        $task->update([
             'status'       => $newStatus,
             'submitted_at' => now(),
-        ];
-
-        if ($isUrgentTask) {
-            $updateData['completed_at'] = now();
-        }
-
-        $task->update($updateData);
+        ]);
 
         AuditLog::create([
             'user_id'    => Auth::id(),
             'task_id'    => $task->id,
-            'action'     => $isUrgentTask
-                ? 'Marked urgent task as delivered to client'
-                : ($awayMode
-                ? 'Submitted task directly for admin approval (away mode)'
-                : 'Submitted task for review'),
+            'action'     => ($isUrgentTask ? 'Submitted urgent task' : 'Submitted task')
+                . ($awayMode ? ' directly for admin approval (away mode)' : ' for review'),
             'old_values' => ['status' => $oldStatus],
-            'new_values' => $isUrgentTask
-                ? ['status' => $newStatus, 'completed_at' => $task->completed_at]
-                : ['status' => $newStatus],
+            'new_values' => ['status' => $newStatus],
             'ip_address' => $request->ip(),
         ]);
 
-        if ($isUrgentTask) {
-            $admins = User::where('role', 'admin')->get();
-            foreach ($admins as $admin) {
-                Notification::create([
-                    'user_id'  => $admin->id,
-                    'task_id'  => $task->id,
-                    'icon'     => '📦',
-                    'title'    => 'Urgent task delivered',
-                    'subtitle' => Auth::user()->name . ' marked "' . $task->title . '" as delivered to client',
-                    'link'     => route('admin.tasks.show', $task),
-                ]);
-            }
-        } elseif ($awayMode) {
+        if ($awayMode) {
             $admins = User::where('role', 'admin')->get();
             foreach ($admins as $admin) {
                 Notification::create([
@@ -284,7 +262,19 @@ class TaskService
                 ]);
             }
         } else {
-            if ($task->created_by && $task->created_by !== Auth::id()) {
+            if ($isUrgentTask) {
+                // The designer created this one themselves, so every strategist gets it to review
+                foreach (User::where('role', 'strategist')->get() as $strategist) {
+                    Notification::create([
+                        'user_id'  => $strategist->id,
+                        'task_id'  => $task->id,
+                        'icon'     => '🚨',
+                        'title'    => 'Urgent task ready for review',
+                        'subtitle' => Auth::user()->name . ' submitted urgent task "' . $task->title . '" (requested by ' . ($task->urgent_requested_by ?: 'client') . ')',
+                        'link'     => route('strategist.tasks.show', $task),
+                    ]);
+                }
+            } elseif ($task->created_by && $task->created_by !== Auth::id()) {
                 Notification::create([
                     'user_id'  => $task->created_by,
                     'task_id'  => $task->id,
@@ -308,10 +298,10 @@ class TaskService
             }
         }
 
-        $msg = $isUrgentTask
-            ? 'Urgent task marked as delivered to client.'
-            : ($awayMode
+        $msg = $awayMode
             ? 'Task submitted directly for admin approval (strategist away mode).'
+            : ($isUrgentTask
+            ? 'Urgent task submitted for review! The strategists have been notified.'
             : 'Task submitted for review! Your strategist will be notified.');
 
         if ($request->ajax() || $request->wantsJson()) {

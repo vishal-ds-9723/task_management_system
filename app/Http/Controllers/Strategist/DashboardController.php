@@ -94,7 +94,7 @@ class DashboardController extends Controller
 
     public function priorityHeatmap()
     {
-        $base = Task::query()->whereHas('creator', fn($q) => $q->whereIn('role', ['strategist', 'admin']));
+        $base = Task::query()->strategistVisible(['strategist', 'admin']);
 
         $urgentTasks = (clone $base)->where('status', '!=', 'completed')->where('priority', 'urgent')->count();
         $highTasks = (clone $base)->where('status', '!=', 'completed')->where('priority', 'high')->count();

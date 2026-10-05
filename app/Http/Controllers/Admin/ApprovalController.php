@@ -27,11 +27,9 @@ class ApprovalController extends Controller
                 ->first();
 
             if ($task) {
-                $targetRoute = $task->is_urgent_task
-                    ? 'admin.tasks.show'
-                    : (in_array($task->status, ['review', 'pending_approval'], true)
+                $targetRoute = in_array($task->status, ['review', 'pending_approval'], true)
                     ? 'admin.approvals.show'
-                    : 'admin.tasks.show');
+                    : 'admin.tasks.show';
 
                 return redirect()->route($targetRoute, $task);
             }
@@ -44,10 +42,6 @@ class ApprovalController extends Controller
 
     public function show(Task $task)
     {
-        if ($task->is_urgent_task) {
-            return redirect()->route('admin.tasks.show', $task);
-        }
-
         $task = $this->service->getTaskForApproval($task);
 
         return view('admin.approvals.show', compact('task'));
