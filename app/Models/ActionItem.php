@@ -16,12 +16,15 @@ class ActionItem extends Model
         'reminder_at', 'reminder_note',
     ];
 
-    protected $casts = [
-        'due_at' => 'datetime',
-        'completed_at' => 'datetime',
-        'follow_up_date' => 'date',
-        'reminder_at' => 'datetime',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'due_at' => 'datetime',
+            'completed_at' => 'datetime',
+            'follow_up_date' => 'date',
+            'reminder_at' => 'datetime',
+        ];
+    }
 
     public function assignee()
     {

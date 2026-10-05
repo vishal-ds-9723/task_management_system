@@ -17,9 +17,12 @@ class ClientSocialMediaLink extends Model
         'is_primary',
     ];
 
-    protected $casts = [
-        'is_primary' => 'boolean',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'is_primary' => 'boolean',
+        ];
+    }
 
     public function client()
     {

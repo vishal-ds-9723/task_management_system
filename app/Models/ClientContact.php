@@ -11,10 +11,13 @@ class ClientContact extends Model
         'client_id', 'name', 'email', 'phone', 'role', 'is_primary', 'position',
     ];
 
-    protected $casts = [
-        'is_primary' => 'boolean',
-        'position'   => 'integer',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'is_primary' => 'boolean',
+            'position'   => 'integer',
+        ];
+    }
 
     public function client(): BelongsTo
     {

@@ -3,7 +3,6 @@
 namespace App\Services\Designer;
 
 use App\Http\Requests\Designer\StoreUrgentTaskRequest;
-use App\Models\Media;
 use App\Models\Task;
 use App\Models\TaskPause;
 use App\Models\User;
@@ -15,12 +14,14 @@ use App\Models\Client;
 use App\Models\ClientSocialMediaLink;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use App\Services\Designer\TaskLinkHelperTrait;
+use App\Support\Concerns\StoresTaskMedia;
 
 class TaskService
 {
     use TaskLinkHelperTrait;
+    use StoresTaskMedia;
+
     public function getIndexData(Request $request)
     {
         $scope = $request->get('scope', 'my');
@@ -431,92 +432,31 @@ class TaskService
             'media.*' => ['required', 'file', 'mimes:jpg,jpeg,jfif,png,gif,webp,svg,mp4,mov,webm,mkv,avi,m4v,3gp,ts,pdf,doc,docx,zip,rar,7z', 'max:512000'],
         ]);
 
-        try {
-            $files = $request->file('media');
-            $uploadedCount = 0;
-            $failedFiles = [];
-            $collection = 'task-media';
+        [$uploadedCount, $failedFiles] = $this->storeUploadedTaskMedia($task, $request->file('media'));
 
-            foreach ($files as $file) {
-                try {
-                    $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
-                    $filename = time() . '_' . uniqid() . '_' . $safeName;
-
-                    $stored = $file->storeAs($collection, $filename, 'public');
-
-if (!$stored) {
-    $failedFiles[] = $file->getClientOriginalName();
-    continue;
-}
-
-// Hostinger Fix
-if (!file_exists(storage_path($collection))) {
-    mkdir(storage_path($collection), 0755, true);
-}
-
-$sourceFile = storage_path("app/public/{$collection}/{$filename}");
-$targetFile = storage_path("{$collection}/{$filename}");
-
-if (file_exists($sourceFile)) {
-    copy($sourceFile, $targetFile);
-}
-
-                    $mimeType = $file->getMimeType() ?: 'application/octet-stream';
-                    $ext = strtolower($file->getClientOriginalExtension());
-                    $isVideo = str_contains($mimeType, 'video') || in_array($ext, ['mp4', 'mov', 'webm', 'mkv', 'avi', 'm4v', '3gp', 'ts', 'ogv', 'wmv', 'flv']);
-                    $isImage = str_contains($mimeType, 'image') || in_array($ext, ['jpg', 'jpeg', 'jfif', 'png', 'gif', 'webp', 'svg', 'bmp']);
-                    $type = $isVideo ? 'video' : ($isImage ? 'image' : ($ext === 'pdf' ? 'pdf' : 'document'));
-
-                    Media::create([
-                        'model_type' => Task::class,
-                        'model_id' => $task->id,
-                        'collection_name' => $collection,
-                        'name' => $file->getClientOriginalName(),
-                        'file_name' => $filename,
-                        'mime_type' => $mimeType,
-                        'disk' => 'public',
-                        'path' => "{$collection}/{$filename}",
-                        'size' => $file->getSize(),
-                        'type' => $type,
-                        'metadata' => [],
-                    ]);
-
-                    $uploadedCount++;
-                } catch (\Exception $fileException) {
-                    $failedFiles[] = $file->getClientOriginalName();
-                }
-            }
-
-            if ($uploadedCount === 0) {
-                $message = 'All files failed to upload: ' . implode(', ', $failedFiles);
-                if ($request->ajax() || $request->wantsJson()) {
-                    return response()->json(['success' => false, 'message' => $message], 422);
-                }
-                return back()->with('error', $message);
-            }
-
-            $successMessage = $uploadedCount . ' file(s) uploaded successfully';
-            if (!empty($failedFiles)) {
-                $successMessage .= '. Failed: ' . implode(', ', $failedFiles);
-            }
-
+        if ($uploadedCount === 0) {
+            $message = 'All files failed to upload: ' . implode(', ', $failedFiles);
             if ($request->ajax() || $request->wantsJson()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => $successMessage,
-                    'uploaded_count' => $uploadedCount,
-                    'failed_count' => count($failedFiles),
-                ]);
-            }
-
-            return back()->with('success', $successMessage);
-        } catch (\Exception $e) {
-            $message = 'Failed to upload: ' . $e->getMessage();
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => $message], 500);
+                return response()->json(['success' => false, 'message' => $message], 422);
             }
             return back()->with('error', $message);
         }
+
+        $successMessage = $uploadedCount . ' file(s) uploaded successfully';
+        if (!empty($failedFiles)) {
+            $successMessage .= '. Failed: ' . implode(', ', $failedFiles);
+        }
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $successMessage,
+                'uploaded_count' => $uploadedCount,
+                'failed_count' => count($failedFiles),
+            ]);
+        }
+
+        return back()->with('success', $successMessage);
     }
 
     public function deleteMedia(Request $request, Task $task)
@@ -527,40 +467,19 @@ if (file_exists($sourceFile)) {
             'media_id' => ['required', 'integer'],
         ]);
 
-        try {
-            $media = Media::find($request->input('media_id'));
-
-            if (!$media || $media->model_type !== Task::class || $media->model_id !== $task->id) {
-                $message = 'Media not found or does not belong to this task.';
-                if ($request->ajax() || $request->wantsJson()) {
-                    return response()->json(['success' => false, 'message' => $message], 404);
-                }
-                return back()->with('error', $message);
-            }
-
-            if (Storage::disk('public')->exists($media->path)) {
-                Storage::disk('public')->delete($media->path);
-            }
-
-            $extraFile = storage_path($media->path);
-
-if (file_exists($extraFile)) {
-    unlink($extraFile);
-}
-            $media->delete();
-
-            $message = 'Media removed successfully.';
+        if (!$this->deleteTaskMediaRecord($task, (int) $request->input('media_id'))) {
+            $message = 'Media not found or does not belong to this task.';
             if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['success' => true, 'message' => $message]);
-            }
-            return back()->with('success', $message);
-        } catch (\Exception $e) {
-            $message = 'Failed to delete media: ' . $e->getMessage();
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => $message], 500);
+                return response()->json(['success' => false, 'message' => $message], 404);
             }
             return back()->with('error', $message);
         }
+
+        $message = 'Media removed successfully.';
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['success' => true, 'message' => $message]);
+        }
+        return back()->with('success', $message);
     }
 
     public function pauseTask(Request $request, Task $task)

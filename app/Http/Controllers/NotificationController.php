@@ -46,4 +46,13 @@ class NotificationController extends Controller
 
         return response()->json(['ok' => true]);
     }
+
+    public function saveFcmToken(Request $request)
+    {
+        $request->validate(['token' => 'required|string']);
+        $user = $request->user();
+        $user->fcm_token = $request->token;
+        $user->save();
+        return response()->json(['ok' => true]);
+    }
 }

@@ -139,11 +139,6 @@ class User extends Authenticatable
         return $this->hasMany(Comment::class);
     }
 
-    public function deviceTokens()
-    {
-        return $this->hasMany(DeviceToken::class);
-    }
-
     public function customNotifications()
     {
         return $this->hasMany(Notification::class)->latest();

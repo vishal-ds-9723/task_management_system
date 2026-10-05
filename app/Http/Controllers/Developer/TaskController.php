@@ -8,12 +8,15 @@ use App\Models\Task;
 use App\Models\User;
 use App\Models\Client;
 use App\Models\Notification;
+use App\Support\Concerns\StoresTaskMedia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
 class TaskController extends Controller
 {
+    use StoresTaskMedia;
+
     public function dashboard()
     {
         $developer = Auth::user();
@@ -165,6 +168,26 @@ class TaskController extends Controller
         $task->started_at = now();
         $task->save();
 
+        \App\Models\AuditLog::create([
+            'user_id'    => Auth::id(),
+            'task_id'    => $task->id,
+            'action'     => 'Status changed from todo to inprogress',
+            'old_values' => ['status' => 'todo'],
+            'new_values' => ['status' => 'inprogress'],
+            'ip_address' => $request->ip(),
+        ]);
+
+        if ($task->created_by && $task->created_by !== Auth::id()) {
+            Notification::create([
+                'user_id'  => $task->created_by,
+                'task_id'  => $task->id,
+                'icon'     => '🔵',
+                'title'    => 'Task moved to In Progress',
+                'subtitle' => Auth::user()->name . ' started work on "' . $task->title . '"',
+                'link'     => route('strategist.tasks.show', $task),
+            ]);
+        }
+
         if ($request->ajax()) {
             return response()->json([
                 'success' => true,
@@ -251,6 +274,26 @@ class TaskController extends Controller
             'work_logged' => $request->work_logged,
         ]);
 
+        \App\Models\AuditLog::create([
+            'user_id'    => Auth::id(),
+            'task_id'    => $task->id,
+            'action'     => 'Paused task',
+            'old_values' => ['is_paused' => false],
+            'new_values' => ['is_paused' => true, 'reason' => $request->reason],
+            'ip_address' => $request->ip(),
+        ]);
+
+        if ($task->created_by && $task->created_by !== Auth::id()) {
+            Notification::create([
+                'user_id'  => $task->created_by,
+                'task_id'  => $task->id,
+                'icon'     => '⏸️',
+                'title'    => 'Task paused',
+                'subtitle' => Auth::user()->name . ' paused "' . $task->title . '" — ' . $request->reason,
+                'link'     => route('strategist.tasks.show', $task),
+            ]);
+        }
+
         return response()->json(['success' => true, 'message' => 'Task paused successfully.']);
     }
 
@@ -269,6 +312,7 @@ class TaskController extends Controller
             ->latest()
             ->first();
 
+        $duration = 0;
         if ($pauseRecord) {
             // Carbon 3 diffs are signed: measure from the pause start forward to stay positive
             $duration = (int) $pauseRecord->created_at->diffInSeconds(now());
@@ -284,6 +328,30 @@ class TaskController extends Controller
         $task->paused_at = null;
         $task->pause_reason = null;
         $task->save();
+
+        \App\Models\AuditLog::create([
+            'user_id'    => Auth::id(),
+            'task_id'    => $task->id,
+            'action'     => 'Resumed task',
+            'old_values' => ['is_paused' => true],
+            'new_values' => ['is_paused' => false, 'pause_duration_seconds' => $duration],
+            'ip_address' => $request->ip(),
+        ]);
+
+        if ($task->created_by && $task->created_by !== Auth::id()) {
+            $hours = intdiv($duration, 3600);
+            $mins = intdiv($duration % 3600, 60);
+            $durationStr = $hours > 0 ? "{$hours}h {$mins}m" : "{$mins}m";
+
+            Notification::create([
+                'user_id'  => $task->created_by,
+                'task_id'  => $task->id,
+                'icon'     => '▶️',
+                'title'    => 'Task resumed',
+                'subtitle' => Auth::user()->name . ' resumed "' . $task->title . '" (paused ' . $durationStr . ')',
+                'link'     => route('strategist.tasks.show', $task),
+            ]);
+        }
 
         return response()->json(['success' => true, 'message' => 'Task resumed successfully.']);
     }
@@ -359,40 +427,7 @@ class TaskController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
         }
 
-        $uploadedCount = 0;
-        $failedFiles = [];
-        $collection = 'task-media';
-
-        foreach ($request->file('media') as $file) {
-            try {
-                $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
-                $filename = time() . '_' . uniqid() . '_' . $safeName;
-                
-                if ($file->storeAs($collection, $filename, 'public')) {
-                    $mimeType = $file->getMimeType();
-                    $type = str_contains($mimeType, 'image') ? 'image' : (str_contains($mimeType, 'video') ? 'video' : 'document');
-                    
-                    \App\Models\Media::create([
-                        'model_type' => Task::class,
-                        'model_id' => $task->id,
-                        'collection_name' => $collection,
-                        'name' => $file->getClientOriginalName(),
-                        'file_name' => $filename,
-                        'mime_type' => $mimeType,
-                        'disk' => 'public',
-                        'path' => "{$collection}/{$filename}",
-                        'size' => $file->getSize(),
-                        'type' => $type,
-                        'metadata' => [],
-                    ]);
-                    $uploadedCount++;
-                } else {
-                    $failedFiles[] = $file->getClientOriginalName();
-                }
-            } catch (\Exception $e) {
-                $failedFiles[] = $file->getClientOriginalName();
-            }
-        }
+        [$uploadedCount] = $this->storeUploadedTaskMedia($task, $request->file('media'));
 
         return response()->json([
             'success' => $uploadedCount > 0,
@@ -406,16 +441,7 @@ class TaskController extends Controller
             abort(403);
         }
 
-        $media = \App\Models\Media::findOrFail($request->media_id);
-        
-        if ($media->model_type !== Task::class || $media->model_id !== $task->id) {
-            abort(403);
-        }
-
-        if (\Illuminate\Support\Facades\Storage::disk('public')->exists($media->path)) {
-            \Illuminate\Support\Facades\Storage::disk('public')->delete($media->path);
-        }
-        $media->delete();
+        abort_unless($this->deleteTaskMediaRecord($task, (int) $request->media_id), 404);
 
         return response()->json(['success' => true, 'message' => 'Media deleted.']);
     }

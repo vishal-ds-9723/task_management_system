@@ -11,10 +11,13 @@ class ShootDay extends Model
         'location', 'notes', 'client_id', 'created_by', 'status',
     ];
 
-    protected $casts = [
-        'shoot_date' => 'date',
-        'start_date' => 'datetime:H:i',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'shoot_date' => 'date',
+            'start_date' => 'datetime:H:i',
+        ];
+    }
 
     public function client()
     {

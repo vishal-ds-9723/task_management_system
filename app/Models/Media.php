@@ -21,9 +21,12 @@ class Media extends Model
         'order_column',
     ];
 
-    protected $casts = [
-        'metadata' => 'json',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'metadata' => 'json',
+        ];
+    }
 
     protected $appends = ['url', 'thumb_url'];
 
@@ -50,17 +53,9 @@ class Media extends Model
      */
     public function getUrl($conversion = null)
     {
-        if ($this->id) {
-            if (request()) {
-                return request()->root() . '/api/v1/media/' . $this->id . '/view';
-            }
-            return url('/api/v1/media/' . $this->id . '/view');
-        }
         $cleanPath = str_replace('\\', '/', $this->path);
-        if (request()) {
-            return request()->root() . '/storage/' . ltrim($cleanPath, '/');
-        }
-        return asset('storage/' . ltrim($cleanPath, '/'));
+
+        return route('media.stream', ['path' => ltrim($cleanPath, '/')]);
     }
 
     /**

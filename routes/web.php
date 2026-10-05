@@ -32,6 +32,9 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/api/media/upload', [MediaController::class, 'store'])->name('media.store');
     Route::delete('/api/media/{media}', [MediaController::class, 'destroy'])->name('media.destroy');
     Route::get('/api/media', [MediaController::class, 'index'])->name('media.index');
+
+    // File streaming (task media + chat attachments), bypasses the storage symlink
+    Route::get('/media/file/{path}', [MediaController::class, 'stream'])->where('path', '.*')->name('media.stream');
 });
 
 Route::middleware(['auth', 'role:admin,strategist,designer,developer,manager,editor,content_writer'])->group(function () {
@@ -70,6 +73,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 Route::post('/api/notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->middleware('auth');
 Route::post('/api/notifications/clear-all', [NotificationController::class, 'clearAll'])->middleware('auth');
 Route::get('/api/notifications/poll', [NotificationController::class, 'poll'])->middleware('auth');
+Route::post('/api/notifications/save-token', [NotificationController::class, 'saveFcmToken'])->middleware('auth');
 
 // Global reminders API
 Route::get('/api/reminders/active', [Strategist\ActionItemController::class, 'getActiveReminders'])->middleware('auth');

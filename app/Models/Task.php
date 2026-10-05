@@ -95,33 +95,36 @@ class Task extends Model
         'revision_count',
     ];
 
-    protected $casts = [
-        'deadline'            => 'date',
-        'design_deadline'     => 'date',
-        'post_date'           => 'date',
-        'project_start_date'  => 'date',
-        'launch_date'         => 'date',
-        'dev_deadline'        => 'date',
-        'started_at'          => 'datetime',
-        'submitted_at'        => 'datetime',
-        'completed_at'        => 'datetime',
-        'admin_approved_at'   => 'datetime',
-        'paused_at'           => 'datetime',
-        'caption_saved_at'    => 'datetime',
-        'on_hold_since'       => 'datetime',
-        'reference_links'     => 'array',
-        'platform'            => 'array',
-        'selected_social_media_link_ids' => 'array',
-        'logo_received'       => 'boolean',
-        'images_received'     => 'boolean',
-        'content_received'    => 'boolean',
-        'domain_purchased'    => 'boolean',
-        'hosting_access'      => 'boolean',
-        'is_paused'           => 'boolean',
-        'is_urgent_task'      => 'boolean',
-        'total_paused_seconds' => 'integer',
-        'revision_count'      => 'integer',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'deadline'            => 'date',
+            'design_deadline'     => 'date',
+            'post_date'           => 'date',
+            'project_start_date'  => 'date',
+            'launch_date'         => 'date',
+            'dev_deadline'        => 'date',
+            'started_at'          => 'datetime',
+            'submitted_at'        => 'datetime',
+            'completed_at'        => 'datetime',
+            'admin_approved_at'   => 'datetime',
+            'paused_at'           => 'datetime',
+            'caption_saved_at'    => 'datetime',
+            'on_hold_since'       => 'datetime',
+            'reference_links'     => 'array',
+            'platform'            => 'array',
+            'selected_social_media_link_ids' => 'array',
+            'logo_received'       => 'boolean',
+            'images_received'     => 'boolean',
+            'content_received'    => 'boolean',
+            'domain_purchased'    => 'boolean',
+            'hosting_access'      => 'boolean',
+            'is_paused'           => 'boolean',
+            'is_urgent_task'      => 'boolean',
+            'total_paused_seconds' => 'integer',
+            'revision_count'      => 'integer',
+        ];
+    }
 
     public function client()
     {

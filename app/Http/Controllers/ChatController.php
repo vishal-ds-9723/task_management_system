@@ -273,18 +273,17 @@ class ChatController extends Controller
         }
         $subtitle = mb_strlen($preview) > 120 ? mb_substr($preview, 0, 117) . '…' : $preview;
 
-        $now = now();
-        $rows = array_map(fn ($uid) => [
-            'user_id'    => $uid,
-            'icon'       => '💬',
-            'title'      => $title,
-            'subtitle'   => $subtitle,
-            'link'       => $link,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ], $recipientIds);
-
-        DB::table('notifications_custom')->insert($rows);
+        // Uses the Notification model (not a raw insert) so FCM push fires
+        // via Notification::booted() for each recipient.
+        foreach ($recipientIds as $uid) {
+            Notification::create([
+                'user_id'  => $uid,
+                'icon'     => '💬',
+                'title'    => $title,
+                'subtitle' => $subtitle,
+                'link'     => $link,
+            ]);
+        }
     }
 
     public function update(Request $request, Message $message)

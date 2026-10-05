@@ -26,9 +26,12 @@ class SocialMediaPost extends Model
         'posted_by',
     ];
 
-    protected $casts = [
-        'posted_at' => 'date',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'posted_at' => 'date',
+        ];
+    }
 
     protected $appends = ['platform_icon', 'platform_label', 'platform_color', 'proof_image_url'];
 
