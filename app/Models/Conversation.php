@@ -15,10 +15,13 @@ class Conversation extends Model
         'user_one_id', 'user_two_id', 'last_message_at',
     ];
 
-    protected $casts = [
-        'is_group'        => 'boolean',
-        'last_message_at' => 'datetime',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'is_group'        => 'boolean',
+            'last_message_at' => 'datetime',
+        ];
+    }
 
     public function userOne(): BelongsTo
     {

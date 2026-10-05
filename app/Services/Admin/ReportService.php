@@ -7,10 +7,20 @@ use App\Models\Client;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class ReportService
 {
+    const CACHE_DURATION = 300;
+
     public function getReportData(Request $request)
+    {
+        $cacheKey = $this->buildCacheKey($request);
+
+        return Cache::remember($cacheKey, self::CACHE_DURATION, fn () => $this->buildReportData($request));
+    }
+
+    private function buildReportData(Request $request)
     {
         $range     = $request->input('range', '30');
         $clientId  = $request->input('client_id');
@@ -215,6 +225,20 @@ class ReportService
     }
 
     // ── Private helpers ────────────────────────────────────────────────────
+
+    private function buildCacheKey(Request $request): string
+    {
+        $parts = [
+            'range'       => (string) $request->input('range', '30'),
+            'client_id'   => (string) $request->input('client_id', ''),
+            'designer_id' => (string) $request->input('designer_id', ''),
+            'date_from'   => (string) $request->input('date_from', ''),
+            'date_to'     => (string) $request->input('date_to', ''),
+            'day'         => now()->format('Y-m-d'),
+        ];
+
+        return 'admin:report:' . sha1(json_encode($parts));
+    }
 
     private function parseRange(string $range, Request $request): array
     {

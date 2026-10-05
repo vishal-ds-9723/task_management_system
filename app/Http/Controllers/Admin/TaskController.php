@@ -132,7 +132,22 @@ class TaskController extends Controller
             'status' => ['required', 'string', 'in:todo,inprogress,review,completed,published'],
         ]);
 
+        $oldStatus = $task->status;
         $task->update(['status' => $validated['status']]);
+
+        if ($task->assigned_to && $task->assigned_to !== Auth::id() && $oldStatus !== $task->status) {
+            $icons = ['todo' => '🔄', 'inprogress' => '🔵', 'review' => '📋', 'completed' => '✅', 'published' => '📢'];
+            $labels = ['todo' => 'To Do', 'inprogress' => 'In Progress', 'review' => 'Review', 'completed' => 'Completed', 'published' => 'Published'];
+
+            Notification::create([
+                'user_id'  => $task->assigned_to,
+                'task_id'  => $task->id,
+                'icon'     => $icons[$task->status] ?? '🔔',
+                'title'    => 'Task moved to ' . ($labels[$task->status] ?? ucfirst($task->status)),
+                'subtitle' => 'Admin updated "' . $task->title . '"',
+                'link'     => route('admin.tasks.show', $task),
+            ]);
+        }
 
         return response()->json([
             'success' => true,

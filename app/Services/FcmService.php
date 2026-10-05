@@ -60,6 +60,11 @@ class FcmService
                     'android' => [
                         'priority' => 'high',
                     ],
+                    'webpush' => [
+                        'fcm_options' => [
+                            'link' => $data['link'] ?? config('app.url'),
+                        ],
+                    ],
                 ],
             ]
         );
@@ -73,21 +78,20 @@ class FcmService
     }
 
     /**
-     * Send the same notification to every registered device of a user.
-     * Prunes tokens FCM reports as unregistered/invalid.
+     * Send a notification to the user's registered browser push token.
+     * Clears the token if FCM reports it unregistered/invalid so we stop
+     * retrying against a dead token.
      */
     public function sendToUser($user, string $title, string $body, array $data = []): void
     {
-        if (!$this->isConfigured()) {
+        if (!$this->isConfigured() || !$user->fcm_token) {
             return;
         }
 
-        foreach ($user->deviceTokens as $deviceToken) {
-            $ok = $this->sendToToken($deviceToken->token, $title, $body, $data);
-            if (!$ok) {
-                // Token likely stale (app reinstalled, uninstalled, etc.) — drop it.
-                $deviceToken->delete();
-            }
+        $ok = $this->sendToToken($user->fcm_token, $title, $body, $data);
+        if (!$ok) {
+            $user->fcm_token = null;
+            $user->save();
         }
     }
 

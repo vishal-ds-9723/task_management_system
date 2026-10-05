@@ -18,12 +18,15 @@ class AuditLog extends Model
         'user_agent',
     ];
 
-    protected $casts = [
-        'old_values' => 'json',
-        'new_values' => 'json',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'old_values' => 'json',
+            'new_values' => 'json',
+            'created_at' => 'datetime',
+            'updated_at' => 'datetime',
+        ];
+    }
 
     public function user()
     {

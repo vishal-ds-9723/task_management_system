@@ -7,16 +7,17 @@ use App\Models\Client;
 use App\Models\User;
 use App\Models\Comment;
 use App\Models\Notification;
-use App\Models\Media;
 use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Carbon;
 use App\Http\Resources\TaskResource;
+use App\Support\Concerns\StoresTaskMedia;
 
 class TaskService
 {
+    use StoresTaskMedia;
+
     public function createTask(array $validated)
     {
         // Process platform links if platforms exist
@@ -231,6 +232,17 @@ class TaskService
     public function updateHashtagsOnly(Task $task, array $validated)
     {
         $task->update(['hashtags' => $validated['hashtags']]);
+
+        if ($task->assigned_to && $task->assigned_to !== Auth::id()) {
+            Notification::create([
+                'user_id'  => $task->assigned_to,
+                'task_id'  => $task->id,
+                'icon'     => '📕',
+                'title'    => 'Hashtags updated',
+                'subtitle' => Auth::user()->name . ' updated hashtags on "' . $task->title . '"',
+                'link'     => '/designer/tasks/' . $task->id,
+            ]);
+        }
     }
 
     public function approveTask(Task $task, Request $request)
@@ -307,47 +319,7 @@ class TaskService
             'media.*' => ['required', 'file', 'mimes:jpg,jpeg,jfif,png,gif,webp,svg,mp4,mov,webm,mkv,avi,m4v,3gp,ts,pdf,doc,docx,zip,rar,7z', 'max:512000'],
         ]);
 
-        $files = $request->file('media');
-        $uploadedCount = 0;
-        $failedFiles = [];
-        $collection = 'task-media';
-
-        foreach ($files as $file) {
-            try {
-                $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
-                $filename = time() . '_' . uniqid() . '_' . $safeName;
-
-                $stored = $file->storeAs($collection, $filename, 'public');
-                if (!$stored) {
-                    $failedFiles[] = $file->getClientOriginalName();
-                    continue;
-                }
-
-                $mimeType = $file->getMimeType() ?: 'application/octet-stream';
-                $ext = strtolower($file->getClientOriginalExtension());
-                $isVideo = str_contains($mimeType, 'video') || in_array($ext, ['mp4', 'mov', 'webm', 'mkv', 'avi', 'm4v', '3gp', 'ts', 'ogv', 'wmv', 'flv']);
-                $isImage = str_contains($mimeType, 'image') || in_array($ext, ['jpg', 'jpeg', 'jfif', 'png', 'gif', 'webp', 'svg', 'bmp']);
-                $type = $isVideo ? 'video' : ($isImage ? 'image' : ($ext === 'pdf' ? 'pdf' : 'document'));
-
-                Media::create([
-                    'model_type'      => Task::class,
-                    'model_id'        => $task->id,
-                    'collection_name' => $collection,
-                    'name'            => $file->getClientOriginalName(),
-                    'file_name'       => $filename,
-                    'mime_type'       => $mimeType,
-                    'disk'            => 'public',
-                    'path'            => "{$collection}/{$filename}",
-                    'size'            => $file->getSize(),
-                    'type'            => $type,
-                    'metadata'        => [],
-                ]);
-
-                $uploadedCount++;
-            } catch (\Exception $e) {
-                $failedFiles[] = $file->getClientOriginalName();
-            }
-        }
+        [$uploadedCount, $failedFiles] = $this->storeUploadedTaskMedia($task, $request->file('media'));
 
         if ($uploadedCount === 0) {
             return response()->json(['success' => false, 'message' => 'All files failed.'], 422);
@@ -368,17 +340,7 @@ class TaskService
 
     public function deleteMedia(Task $task, int $mediaId)
     {
-        $media = Media::findOrFail($mediaId);
-
-        if ($media->model_type !== Task::class || $media->model_id !== $task->id) {
-            abort(403);
-        }
-
-        if (Storage::disk('public')->exists($media->path)) {
-            Storage::disk('public')->delete($media->path);
-        }
-
-        $media->delete();
+        abort_unless($this->deleteTaskMediaRecord($task, $mediaId), 404);
 
         return response()->json(['success' => true, 'message' => 'Media removed.']);
     }

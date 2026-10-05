@@ -316,12 +316,26 @@ class TaskService
 
     public function bulkUpdateStatus(array $data)
     {
-        $count = Task::whereIn('id', $data['task_ids'])->update(['status' => $data['status']]);
-
         $tasks = Task::whereIn('id', $data['task_ids'])->get();
+        $icons = ['todo' => '🔄', 'inprogress' => '🔵', 'review' => '📋', 'completed' => '✅', 'published' => '📢'];
+        $labels = ['todo' => 'To Do', 'inprogress' => 'In Progress', 'review' => 'Review', 'completed' => 'Completed', 'published' => 'Published'];
+
         foreach ($tasks as $task) {
             $this->logAudit('Bulk status update to ' . $data['status'], $task);
+
+            if ($task->assigned_to && $task->assigned_to !== Auth::id() && $task->status !== $data['status']) {
+                Notification::create([
+                    'user_id'  => $task->assigned_to,
+                    'task_id'  => $task->id,
+                    'icon'     => $icons[$data['status']] ?? '🔔',
+                    'title'    => 'Task moved to ' . ($labels[$data['status']] ?? ucfirst($data['status'])),
+                    'subtitle' => 'Admin updated "' . $task->title . '" (bulk update)',
+                    'link'     => route('admin.tasks.show', $task),
+                ]);
+            }
         }
+
+        $count = Task::whereIn('id', $data['task_ids'])->update(['status' => $data['status']]);
 
         return $count;
     }

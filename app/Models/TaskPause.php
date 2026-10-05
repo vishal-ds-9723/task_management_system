@@ -16,9 +16,12 @@ class TaskPause extends Model
         'duration_seconds',
     ];
 
-    protected $casts = [
-        'resumed_at' => 'datetime',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'resumed_at' => 'datetime',
+        ];
+    }
 
     public function task()
     {

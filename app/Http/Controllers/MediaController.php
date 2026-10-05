@@ -139,6 +139,27 @@ class MediaController extends Controller
     }
 
     /**
+     * Stream a file from the public disk by its relative path.
+     *
+     * Serves through the app instead of a direct /storage/* link because the
+     * storage symlink is unreliable on shared hosting (Hostinger) — some
+     * uploads land in a mirrored path directly under storage/ as a fallback.
+     */
+    public function stream(string $path)
+    {
+        if (Storage::disk('public')->exists($path)) {
+            return Storage::disk('public')->response($path);
+        }
+
+        $mirrored = storage_path($path);
+        if (file_exists($mirrored)) {
+            return response()->file($mirrored);
+        }
+
+        abort(404);
+    }
+
+    /**
      * Determine file type based on MIME type
      */
     private function determineType($mimeType)

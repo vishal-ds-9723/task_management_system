@@ -17,11 +17,14 @@ class Message extends Model
         'edited_at',
     ];
 
-    protected $casts = [
-        'read_at' => 'datetime',
-        'edited_at' => 'datetime',
-        'attachment_size' => 'integer',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'read_at' => 'datetime',
+            'edited_at' => 'datetime',
+            'attachment_size' => 'integer',
+        ];
+    }
 
     public function isImageAttachment(): bool
     {
@@ -35,10 +38,7 @@ class Message extends Model
         if (str_starts_with($cleanPath, 'http://') || str_starts_with($cleanPath, 'https://')) {
             return $cleanPath;
         }
-        if (request()) {
-            return request()->root() . '/api/v1/media/file/' . ltrim($cleanPath, '/');
-        }
-        return url('/api/v1/media/file/' . ltrim($cleanPath, '/'));
+        return route('media.stream', ['path' => ltrim($cleanPath, '/')]);
     }
 
     public function conversation(): BelongsTo

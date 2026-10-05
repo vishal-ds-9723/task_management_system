@@ -27,18 +27,21 @@ class SocialMediaPostMetric extends Model
         'updated_by',
     ];
 
-    protected $casts = [
-        'snapshot_date' => 'date',
-        'views' => 'integer',
-        'impressions' => 'integer',
-        'reach' => 'integer',
-        'likes' => 'integer',
-        'comments' => 'integer',
-        'shares' => 'integer',
-        'profile_visits' => 'integer',
-        'paid_promotion' => 'boolean',
-        'ad_spend_inr' => 'decimal:2',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'snapshot_date' => 'date',
+            'views' => 'integer',
+            'impressions' => 'integer',
+            'reach' => 'integer',
+            'likes' => 'integer',
+            'comments' => 'integer',
+            'shares' => 'integer',
+            'profile_visits' => 'integer',
+            'paid_promotion' => 'boolean',
+            'ad_spend_inr' => 'decimal:2',
+        ];
+    }
 
     public function socialMediaPost(): BelongsTo
     {

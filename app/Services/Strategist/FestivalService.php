@@ -5,6 +5,8 @@ namespace App\Services\Strategist;
 use App\Models\Client;
 use App\Models\Festival;
 use App\Models\FestivalSelection;
+use App\Models\Notification;
+use App\Models\User;
 use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
 use Maatwebsite\Excel\Concerns\ToArray;
@@ -41,7 +43,40 @@ class FestivalService
      */
     public function createFestival(array $data): Festival
     {
-        return Festival::create(array_merge($data, ['is_active' => true]));
+        $festival = Festival::create(array_merge($data, ['is_active' => true]));
+
+        $this->notifyClientsOfNewFestival($festival);
+
+        return $festival;
+    }
+
+    /**
+     * Let clients know a new festival is open for selection — only when it
+     * falls in the window they're actually allowed to select for (current
+     * or next month), so far-future calendar entries don't spam everyone.
+     */
+    private function notifyClientsOfNewFestival(Festival $festival): void
+    {
+        $currentMonth = now()->startOfMonth();
+        $nextMonth = now()->addMonth()->startOfMonth();
+
+        if (!$festival->date->isSameMonth($currentMonth) && !$festival->date->isSameMonth($nextMonth)) {
+            return;
+        }
+
+        $clientUsers = User::where('role', 'client')
+            ->whereHas('client', fn ($q) => $q->where('is_active', true))
+            ->get();
+
+        foreach ($clientUsers as $user) {
+            Notification::create([
+                'user_id'  => $user->id,
+                'icon'     => $festival->emoji ?: '🎉',
+                'title'    => 'New festival: ' . $festival->name,
+                'subtitle' => 'Select it if you want content planned around ' . $festival->date->format('M d'),
+                'link'     => route('client.festivals'),
+            ]);
+        }
     }
 
     /**

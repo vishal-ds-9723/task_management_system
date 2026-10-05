@@ -928,10 +928,12 @@ window.ajax = {
     }
 };
 
-// PWA Service Worker Registration
+// PWA + Firebase Messaging Service Worker Registration
+// (single file at '/' scope — Firebase getToken() needs this exact
+// registration to deliver background/closed-browser push notifications)
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
+        navigator.serviceWorker.register('/firebase-messaging-sw.js')
             .then(reg => console.log('Service Worker registered', reg))
             .catch(err => console.error('Service Worker registration failed', err));
     });
@@ -2112,5 +2114,71 @@ remindersCheckInterval = setInterval(updateGlobalReminders, 30000); // Check eve
 </style>
 
 @stack('scripts')
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
+<script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCM1JPND9WPN_8l-rWQl4U1ppeV8r0MZEw",
+      authDomain: "tms-task-4e9b9.firebaseapp.com",
+      projectId: "tms-task-4e9b9",
+      storageBucket: "tms-task-4e9b9.firebasestorage.app",
+      messagingSenderId: "169931045249",
+      appId: "1:169931045249:web:61ba9c60a44618019bd080"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const messaging = firebase.messaging();
+
+    function requestNotificationPermission() {
+        Notification.requestPermission().then((permission) => {
+            if (permission === 'granted') {
+                console.log('Notification permission granted.');
+                messaging.getToken({ vapidKey: "BPTU9GIYzO8MN52n2AAn2txDU27OZpTfGUp6jg59M9017fCbEMdyHbPVjaqd1EW0sib1Ci-8uU7i_v6u-QO1CzI" }).then((currentToken) => {
+                    if (currentToken) {
+                        console.log('FCM Token:', currentToken);
+                        saveTokenToServer(currentToken);
+                    } else {
+                        console.log('No registration token available.');
+                    }
+                }).catch((err) => {
+                    console.log('An error occurred while retrieving token. ', err);
+                });
+            } else {
+                console.log('Unable to get permission to notify.');
+            }
+        });
+    }
+
+    function saveTokenToServer(token) {
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        if(!csrf) return;
+        fetch('/api/notifications/save-token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ token: token })
+        }).then(res => res.json()).then(data => console.log('Token saved', data)).catch(err => console.log(err));
+    }
+
+    // Request permission when page loads
+    document.addEventListener('DOMContentLoaded', () => {
+        if (Notification.permission === 'default' || Notification.permission === 'granted') {
+            requestNotificationPermission();
+        }
+    });
+
+    messaging.onMessage((payload) => {
+        console.log('Message received. ', payload);
+        const notificationTitle = payload.notification.title;
+        const notificationOptions = {
+            body: payload.notification.body,
+            icon: '/images/logo.png'
+        };
+        new Notification(notificationTitle, notificationOptions);
+    });
+</script>
 </body>
 </html>
