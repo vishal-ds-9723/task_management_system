@@ -294,6 +294,11 @@
                 <span class="nav-text">Dev Dashboard</span>
                 <span class="nav-tooltip">Developer Dashboard</span>
             </a>
+            <a href="javascript:void(0)" onclick="openSelfTaskModal()" class="nav-item" title="Create Task">
+                <span class="icon"><i class="fas fa-plus-circle" style="color:var(--primary, #4F6DF0)"></i></span>
+                <span class="nav-text">Create Task</span>
+                <span class="nav-tooltip">Create Task</span>
+            </a>
             <a href="{{ route('developer.tasks') }}" class="nav-item {{ request()->routeIs('developer.tasks') ? 'active' : '' }}" title="Dev Tasks">
                 <span class="icon"><i class="fas fa-code"></i></span>
                 <span class="nav-text">Dev Tasks</span>
@@ -346,6 +351,11 @@
                 <span class="nav-text">Dashboard</span>
                 <span class="nav-tooltip">Dashboard</span>
             </a>
+            <a href="javascript:void(0)" onclick="openSelfTaskModal({ defaultType: 'website' })" class="nav-item" title="Create Task">
+                <span class="icon"><i class="fas fa-plus-circle" style="color:var(--primary, #4F6DF0)"></i></span>
+                <span class="nav-text">Create Task</span>
+                <span class="nav-tooltip">Create Task</span>
+            </a>
         </div>
         <div class="nav-section">
             <a href="{{ route('developer.tasks') }}" class="nav-item {{ request()->routeIs('developer.tasks') ? 'active' : '' }}" title="My Tasks">
@@ -379,6 +389,11 @@
                 <span class="icon"><i class="fas fa-th-large"></i></span>
                 <span class="nav-text">Dashboard</span>
                 <span class="nav-tooltip">Dashboard</span>
+            </a>
+            <a href="javascript:void(0)" onclick="openSelfTaskModal({ defaultType: 'logo' })" class="nav-item" title="Create Task">
+                <span class="icon"><i class="fas fa-plus-circle" style="color:var(--primary, #4F6DF0)"></i></span>
+                <span class="nav-text">Create Task</span>
+                <span class="nav-tooltip">Create Task</span>
             </a>
             <a href="{{ route('designer.tasks') }}" class="nav-item {{ request()->routeIs('designer.tasks') ? 'active' : '' }}" title="My Tasks">
                 <span class="icon"><i class="fas fa-paint-brush"></i></span>

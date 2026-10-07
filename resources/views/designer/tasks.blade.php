@@ -291,5 +291,4 @@ document.querySelectorAll('#statusFilterTabs button').forEach(btn => {
     });
 });
 </script>
-@include('components.self-task-modal')
 @endsection

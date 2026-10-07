@@ -278,6 +278,11 @@ textarea.stm-input {
 window._selfTaskCallback = null;
 
 function openSelfTaskModal(options = {}) {
+    const sidebar = document.getElementById('appSidebar');
+    if (sidebar && sidebar.classList.contains('mobile-open')) {
+        sidebar.classList.remove('mobile-open');
+    }
+
     const modal = document.getElementById('selfTaskModal');
     if (!modal) return;
     const form = document.getElementById('selfTaskModalForm');

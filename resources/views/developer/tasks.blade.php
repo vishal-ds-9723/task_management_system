@@ -1317,5 +1317,4 @@ textarea.dt-input { resize: vertical; min-height: 76px; line-height: 1.5; }
     if (linkedTask) openDrawer(linkedTask);
 })();
 </script>
-@include('components.self-task-modal')
 @endsection

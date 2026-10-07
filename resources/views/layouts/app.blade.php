@@ -149,6 +149,9 @@
     <x-create-task-modal :clients="$createTaskClients ?? $clients ?? collect()" :members="$createTaskMembers ?? $designers ?? collect()" />
 @endif
 
+{{-- Self-Task Creation Modal for Team Members --}}
+<x-self-task-modal />
+
 {{-- Task Detail Modal --}}
 <div class="modal-overlay" id="taskModal">
     <div class="modal">

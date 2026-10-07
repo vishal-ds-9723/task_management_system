@@ -533,6 +533,4 @@ textarea.dl-input { resize: vertical; min-height: 64px; }
 })();
 </script>
 @endif
-
-@include('components.self-task-modal')
 @endsection
