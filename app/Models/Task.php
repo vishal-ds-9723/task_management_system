@@ -15,7 +15,7 @@ class Task extends Model
     public const ACTIVE_STATUSES = ['todo', 'inprogress', 'review', 'pending_approval'];
     public const PLATFORMS = SocialRegistry::TASK_PLATFORMS;
     public const SOCIAL_TYPES = ['reel', 'post', 'story', 'video', 'carousel'];
-    public const DESIGN_TYPES = ['brochure', 'banner', 'flyer'];
+    public const DESIGN_TYPES = ['brochure', 'banner', 'flyer', 'logo', 'product_design', 'branding'];
     public const URGENT_TYPES = ['reel', 'post', 'story', 'video', 'carousel', 'brochure', 'banner', 'flyer'];
     public const DEV_TYPES = ['website', 'software', 'maintenance'];
     /** Roles allowed to own a development project (designers also build sites in this firm). */
@@ -313,12 +313,27 @@ class Task extends Model
      */
     public function linkFor(User $user): string
     {
-        return match ($user->role) {
-            'developer' => route('developer.tasks', ['task' => $this->id]),
-            'designer' => route('designer.tasks.show', $this),
-            'admin' => route('admin.tasks.show', $this),
-            default => route('strategist.tracking', ['task' => $this->id]),
-        };
+        if ($user->isAdmin()) {
+            return route('admin.tasks.show', $this);
+        }
+
+        if (self::isDevType($this->type) && $user->isDeveloper()) {
+            return route('developer.tasks', ['task' => $this->id]);
+        }
+
+        if ((self::isDesignType($this->type) || self::isSocialType($this->type)) && $user->isDesigner()) {
+            return route('designer.tasks.show', $this);
+        }
+
+        if ($user->isDeveloper()) {
+            return route('developer.tasks', ['task' => $this->id]);
+        }
+
+        if ($user->isDesigner()) {
+            return route('designer.tasks.show', $this);
+        }
+
+        return route('strategist.tracking', ['task' => $this->id]);
     }
 
     public static function isDesignType(?string $type): bool
@@ -440,17 +455,22 @@ class Task extends Model
     public function getTypeTagClassAttribute(): string
     {
         return match($this->type) {
-            'reel'     => 'tag-orange',
-            'post'     => 'tag-blue',
-            'story'    => 'tag-teal',
-            'video'    => 'tag-purple',
-            'carousel' => 'tag-pink',
-            'website'  => 'tag-indigo',
-            'software' => 'tag-purple',
-            'brochure' => 'tag-amber',
-            'flyer'    => 'tag-red',
-            'others'   => 'tag-blue',
-            default    => 'tag-blue',
+            'reel'            => 'tag-orange',
+            'post'            => 'tag-blue',
+            'story'           => 'tag-teal',
+            'video'           => 'tag-purple',
+            'carousel'        => 'tag-pink',
+            'website'         => 'tag-teal',
+            'software'        => 'tag-purple',
+            'maintenance', 'server_maintenance' => 'tag-blue',
+            'brochure'        => 'tag-amber',
+            'banner'          => 'tag-red',
+            'flyer'           => 'tag-red',
+            'logo'            => 'tag-yellow',
+            'product_design'  => 'tag-purple',
+            'branding'        => 'tag-pink',
+            'others'          => 'tag-blue',
+            default           => 'tag-blue',
         };
     }
 

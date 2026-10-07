@@ -267,7 +267,12 @@ textarea.dl-input { resize: vertical; min-height: 64px; }
                         <div id="dlEntries"></div>
 
                         <div class="dl-form-foot">
-                            <button type="button" class="dl-btn" id="dlAddEntry"><i class="fas fa-plus"></i> Add entry</button>
+                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                                <button type="button" class="dl-btn" id="dlAddEntry"><i class="fas fa-plus"></i> Add entry</button>
+                                <button type="button" class="dl-btn" onclick="openSelfTaskModal()" style="background:#eef2ff;color:#4f46e5;border:1px solid #c7d2fe;font-weight:700" title="Create a new task and assign to yourself">
+                                    <i class="fas fa-plus-circle"></i> Quick Create Task
+                                </button>
+                            </div>
                             <div class="dl-total" id="dlTotal">Total: <strong>0</strong> h</div>
                         </div>
 
@@ -302,9 +307,28 @@ textarea.dl-input { resize: vertical; min-height: 64px; }
                                 <div class="dl-field">
                                     <label>Type</label>
                                     <select class="dl-input" data-field="work_type">
-                                        @foreach($workTypes as $value => $label)
-                                            <option value="{{ $value }}">{{ $label }}</option>
-                                        @endforeach
+                                        <optgroup label="🎨 Creative & Graphics Design">
+                                            <option value="graphics_design">Graphics Design</option>
+                                            <option value="logo_design">Logo Design</option>
+                                            <option value="product_design">Product Design / UI-UX</option>
+                                            <option value="banner_flyer">Banner / Flyer / Print</option>
+                                            <option value="branding">Branding & Identity</option>
+                                            <option value="video_motion">Video / Motion / Reel</option>
+                                        </optgroup>
+                                        <optgroup label="💻 Web & Technical">
+                                            <option value="development" selected>Website / Software Development</option>
+                                            <option value="bug_fix">Bug Fix / Debugging</option>
+                                            <option value="server_maintenance">Server Maintenance / DevOps</option>
+                                            <option value="deployment">Deployment & Hosting</option>
+                                            <option value="testing">Testing & QA</option>
+                                        </optgroup>
+                                        <optgroup label="📋 Operations & Support">
+                                            <option value="revision">Client Revision</option>
+                                            <option value="research">Research & Planning</option>
+                                            <option value="meeting">Meeting & Discussion</option>
+                                            <option value="support">Technical Support</option>
+                                            <option value="other">Other Work</option>
+                                        </optgroup>
                                     </select>
                                 </div>
                                 <div class="dl-field">
@@ -437,7 +461,78 @@ textarea.dl-input { resize: vertical; min-height: 64px; }
     document.getElementById('dlAddEntry').addEventListener('click', () => {
         addRow().querySelector('[data-field="task_id"]').focus();
     });
+
+    window.onSelfTaskCreatedInDailyLog = function(task) {
+        // 1. Add option to template for future rows
+        const templateSelect = template.content.querySelector('[data-field="task_id"]');
+        if (templateSelect) {
+            const opt = document.createElement('option');
+            opt.value = task.id;
+            opt.textContent = `${task.title}${task.client_name ? ' · ' + task.client_name : ''}`;
+            templateSelect.appendChild(opt);
+        }
+
+        // 2. Add option to all existing row selects
+        container.querySelectorAll('[data-field="task_id"]').forEach(sel => {
+            const opt = document.createElement('option');
+            opt.value = task.id;
+            opt.textContent = `${task.title}${task.client_name ? ' · ' + task.client_name : ''}`;
+            sel.appendChild(opt);
+        });
+
+        // 3. Find first empty row or create new row
+        let targetRow = null;
+        const rows = container.querySelectorAll('.dl-entry');
+        for (let r of rows) {
+            const taskSelect = r.querySelector('[data-field="task_id"]');
+            const descInput = r.querySelector('[data-field="description"]');
+            if ((!taskSelect.value || taskSelect.value === '') && !descInput.value.trim()) {
+                targetRow = r;
+                break;
+            }
+        }
+
+        if (!targetRow) {
+            targetRow = addRow();
+        }
+
+        const taskSelect = targetRow.querySelector('[data-field="task_id"]');
+        if (taskSelect) {
+            taskSelect.value = task.id;
+        }
+
+        // Infer work_type from task type
+        const workTypeSelect = targetRow.querySelector('[data-field="work_type"]');
+        if (workTypeSelect && task.type) {
+            const typeMap = {
+                'logo': 'logo_design',
+                'product_design': 'product_design',
+                'banner': 'banner_flyer',
+                'flyer': 'banner_flyer',
+                'brochure': 'banner_flyer',
+                'branding': 'branding',
+                'reel': 'video_motion',
+                'video': 'video_motion',
+                'server_maintenance': 'server_maintenance',
+                'maintenance': 'server_maintenance',
+                'website': 'development',
+                'software': 'development',
+                'post': 'graphics_design',
+            };
+            if (typeMap[task.type]) {
+                workTypeSelect.value = typeMap[task.type];
+            }
+        }
+
+        const descInput = targetRow.querySelector('[data-field="description"]');
+        if (descInput) {
+            descInput.placeholder = `Worked on ${task.title}...`;
+            descInput.focus();
+        }
+    };
 })();
 </script>
 @endif
+
+@include('components.self-task-modal')
 @endsection

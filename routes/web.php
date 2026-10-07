@@ -282,6 +282,7 @@ Route::prefix('designer')->name('designer.')->middleware(['auth', 'role:designer
     Route::post('/urgent-task', [Designer\TaskController::class, 'createUrgentTask'])->name('urgent-task.store');
     Route::get('/calendar', [Designer\CalendarController::class, 'index'])->name('calendar');
     Route::get('/performance', [Designer\PerformanceController::class, 'index'])->name('performance');
+    Route::get('/daily-log', fn() => redirect()->route('developer.daily-log'))->name('daily-log');
 });
 
 // ──────────── CLIENT ────────────
@@ -320,9 +321,14 @@ Route::prefix('developer')
         Route::delete('/tasks/{task}/delete-media', 'deleteMedia')->name('tasks.delete-media');
     });
 
-    Route::get('/daily-log', [\App\Http\Controllers\Developer\DailyLogController::class, 'index'])->name('daily-log');
-    Route::post('/daily-log', [\App\Http\Controllers\Developer\DailyLogController::class, 'store'])->name('daily-log.store');
+});
 
+// ──────────── UNIVERSAL DAILY WORK LOG & SELF-TASK ENTRY ────────────
+Route::middleware(['auth', 'role:developer,designer,admin,strategist'])->group(function () {
+    Route::get('/developer/daily-log', [\App\Http\Controllers\Developer\DailyLogController::class, 'index'])->name('developer.daily-log');
+    Route::post('/developer/daily-log', [\App\Http\Controllers\Developer\DailyLogController::class, 'store'])->name('developer.daily-log.store');
+    Route::get('/daily-log', fn() => redirect()->route('developer.daily-log'))->name('daily-log');
+    Route::post('/tasks/self-create', [\App\Http\Controllers\Employee\SelfTaskController::class, 'store'])->name('employee.tasks.self-create');
 });
 
 // ──────────── TEAM DAILY LOGS (developer work reports) ────────────

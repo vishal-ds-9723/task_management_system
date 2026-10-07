@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Developer;
 
 use App\Http\Controllers\Controller;
+use App\Models\Client;
 use App\Models\DailyWorkLog;
 use App\Models\DailyWorkLogEntry;
 use App\Models\Task;
@@ -66,11 +67,14 @@ class DailyLogController extends Controller
             ->paginate(10)
             ->withQueryString();
 
+        $clients = Client::where('is_active', true)->orderBy('name')->get();
+
         return view('developer.daily-log', [
             'date' => $date,
             'log' => $log,
             'canEdit' => $canEdit,
             'tasks' => $tasks,
+            'clients' => $clients,
             'workTypes' => DailyWorkLogEntry::WORK_TYPES,
             'hoursThisWeek' => $hoursThisWeek,
             'daysLoggedThisMonth' => $daysLoggedThisMonth,

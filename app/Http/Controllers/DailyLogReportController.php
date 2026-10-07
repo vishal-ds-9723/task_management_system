@@ -16,7 +16,12 @@ class DailyLogReportController extends Controller
     {
         $date = $this->resolveDate($request->input('date'));
 
-        $developers = User::where('role', 'developer')
+        $developers = User::where(function ($q) {
+                $q->whereIn('role', ['developer', 'designer'])
+                  ->orWhereJsonContains('additional_roles', 'developer')
+                  ->orWhereJsonContains('additional_roles', 'designer')
+                  ->orWhereHas('dailyWorkLogs');
+            })
             ->when($request->filled('user_id'), fn ($q) => $q->where('id', $request->input('user_id')))
             ->orderBy('name')
             ->get();
@@ -49,7 +54,12 @@ class DailyLogReportController extends Controller
         return view('daily-logs.report', [
             'date' => $date,
             'developers' => $developers,
-            'allDevelopers' => User::where('role', 'developer')->orderBy('name')->get(['id', 'name']),
+            'allDevelopers' => User::where(function ($q) {
+                $q->whereIn('role', ['developer', 'designer'])
+                  ->orWhereJsonContains('additional_roles', 'developer')
+                  ->orWhereJsonContains('additional_roles', 'designer')
+                  ->orWhereHas('dailyWorkLogs');
+            })->orderBy('name')->get(['id', 'name']),
             'logs' => $logs,
             'weekDays' => $weekDays,
             'weekHours' => $weekHours,

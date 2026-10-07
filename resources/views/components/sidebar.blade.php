@@ -1,13 +1,15 @@
 {{-- resources/views/components/sidebar.blade.php --}}
 @php
     $role = auth()->user()->role;
+    $isDev = auth()->user()->isDeveloper();
+    $isDes = auth()->user()->isDesigner();
     // Everyone who works in the strategist panel gets its menu
     $isStrategistPanel = in_array($role, \App\Models\Task::STRATEGIST_PANEL_ROLES, true);
     $initial = strtoupper(substr(auth()->user()->name, 0, 1));
     $userName = auth()->user()->name;
     $avatarColor = auth()->user()->avatar_color ?? '#4F6DF0';
     $hour = now()->hour;
-    $greeting = $hour < 12 ? 'Good morning' : ($hour < 17 ? 'Good afternoon' : 'Good evening');
+    $greeting = ($isDev && $isDes) ? '🎨 Designer & 💻 Dev' : ($hour < 12 ? 'Good morning' : ($hour < 17 ? 'Good afternoon' : 'Good evening'));
     $pendingAssignedCount = \App\Models\Task::query()
         ->where('assigned_to', auth()->id())
         ->where('status', '!=', 'completed')
@@ -284,6 +286,59 @@
 
 
 
+    @elseif($isDev && $isDes)
+        {{-- Hybrid Employee (Both Designer & Developer) --}}
+        <div class="nav-section">
+            <a href="{{ route('developer.dashboard') }}" class="nav-item {{ request()->routeIs('developer.dashboard') ? 'active' : '' }}" title="Dev Dashboard">
+                <span class="icon"><i class="fas fa-laptop-code"></i></span>
+                <span class="nav-text">Dev Dashboard</span>
+                <span class="nav-tooltip">Developer Dashboard</span>
+            </a>
+            <a href="{{ route('developer.tasks') }}" class="nav-item {{ request()->routeIs('developer.tasks') ? 'active' : '' }}" title="Dev Tasks">
+                <span class="icon"><i class="fas fa-code"></i></span>
+                <span class="nav-text">Dev Tasks</span>
+                <span class="nav-tooltip">Developer Tasks</span>
+                @if($pendingAssignedCount > 0)
+                    <span class="nav-badge-dot"></span>
+                @endif
+            </a>
+            @php
+                $hybridLoggedToday = \App\Models\DailyWorkLog::where('user_id', auth()->id())->whereDate('log_date', today())->exists();
+            @endphp
+            <a href="{{ route('developer.daily-log') }}" class="nav-item {{ request()->routeIs('developer.daily-log') || request()->routeIs('designer.daily-log') || request()->routeIs('daily-log') ? 'active' : '' }}" title="Daily Work Log">
+                <span class="icon"><i class="fas fa-clipboard-list"></i></span>
+                <span class="nav-text">Daily Log</span>
+                <span class="nav-tooltip">{{ $hybridLoggedToday ? 'Daily Log' : "Daily Log · today's log pending" }}</span>
+                @unless($hybridLoggedToday)
+                    <span class="nav-badge-dot"></span>
+                @endunless
+            </a>
+            <a href="{{ route('designer.tasks') }}" class="nav-item {{ request()->routeIs('designer.tasks') ? 'active' : '' }}" title="Design Tasks">
+                <span class="icon"><i class="fas fa-paint-brush"></i></span>
+                <span class="nav-text">Design Tasks</span>
+                <span class="nav-tooltip">Designer Tasks</span>
+            </a>
+            <a href="{{ route('designer.dashboard') }}" class="nav-item {{ request()->routeIs('designer.dashboard') ? 'active' : '' }}" title="Designer Studio">
+                <span class="icon"><i class="fas fa-palette"></i></span>
+                <span class="nav-text">Design Studio</span>
+                <span class="nav-tooltip">Designer Studio</span>
+            </a>
+            <a href="{{ route('designer.urgent-task') }}" class="nav-item {{ request()->routeIs('designer.urgent-task*') ? 'active' : '' }}" title="Urgent Task">
+                <span class="icon"><i class="fas fa-bolt" style="color:var(--dz-red, #EF4444)"></i></span>
+                <span class="nav-text">Urgent Task</span>
+                <span class="nav-tooltip">Create Urgent Task</span>
+            </a>
+            <a href="{{ route('developer.calendar') }}" class="nav-item {{ request()->routeIs('developer.calendar') || request()->routeIs('designer.calendar') ? 'active' : '' }}" title="Calendar">
+                <span class="icon"><i class="fas fa-calendar-alt"></i></span>
+                <span class="nav-text">Calendar</span>
+                <span class="nav-tooltip">Calendar</span>
+            </a>
+            <a href="{{ route('designer.performance') }}" class="nav-item {{ request()->routeIs('designer.performance') ? 'active' : '' }}" title="Performance">
+                <span class="icon"><i class="fas fa-chart-line"></i></span>
+                <span class="nav-text">Performance</span>
+                <span class="nav-tooltip">Performance</span>
+            </a>
+        </div>
     @elseif($role === 'developer')
         <div class="nav-section">
             <a href="{{ route('developer.dashboard') }}" class="nav-item {{ request()->routeIs('developer.dashboard') ? 'active' : '' }}" title="Dashboard">
@@ -304,7 +359,7 @@
             @php
                 $devLoggedToday = \App\Models\DailyWorkLog::where('user_id', auth()->id())->whereDate('log_date', today())->exists();
             @endphp
-            <a href="{{ route('developer.daily-log') }}" class="nav-item {{ request()->routeIs('developer.daily-log') ? 'active' : '' }}" title="Daily Log">
+            <a href="{{ route('developer.daily-log') }}" class="nav-item {{ request()->routeIs('developer.daily-log') || request()->routeIs('daily-log') ? 'active' : '' }}" title="Daily Log">
                 <span class="icon"><i class="fas fa-clipboard-list"></i></span>
                 <span class="nav-text">Daily Log</span>
                 <span class="nav-tooltip">{{ $devLoggedToday ? 'Daily Log' : "Daily Log · today's log pending" }}</span>
@@ -332,6 +387,17 @@
                 @if($pendingAssignedCount > 0)
                     <span class="nav-badge-dot"></span>
                 @endif
+            </a>
+            @php
+                $designerLoggedToday = \App\Models\DailyWorkLog::where('user_id', auth()->id())->whereDate('log_date', today())->exists();
+            @endphp
+            <a href="{{ route('developer.daily-log') }}" class="nav-item {{ request()->routeIs('developer.daily-log') || request()->routeIs('designer.daily-log') || request()->routeIs('daily-log') ? 'active' : '' }}" title="Daily Log">
+                <span class="icon"><i class="fas fa-clipboard-list"></i></span>
+                <span class="nav-text">Daily Log</span>
+                <span class="nav-tooltip">{{ $designerLoggedToday ? 'Daily Log' : "Daily Log · today's log pending" }}</span>
+                @unless($designerLoggedToday)
+                    <span class="nav-badge-dot"></span>
+                @endunless
             </a>
             <a href="{{ route('designer.urgent-task') }}" class="nav-item {{ request()->routeIs('designer.urgent-task*') ? 'active' : '' }}" title="Create Urgent Task">
                 <span class="icon"><i class="fas fa-bolt" style="color:var(--dz-red, #EF4444)"></i></span>

@@ -501,6 +501,9 @@ textarea.dt-input { resize: vertical; min-height: 76px; line-height: 1.5; }
                     <i class="fas fa-users"></i> Team
                 </a>
             </div>
+            <button type="button" class="dt-hero-cta" onclick="openSelfTaskModal({ defaultType: 'website' })" style="background:#4f46e5;color:#fff;border:none;cursor:pointer">
+                <i class="fas fa-plus"></i> New Task
+            </button>
             <a href="{{ route('developer.daily-log') }}" class="dt-hero-cta"><i class="fas fa-clipboard-list"></i> Log today's work</a>
         </div>
     </section>
@@ -1314,4 +1317,5 @@ textarea.dt-input { resize: vertical; min-height: 76px; line-height: 1.5; }
     if (linkedTask) openDrawer(linkedTask);
 })();
 </script>
+@include('components.self-task-modal')
 @endsection

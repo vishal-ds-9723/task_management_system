@@ -43,8 +43,12 @@
             </a>
         </div>
 
-        <a href="{{ route('designer.urgent-task') }}" class="btn-primary">
-            <i class="fa-solid fa-plus"></i> Urgent Task
+        <button type="button" class="btn-primary" onclick="openSelfTaskModal({ defaultType: 'logo' })" style="background:#4f46e5;color:#fff;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+            <i class="fa-solid fa-plus-circle"></i> Create Task
+        </button>
+
+        <a href="{{ route('designer.urgent-task') }}" class="btn-secondary" style="border:1px solid #ef4444;color:#ef4444;background:#fff;display:inline-flex;align-items:center;gap:6px">
+            <i class="fa-solid fa-bolt"></i> Urgent Task
         </a>
     </div>
 </div>
@@ -287,4 +291,5 @@ document.querySelectorAll('#statusFilterTabs button').forEach(btn => {
     });
 });
 </script>
+@include('components.self-task-modal')
 @endsection

@@ -7,15 +7,27 @@ use Illuminate\Database\Eloquent\Model;
 class DailyWorkLogEntry extends Model
 {
     public const WORK_TYPES = [
-        'development' => 'Development',
-        'bug_fix'     => 'Bug Fix',
-        'revision'    => 'Revision',
-        'testing'     => 'Testing',
-        'deployment'  => 'Deployment',
-        'research'    => 'Research',
-        'meeting'     => 'Meeting',
-        'support'     => 'Support',
-        'other'       => 'Other',
+        // Creative & Graphics Designing
+        'graphics_design'    => 'Graphics Design',
+        'logo_design'        => 'Logo Design',
+        'product_design'     => 'Product Design / UI-UX',
+        'banner_flyer'       => 'Banner / Flyer / Print',
+        'branding'           => 'Branding & Identity',
+        'video_motion'       => 'Video / Motion / Reel',
+
+        // Website Development & Technical
+        'development'        => 'Website / Software Development',
+        'bug_fix'            => 'Bug Fix / Debugging',
+        'server_maintenance' => 'Server Maintenance / DevOps',
+        'deployment'         => 'Deployment & Hosting',
+        'testing'            => 'Testing & QA',
+
+        // Collaboration, Research & Operations
+        'revision'           => 'Client Revision',
+        'research'           => 'Research & Planning',
+        'meeting'            => 'Meeting & Discussion',
+        'support'            => 'Technical Support',
+        'other'              => 'Other Work',
     ];
 
     protected $fillable = [

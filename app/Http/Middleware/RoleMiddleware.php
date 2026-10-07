@@ -10,7 +10,17 @@ class RoleMiddleware
 {
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
-        if (!$request->user() || !in_array($request->user()->role, $roles)) {
+        $allowedRoles = [];
+        foreach ($roles as $r) {
+            foreach (explode(',', $r) as $subRole) {
+                $trimmed = trim($subRole);
+                if ($trimmed !== '') {
+                    $allowedRoles[] = $trimmed;
+                }
+            }
+        }
+
+        if (!$request->user() || !$request->user()->hasAnyRole($allowedRoles)) {
             abort(403, 'Unauthorized.');
         }
 
