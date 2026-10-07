@@ -3,6 +3,8 @@
 
 @php
     $assignableMembers = collect($members ?? $designers ?? collect());
+    $taskTypesGrouped = \App\Models\DropdownOption::getGrouped('task_type');
+    $prioritiesList = \App\Models\DropdownOption::getOptions('priority');
 @endphp
 
 <div class="{{ $page ? 'ct-page-shell' : 'modal-overlay' }}" id="createModal">
@@ -33,24 +35,13 @@
                     <label>Content Type <span style="color:var(--red)">*</span></label>
                     <select name="type" id="modalTypeSelect" required>
                         <option value="">Select type</option>
-                        <optgroup label="Social Media">
-                            <option value="reel">Reel</option>
-                            <option value="post">Post</option>
-                            <option value="story">Story</option>
-                            <option value="video">Video</option>
-                            <option value="carousel">Carousel</option>
-                        </optgroup>
-                        <optgroup label="Print Media">
-                            <option value="brochure">Brochure</option>
-                            <option value="banner">Banner</option>
-                            <option value="flyer">Flyer</option>
-                        </optgroup>
-                        <optgroup label="Development">
-                            <option value="website">Website</option>
-                            <option value="software">Software</option>
-                            <option value="maintenance">Maintenance / Support</option>
-                        </optgroup>
-                        <option value="others">Others</option>
+                        @foreach($taskTypesGrouped as $groupName => $types)
+                            <optgroup label="{{ $groupName }}">
+                                @foreach($types as $t)
+                                    <option value="{{ $t->value }}">{{ $t->label }}</option>
+                                @endforeach
+                            </optgroup>
+                        @endforeach
                     </select>
                     <span class="field-error" id="err-type" style="display:none;color:var(--red);font-size:11px;margin-top:4px;font-weight:600"></span>
                 </div>
@@ -68,9 +59,9 @@
                 <div class="form-group">
                     <label>Priority <span id="modalPriorityAutoTag" style="font-size:9px;font-weight:700;color:var(--teal);background:var(--teal-dim);padding:2px 8px;border-radius:4px;margin-left:6px;display:none">AUTO</span> <span style="color:var(--red)">*</span></label>
                     <select name="priority" id="modalPrioritySelect" required>
-                        <option value="normal">Normal</option>
-                        <option value="high">High</option>
-                        <option value="urgent">Urgent</option>
+                        @foreach($prioritiesList as $p)
+                            <option value="{{ $p->value }}" {{ $p->value === 'normal' ? 'selected' : '' }}>{{ $p->label }}</option>
+                        @endforeach
                     </select>
                     <div id="modalPriorityInfo" style="font-size:10px;color:var(--text3);margin-top:4px"></div>
                 </div>
@@ -672,5 +663,57 @@ function loadModalSocialMediaLinks(clientId) {
     postDateInput.addEventListener('change', updateModalDatesAndPriority);
     postDateInput.addEventListener('input', updateModalDatesAndPriority);
     if (postDateInput.value) updateModalDatesAndPriority();
+
+    // Sync create-task-modal dropdowns on dropdown:updated
+    document.addEventListener('dropdown:updated', async function(e) {
+        const category = e.detail?.category;
+
+        if (category === 'task_type') {
+            const select = document.getElementById('modalTypeSelect');
+            if (!select) return;
+            const currentVal = select.value;
+            try {
+                const res = await fetch('/api/dropdown-options?category=task_type');
+                const data = await res.json();
+                if (data.options) {
+                    const grouped = {};
+                    data.options.forEach(opt => {
+                        const grp = opt.group_name || 'General';
+                        if (!grouped[grp]) grouped[grp] = [];
+                        grouped[grp].push(opt);
+                    });
+
+                    let html = '<option value="">Select type</option>';
+                    Object.entries(grouped).forEach(([grpName, items]) => {
+                        html += `<optgroup label="${grpName}">`;
+                        items.forEach(item => {
+                            html += `<option value="${item.value}" ${item.value === currentVal ? 'selected' : ''}>${item.label}</option>`;
+                        });
+                        html += '</optgroup>';
+                    });
+                    html += '<option value="__manage__" style="color:var(--primary, #4F6DF0);font-weight:700">⚙️ + Manage / Add Type...</option>';
+                    select.innerHTML = html;
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        if (category === 'priority') {
+            const select = document.getElementById('modalPrioritySelect');
+            if (!select) return;
+            const currentVal = select.value;
+            try {
+                const res = await fetch('/api/dropdown-options?category=priority');
+                const data = await res.json();
+                if (data.options) {
+                    let html = '';
+                    data.options.forEach(p => {
+                        html += `<option value="${p.value}" ${p.value === currentVal ? 'selected' : ''}>${p.label}</option>`;
+                    });
+                    html += '<option value="__manage__" style="color:var(--primary, #4F6DF0);font-weight:700">⚙️ + Manage...</option>';
+                    select.innerHTML = html;
+                }
+            } catch (err) { console.error(err); }
+        }
+    });
 })();
 </script>

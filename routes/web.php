@@ -339,3 +339,19 @@ Route::middleware(['auth', 'role:developer,designer,admin,strategist'])->group(f
 Route::get('/team/daily-logs', [\App\Http\Controllers\DailyLogReportController::class, 'index'])
     ->middleware(['auth', 'role:admin,strategist,manager'])
     ->name('daily-logs.report');
+
+// ──────────── SETTINGS & DROPDOWN MANAGEMENT ────────────
+Route::middleware(['auth'])->group(function () {
+    Route::get('/settings', [\App\Http\Controllers\SettingsController::class, 'index'])->name('settings');
+    Route::get('/designer/settings', fn() => redirect()->route('settings'))->name('designer.settings');
+});
+
+// ──────────── DYNAMIC DROPDOWN OPTIONS (CRUD) ────────────
+Route::middleware(['auth'])->prefix('api/dropdown-options')->name('dropdown-options.')->group(function () {
+    Route::get('/', [\App\Http\Controllers\DropdownOptionController::class, 'index'])->name('index');
+    Route::post('/', [\App\Http\Controllers\DropdownOptionController::class, 'store'])->name('store');
+    Route::put('/{dropdownOption}', [\App\Http\Controllers\DropdownOptionController::class, 'update'])->name('update');
+    Route::delete('/{dropdownOption}', [\App\Http\Controllers\DropdownOptionController::class, 'destroy'])->name('destroy');
+    Route::post('/reorder', [\App\Http\Controllers\DropdownOptionController::class, 'reorder'])->name('reorder');
+});
+

@@ -17,19 +17,22 @@ class SelfTaskController extends Controller
      */
     public function store(Request $request)
     {
-        $validTypes = [
+        $defaultTypes = [
             'reel', 'post', 'story', 'video', 'carousel',
             'brochure', 'banner', 'flyer', 'logo', 'product_design', 'branding',
             'website', 'software', 'maintenance', 'server_maintenance',
             'others',
         ];
+        $validTypes = \App\Models\DropdownOption::getValues('task_type', $defaultTypes);
+        $validPriorities = \App\Models\DropdownOption::getValues('priority', ['normal', 'high', 'urgent']);
+        $validStatuses = \App\Models\DropdownOption::getValues('status', ['todo', 'inprogress', 'review', 'completed']);
 
         $validated = $request->validate([
             'title'       => ['required', 'string', 'max:255'],
             'client_id'   => ['nullable', 'integer', 'exists:clients,id'],
             'type'        => ['required', 'string', Rule::in($validTypes)],
-            'priority'    => ['nullable', 'string', Rule::in(['normal', 'high', 'urgent'])],
-            'status'      => ['nullable', 'string', Rule::in(['todo', 'inprogress', 'review', 'completed'])],
+            'priority'    => ['nullable', 'string', Rule::in($validPriorities)],
+            'status'      => ['nullable', 'string', Rule::in($validStatuses)],
             'brief'       => ['nullable', 'string', 'max:3000'],
             'deadline'    => ['nullable', 'date'],
         ]);

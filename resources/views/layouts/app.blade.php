@@ -148,6 +148,9 @@
 {{-- Universal Media Lightbox Modal --}}
 <x-media-lightbox />
 
+{{-- Universal Dynamic Dropdown Options Manager Modal --}}
+<x-dropdown-options-modal />
+
 {{-- Task Detail Modal --}}
 <div class="modal-overlay" id="taskModal">
     <div class="modal">

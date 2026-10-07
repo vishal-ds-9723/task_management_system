@@ -385,15 +385,10 @@
         </div>
     @elseif($role === 'designer')
         <div class="nav-section">
-            <a href="{{ route('designer.dashboard') }}" class="nav-item {{ request()->routeIs('designer.dashboard') ? 'active' : '' }}" title="My Dashboard">
+            <a href="{{ route('designer.dashboard') }}" class="nav-item {{ request()->routeIs('designer.dashboard') ? 'active' : '' }}" title="Dashboard">
                 <span class="icon"><i class="fas fa-th-large"></i></span>
                 <span class="nav-text">Dashboard</span>
                 <span class="nav-tooltip">Dashboard</span>
-            </a>
-            <a href="javascript:void(0)" onclick="openSelfTaskModal({ defaultType: 'logo' })" class="nav-item" title="Create Task">
-                <span class="icon"><i class="fas fa-plus-circle" style="color:var(--primary, #4F6DF0)"></i></span>
-                <span class="nav-text">Create Task</span>
-                <span class="nav-tooltip">Create Task</span>
             </a>
             <a href="{{ route('designer.tasks') }}" class="nav-item {{ request()->routeIs('designer.tasks') ? 'active' : '' }}" title="My Tasks">
                 <span class="icon"><i class="fas fa-paint-brush"></i></span>
@@ -414,20 +409,10 @@
                     <span class="nav-badge-dot"></span>
                 @endunless
             </a>
-            <a href="{{ route('designer.urgent-task') }}" class="nav-item {{ request()->routeIs('designer.urgent-task*') ? 'active' : '' }}" title="Create Urgent Task">
-                <span class="icon"><i class="fas fa-bolt" style="color:var(--dz-red, #EF4444)"></i></span>
-                <span class="nav-text">Urgent Task</span>
-                <span class="nav-tooltip">Create Urgent Task</span>
-            </a>
-            <a href="{{ route('designer.calendar') }}" class="nav-item {{ request()->routeIs('designer.calendar') ? 'active' : '' }}" title="My Calendar">
+            <a href="{{ route('designer.calendar') }}" class="nav-item {{ request()->routeIs('designer.calendar') ? 'active' : '' }}" title="Calendar">
                 <span class="icon"><i class="fas fa-calendar-alt"></i></span>
                 <span class="nav-text">Calendar</span>
                 <span class="nav-tooltip">Calendar</span>
-            </a>
-            <a href="{{ route('designer.performance') }}" class="nav-item {{ request()->routeIs('designer.performance') ? 'active' : '' }}" title="My Performance">
-                <span class="icon"><i class="fas fa-chart-line"></i></span>
-                <span class="nav-text">Performance</span>
-                <span class="nav-tooltip">Performance</span>
             </a>
         </div>
     @elseif($role === 'client')
@@ -486,6 +471,15 @@
                 @if($unreadMessages > 0)
                     <span class="nav-badge" style="margin-left:auto;background:#EF4444;color:#fff;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700">{{ $unreadMessages > 99 ? '99+' : $unreadMessages }}</span>
                 @endif
+            </a>
+        </div>
+
+        {{-- Settings (internal roles) --}}
+        <div class="nav-section">
+            <a href="{{ route('settings') }}" class="nav-item {{ request()->routeIs('settings*') ? 'active' : '' }}" title="Settings">
+                <span class="icon"><i class="fas fa-cog"></i></span>
+                <span class="nav-text">Settings</span>
+                <span class="nav-tooltip">Settings & Dropdown Options</span>
             </a>
         </div>
     @endif

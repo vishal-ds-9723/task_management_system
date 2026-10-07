@@ -24,13 +24,8 @@ class TaskService
 
     public function getIndexData(Request $request)
     {
-        $scope = $request->get('scope', 'my');
-
-        $query = Task::with(['client', 'creator', 'assignee']);
-
-        if ($scope !== 'all') {
-            $query->assignedTo(Auth::id());
-        }
+        $query = Task::with(['client', 'creator', 'assignee'])
+            ->assignedTo(Auth::id());
 
         if ($request->filled('search')) {
             $search = $request->get('search');
@@ -52,19 +47,14 @@ class TaskService
             $query->where('created_by', $request->get('creator_id'));
         }
 
-        if ($request->filled('assigned_to')) {
-            $query->where('assigned_to', $request->get('assigned_to'));
-        }
-
         $tasks = $query->orderByRaw("CASE status WHEN 'inprogress' THEN 0 WHEN 'todo' THEN 1 WHEN 'review' THEN 2 WHEN 'completed' THEN 3 END")
             ->orderByRaw('post_date IS NULL, post_date ASC')
             ->get();
 
         $firstUnlockedId = $tasks->first(fn ($t) => !in_array($t->status, ['completed', 'review', 'pending_approval', 'published']))?->id;
 
-        $tasks->each(function ($task) use ($firstUnlockedId, $scope) {
-            $task->is_locked = ($scope === 'my')
-                && !in_array($task->status, ['completed', 'review', 'pending_approval', 'published', 'inprogress'])
+        $tasks->each(function ($task) use ($firstUnlockedId) {
+            $task->is_locked = !in_array($task->status, ['completed', 'review', 'pending_approval', 'published', 'inprogress'])
                 && !$task->is_paused
                 && $task->id !== $firstUnlockedId;
         });
@@ -73,7 +63,7 @@ class TaskService
         $strategists = User::whereIn('role', ['strategist', 'manager', 'editor', 'content_writer', 'admin'])->orderBy('name')->get();
         $designers = User::whereIn('role', ['designer', 'developer', 'editor', 'content_writer'])->orderBy('name')->get();
 
-        return compact('tasks', 'clients', 'strategists', 'designers', 'scope');
+        return compact('tasks', 'clients', 'strategists', 'designers');
     }
 
     public function show(Task $task)

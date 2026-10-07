@@ -290,7 +290,10 @@ class Task extends Model
 
     public static function isSocialType(?string $type): bool
     {
-        return in_array((string) $type, self::SOCIAL_TYPES, true);
+        if (in_array((string) $type, self::SOCIAL_TYPES, true)) {
+            return true;
+        }
+        return class_exists(DropdownOption::class) && DropdownOption::isSocialType($type);
     }
 
     /** Roles that work in the strategist panel. */
@@ -382,12 +385,18 @@ class Task extends Model
 
     public static function isDesignType(?string $type): bool
     {
-        return in_array((string) $type, self::DESIGN_TYPES, true);
+        if (in_array((string) $type, self::DESIGN_TYPES, true)) {
+            return true;
+        }
+        return class_exists(DropdownOption::class) && DropdownOption::isDesignType($type);
     }
 
     public static function isUrgentType(?string $type): bool
     {
-        return in_array((string) $type, self::URGENT_TYPES, true);
+        if (in_array((string) $type, self::URGENT_TYPES, true)) {
+            return true;
+        }
+        return class_exists(DropdownOption::class) && in_array((string) $type, DropdownOption::getValues('task_type'), true);
     }
 
     /**

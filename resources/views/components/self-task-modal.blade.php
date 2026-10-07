@@ -1,6 +1,9 @@
 {{-- Reusable Self-Task Creation Modal for Team Members (Designers, Developers, etc.) --}}
 @php
     $modalClients = \App\Models\Client::where('is_active', true)->orderBy('name')->get();
+    $modalTaskTypes = \App\Models\DropdownOption::getGrouped('task_type');
+    $modalPriorities = \App\Models\DropdownOption::getOptions('priority');
+    $modalStatuses = \App\Models\DropdownOption::getOptions('status');
 @endphp
 
 <div id="selfTaskModal" class="self-task-modal-backdrop" style="display:none;" aria-hidden="true">
@@ -39,26 +42,15 @@
                     <div class="stm-form-group">
                         <label for="stmType" class="stm-label">Task Category <span class="stm-required">*</span></label>
                         <select id="stmType" name="type" class="stm-input" required>
-                            <optgroup label="🎨 Creative & Graphics Design">
-                                <option value="logo">🎨 Logo Design</option>
-                                <option value="product_design">📱 Product Design / UI-UX</option>
-                                <option value="branding">🏷️ Branding & Identity</option>
-                                <option value="banner">🖼️ Banner / Display Ad</option>
-                                <option value="flyer">📄 Flyer / Poster</option>
-                                <option value="brochure">📖 Brochure / Print</option>
-                                <option value="reel">🎬 Reel / Short Video</option>
-                                <option value="post" selected>📌 Social Media Post</option>
-                                <option value="video">🎥 Video Production</option>
-                            </optgroup>
-                            <optgroup label="💻 Web & Technical">
-                                <option value="website">🌐 Website Development</option>
-                                <option value="software">💻 Software / App Development</option>
-                                <option value="server_maintenance">🖥️ Server Maintenance / DevOps</option>
-                                <option value="maintenance">⚙️ Website Maintenance</option>
-                            </optgroup>
-                            <optgroup label="📋 Other">
-                                <option value="others">📝 General / Other</option>
-                            </optgroup>
+                            @foreach($modalTaskTypes as $groupName => $types)
+                                <optgroup label="{{ $groupName }}">
+                                    @foreach($types as $t)
+                                        <option value="{{ $t->value }}" {{ $t->value === 'post' ? 'selected' : '' }}>
+                                            {{ $t->icon ? ($t->icon . ' ') : '' }}{{ $t->label }}
+                                        </option>
+                                    @endforeach
+                                </optgroup>
+                            @endforeach
                         </select>
                     </div>
                 </div>
@@ -68,19 +60,22 @@
                     <div class="stm-form-group">
                         <label for="stmPriority" class="stm-label">Priority</label>
                         <select id="stmPriority" name="priority" class="stm-input">
-                            <option value="normal" selected>Normal</option>
-                            <option value="high">🟠 High</option>
-                            <option value="urgent">🔴 Urgent</option>
+                            @foreach($modalPriorities as $p)
+                                <option value="{{ $p->value }}" {{ $p->value === 'normal' ? 'selected' : '' }}>
+                                    {{ $p->label }}
+                                </option>
+                            @endforeach
                         </select>
                     </div>
 
                     <div class="stm-form-group">
                         <label for="stmStatus" class="stm-label">Initial Status</label>
                         <select id="stmStatus" name="status" class="stm-input">
-                            <option value="inprogress" selected>⚡ In Progress (Working now)</option>
-                            <option value="todo">📋 To Do (Queue)</option>
-                            <option value="review">🔍 In Review</option>
-                            <option value="completed">✅ Completed</option>
+                            @foreach($modalStatuses as $s)
+                                <option value="{{ $s->value }}" {{ $s->value === 'inprogress' ? 'selected' : '' }}>
+                                    {{ $s->label }}
+                                </option>
+                            @endforeach
                         </select>
                     </div>
 
@@ -401,4 +396,75 @@ async function handleSelfTaskSubmit(e) {
         submitBtn.innerHTML = originalBtnHtml;
     }
 }
+
+// Live Sync selfTaskModal dropdowns on dropdown:updated
+document.addEventListener('dropdown:updated', async function(e) {
+    const category = e.detail?.category;
+
+    if (category === 'task_type') {
+        const select = document.getElementById('stmType');
+        if (!select) return;
+        const currentVal = select.value;
+        try {
+            const res = await fetch('/api/dropdown-options?category=task_type');
+            const data = await res.json();
+            if (data.options) {
+                const grouped = {};
+                data.options.forEach(opt => {
+                    const grp = opt.group_name || 'General';
+                    if (!grouped[grp]) grouped[grp] = [];
+                    grouped[grp].push(opt);
+                });
+
+                let html = '';
+                Object.entries(grouped).forEach(([grpName, items]) => {
+                    html += `<optgroup label="${grpName}">`;
+                    items.forEach(item => {
+                        const iconText = item.icon ? `${item.icon} ` : '';
+                        html += `<option value="${item.value}" ${item.value === currentVal ? 'selected' : ''}>${iconText}${item.label}</option>`;
+                    });
+                    html += '</optgroup>';
+                });
+                html += '<option value="__manage__" style="color:#6366f1;font-weight:700">⚙️ + Manage / Add Category...</option>';
+                select.innerHTML = html;
+            }
+        } catch (err) { console.error(err); }
+    }
+
+    if (category === 'priority') {
+        const select = document.getElementById('stmPriority');
+        if (!select) return;
+        const currentVal = select.value;
+        try {
+            const res = await fetch('/api/dropdown-options?category=priority');
+            const data = await res.json();
+            if (data.options) {
+                let html = '';
+                data.options.forEach(p => {
+                    html += `<option value="${p.value}" ${p.value === currentVal ? 'selected' : ''}>${p.label}</option>`;
+                });
+                html += '<option value="__manage__" style="color:#6366f1;font-weight:700">⚙️ + Manage...</option>';
+                select.innerHTML = html;
+            }
+        } catch (err) { console.error(err); }
+    }
+
+    if (category === 'status') {
+        const select = document.getElementById('stmStatus');
+        if (!select) return;
+        const currentVal = select.value;
+        try {
+            const res = await fetch('/api/dropdown-options?category=status');
+            const data = await res.json();
+            if (data.options) {
+                let html = '';
+                data.options.forEach(s => {
+                    html += `<option value="${s.value}" ${s.value === currentVal ? 'selected' : ''}>${s.label}</option>`;
+                });
+                html += '<option value="__manage__" style="color:#6366f1;font-weight:700">⚙️ + Manage...</option>';
+                select.innerHTML = html;
+            }
+        } catch (err) { console.error(err); }
+    }
+});
 </script>

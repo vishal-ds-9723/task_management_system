@@ -3,30 +3,68 @@
 @section('content')
 @php
     $workflowSteps = $workflowSteps ?? [];
+    $taskPlatforms = array_values(array_filter((array) $task->platform));
+    $urgentBrief = $task->is_urgent_task
+        ? trim((string) ($task->brief ?: $task->caption ?: ''))
+        : '';
+    $showUrgentCaption = $task->is_urgent_task
+        && trim((string) ($task->caption ?? '')) !== ''
+        && trim((string) $task->caption) !== $urgentBrief;
+    $allMedia = $task->media()->get();
 @endphp
 @push('styles')
-    <link href="{{ asset('css/task-detail.css') }}?v=2.0" rel="stylesheet">
+    <link href="{{ asset('css/task-detail.css') }}?v=4.0" rel="stylesheet">
     <link href="{{ asset('css/animations.css') }}" rel="stylesheet">
-    <link href="{{ asset('css/pages/designer-theme.css') }}?v=2.0" rel="stylesheet">
+    <link href="{{ asset('css/pages/designer-theme.css') }}?v=4.0" rel="stylesheet">
 @endpush
 
 <div class="task-minimal">
-    {{-- ═══ TOP NAVIGATION ═══ --}}
+    {{-- ═══ TOP STUDIO HEADER STRIP ═══ --}}
     <header class="topbar">
         <div>
             <nav class="breadcrumb">
-                <a href="{{ route('designer.tasks') }}">My Tasks</a>
+                <a href="{{ route('designer.tasks') }}" class="btn-sec" style="padding:3px 9px !important;font-size:11px !important">
+                    <i class="fa-solid fa-arrow-left"></i> My Tasks
+                </a>
                 <span class="breadcrumb-sep">/</span>
-                <span>Task Details</span>
+                <span style="font-weight:700;color:var(--text-sub);font-size:11px">#TSK-{{ str_pad($task->id, 4, '0', STR_PAD_LEFT) }}</span>
             </nav>
-            <h1 class="page-title">{{ $task->title }}</h1>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:4px;flex-wrap:wrap">
+                <x-client-branding :client="$task->client" size="24px" radius="5px" fit="contain" />
+                <h1 class="page-title">{{ $task->title }}</h1>
+                <span class="status {{ $task->status_class }}">{{ $task->status_label }}</span>
+                @if($task->priority === 'urgent')
+                    <span class="tag tag-red" style="font-size:9.5px;padding:1px 5px">URGENT</span>
+                @endif
+                @if($task->revision_count > 0)
+                    <span class="tag tag-red" style="font-size:9.5px;padding:1px 5px">Rev #{{ $task->revision_count }}</span>
+                @endif
+            </div>
         </div>
-        <a href="{{ route('designer.tasks') }}" class="btn-sec">
-            <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
-        </a>
+
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            @if($task->status === 'inprogress' && $task->started_at)
+                @php
+                    $elapsed = $task->started_at->diff(now());
+                    $elapsedStr = '';
+                    if ($elapsed->d > 0) $elapsedStr .= $elapsed->d . 'd ';
+                    if ($elapsed->h > 0) $elapsedStr .= $elapsed->h . 'h ';
+                    $elapsedStr .= $elapsed->i . 'm';
+                @endphp
+                <div style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;background:var(--card-bg);padding:5px 10px;border-radius:var(--radius-sm);border:1px solid var(--border)">
+                    <span class="ds-pulse-dot" style="width:6px;height:6px"></span>
+                    <span>{{ trim($elapsedStr) }} active</span>
+                </div>
+            @endif
+
+            <a href="{{ route('designer.tasks') }}" class="btn-sec" style="font-size:12px !important;padding:5px 10px !important">
+                <i class="fa-solid fa-list-check" style="font-size:11px"></i> All Tasks
+            </a>
+        </div>
     </header>
 
-    {{-- ═══ WORKFLOW PROGRESS ═══ --}}
+    {{-- ═══ SLIM WORKFLOW STEPPER ═══ --}}
+    @if(!empty($workflowSteps))
     <div class="wf-progress-bar">
         @foreach($workflowSteps as $i => $step)
             <div class="wf-step {{ $step['done'] ? 'wf-done' : '' }} {{ $step['current'] ?? false ? 'wf-current' : '' }}">
@@ -42,7 +80,7 @@
                     @if($step['time'])
                         <div class="wf-step-time">{{ $step['time']->format('d M, h:i A') }}</div>
                     @elseif($step['current'] ?? false)
-                        <div class="wf-step-time" style="color:var(--primary)">Current Phase</div>
+                        <div class="wf-step-time" style="color:var(--primary);font-weight:700">Current Phase</div>
                     @endif
                 </div>
             </div>
@@ -51,443 +89,355 @@
             @endif
         @endforeach
     </div>
+    @endif
 
-    {{-- ═══ STATUS INDICATORS ═══ --}}
-    @if($task->status === 'inprogress' && $task->started_at)
-        <div class="wf-status-bar wf-timer-bar">
-            <div style="display:flex;align-items:center;gap:12px">
-                <span class="wf-pulse"></span>
-                <span>Design Phase: Active</span>
+    {{-- ═══ SLIM ALERT BANNERS ═══ --}}
+    @if($task->is_paused)
+        <div class="wf-status-bar" style="background:#FFFBEB;border-left:3px solid #D97706;color:#92400E">
+            <div style="display:flex;align-items:center;gap:10px">
+                <span>⏸️</span>
+                <div>
+                    <span style="font-weight:800;font-size:13px">Task is paused</span>
+                    <span style="font-size:11.5px;opacity:0.85;margin-left:6px">({{ $task->pause_reason }})</span>
+                </div>
             </div>
-            <div style="font-size:14px;color:var(--text-muted)">
-                Started {{ $task->started_at->diffForHumans() }} ·
-                <span style="font-weight:700;color:var(--primary)">
-                    <i class="fas fa-clock"></i> {{ $task->started_at->diff(now())->format('%hh %im') }} elapsed
-                </span>
-            </div>
+            <form method="POST" action="{{ route('designer.tasks.resume', $task) }}" style="margin:0">
+                @csrf
+                <button type="submit" class="btn-action-primary" style="background:#059669 !important;border-color:#059669 !important;padding:4px 12px !important;font-size:12px !important">
+                    <i class="fa-solid fa-play"></i> Resume
+                </button>
+            </form>
         </div>
     @elseif($task->status === 'review')
         <div class="wf-status-bar wf-review-bar">
-            <div style="display:flex;align-items:center;gap:12px">
+            <div style="display:flex;align-items:center;gap:8px">
                 <i class="fas fa-hourglass-half" style="color:var(--warning)"></i>
-                <span>Awaiting Review</span>
+                <span>Awaiting Strategist & Client Review</span>
             </div>
-            <span style="font-size:14px;color:var(--text-muted)">Waiting for strategist feedback</span>
-        </div>
-    @elseif($task->status === 'completed')
-        <div class="wf-status-bar wf-done-bar">
-            <div style="display:flex;align-items:center;gap:12px">
-                <i class="fas fa-check-circle" style="color:var(--success)"></i>
-                <span>{{ $task->is_urgent_task ? ($task->admin_approval_status ? 'Urgent Task Approved' : 'Urgent Task Delivered') : 'Task Successfully Completed' }}</span>
-            </div>
-            <span style="font-size:14px;color:var(--text-muted)">{{ $task->is_urgent_task && !$task->admin_approval_status ? 'Marked as delivered to client' : 'Approved by strategist & admin' }}</span>
+            <span style="font-size:12px;color:var(--text-muted)">Submitted deliverables are pending approval</span>
         </div>
     @endif
 
-    {{-- ═══ PAUSED BANNER ═══ --}}
-    @if($task->is_paused)
-        <div class="wf-status-bar wf-paused-bar" style="background:linear-gradient(135deg,#FEF3C7,#FDE68A);border:1.5px dashed #D97706;color:#92400E">
-            <div style="display:flex;align-items:center;gap:12px">
-                <span style="font-size:22px">⏸️</span>
-                <div>
-                    <div style="font-weight:800;font-size:15px">Task Paused</div>
-                    <div style="font-size:12px;opacity:0.8">{{ $task->pause_reason }}</div>
-                </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:12px">
-                <span style="font-size:13px;font-weight:600">
-                    ⏱️ {{ $task->paused_at->diffForHumans(null, true) }} paused
-                </span>
-                <form method="POST" action="{{ route('designer.tasks.resume', $task) }}" style="margin:0">
-                    @csrf
-                    <button type="submit" class="wf-inline-resume-btn" style="padding:8px 20px;background:#059669;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.2s">
-                        ▶️ Resume Task
-                    </button>
-                </form>
-            </div>
-        </div>
-    @endif
-
-    {{-- ═══ URGENT TASK BADGE ═══ --}}
-    @if($task->is_urgent_task)
-        <div class="wf-status-bar wf-urgent-bar" style="background:linear-gradient(135deg,#FEE2E2,#FECACA);border:1.5px solid #EF4444;color:#991B1B">
-            <div style="display:flex;align-items:center;gap:12px">
-                <span style="font-size:22px">🚨</span>
-                <div>
-                    <div style="font-weight:800;font-size:15px">Urgent Task</div>
-                    <div style="font-size:12px;opacity:0.8">Requested by {{ $task->urgent_requested_by ?? 'Admin' }}</div>
-                </div>
-            </div>
-            <span class="tag" style="background:#EF4444;color:#fff;font-size:10px;font-weight:800;padding:4px 10px;border-radius:6px">PRIORITY</span>
-        </div>
-    @endif
-
-    {{-- ═══ READ-ONLY PEER BANNER ═══ --}}
-    @if(!empty($isReadOnly))
-        <div class="wf-status-bar" style="background:rgba(99,102,241,0.08);border:1.5px solid rgba(99,102,241,0.25);color:var(--text);margin-bottom:16px;border-radius:14px">
-            <div style="display:flex;align-items:center;gap:12px">
-                <i class="fa-solid fa-users-viewfinder" style="font-size:22px;color:var(--primary)"></i>
-                <div>
-                    <div style="font-weight:800;font-size:14px;color:var(--primary)">Team Overview (Read-Only)</div>
-                    <div style="font-size:12px;color:var(--text-muted)">This task is assigned to <strong>{{ $task->assignee->name ?? 'another team member' }}</strong>. You are viewing this task in agency peer review mode.</div>
-                </div>
-            </div>
-        </div>
-    @endif
-
+    {{-- ═══ BALANCED TWO-COLUMN WORKSPACE (ZERO ENDLESS SCROLL) ═══ --}}
     <div class="two-col">
-        {{-- ═══ MAIN CONTENT ═══ --}}
+        {{-- ── COLUMN 1: CREATIVE WORKSPACE (LEFT 58%) ── --}}
         <main>
-            {{-- Tab Navigation --}}
-            <div class="tab-nav">
-                <button class="tab-btn active" onclick="switchTab('tab-details', event)">
-                    <i class="fas fa-info-circle"></i> Details
-                </button>
-                <button class="tab-btn" onclick="switchTab('tab-media', event)">
-                    <i class="fas fa-images"></i> Media & Assets
-                    <span class="count-pill" id="mediaTabCount">{{ $task->media()->count() }}</span>
-                </button>
-                <button class="tab-btn" onclick="switchTab('tab-comments', event)">
-                    <i class="fas fa-comments"></i> Feedback
-                    <span class="count-pill" id="commentTabCount">{{ $task->comments->count() }}</span>
-                </button>
-            </div>
+            {{-- 1 · CREATIVE BRIEF & SPECIFICATIONS CARD --}}
+            <div class="card">
+                <div class="sec-header">
+                    <div class="sec-header-left">
+                        <div class="sec-icon"><i class="fa-solid fa-file-lines"></i></div>
+                        <h2 class="sec-title">Creative Brief & Content Specs</h2>
+                    </div>
+                    <span class="tag tag-primary" style="font-size:10.5px;padding:2px 7px">{{ ucfirst($task->type) }}</span>
+                </div>
 
-            {{-- ═══ TAB: DETAILS ═══ --}}
-            <div id="tab-details" class="tab-content active">
-                <div class="card">
-                    <div class="sec-header">
-                        <div class="sec-icon"><i class="fas fa-info-circle"></i></div>
-                        <h2 class="sec-title">Task Overview</h2>
+                {{-- Compact Metadata Strip --}}
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <span class="detail-label">Client</span>
+                        <div class="detail-value" style="display:flex;align-items:center;gap:6px">
+                            <x-client-branding :client="$task->client" size="18px" radius="4px" fit="contain" />
+                            <span>{{ $task->client->name }}</span>
+                        </div>
                     </div>
 
-                    @php
-                        $taskPlatforms = array_values(array_filter((array) $task->platform));
-                        $urgentBrief = $task->is_urgent_task
-                            ? trim((string) ($task->brief ?: $task->caption ?: ''))
-                            : '';
-                        $showUrgentCaption = $task->is_urgent_task
-                            && trim((string) ($task->caption ?? '')) !== ''
-                            && trim((string) $task->caption) !== $urgentBrief;
-                    @endphp
-
-                    <div class="detail-grid" style="margin-bottom:24px">
-                        <div class="detail-item">
-                            <span class="detail-label">Client</span>
-                            <div class="detail-value" style="display:flex;align-items:center;gap:8px">
-                                @if($task->client->logo)
-                                    <img src="{{ asset('storage/' . $task->client->logo) }}" alt="" style="width:20px;height:20px;border-radius:4px;object-fit:cover">
-                                @else
-                                    <span style="font-size:18px">{!! $task->client->emoji ?? '🏢' !!}</span>
-                                @endif
-                                {{ $task->client->name }}
-                            </div>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Assigned By (Strategist)</span>
-                            <div class="detail-value" style="display:flex;align-items:center;gap:6px;font-weight:700;color:var(--primary)">
-                                <i class="fa-solid fa-user-pen"></i> {{ $task->creator->name ?? 'Strategist' }}
-                            </div>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Assigned Creative</span>
-                            <div class="detail-value" style="display:flex;align-items:center;gap:6px;font-weight:700;color:var(--teal)">
-                                <i class="fa-solid fa-user-check"></i> {{ $task->assignee->name ?? 'Unassigned' }}
-                            </div>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Deadline</span>
-                            <div class="detail-value {{ $task->isOverdue() ? 'text-danger' : '' }}" style="font-size:14px">
-                                <i class="far fa-calendar-alt"></i> {{ $task->deadline?->format('d M Y') ?? 'Flexible' }}
-                            </div>
-                        </div>
-                        @if($task->design_deadline)
-                            <div class="detail-item">
-                                <span class="detail-label">Design Deadline</span>
-                                <div class="detail-value" style="font-size:14px">
-                                    <i class="far fa-calendar-check"></i> {{ $task->design_deadline->format('d M Y') }}
-                                </div>
-                            </div>
-                        @endif
-                        <div class="detail-item">
-                            <span class="detail-label">Category</span>
-                            <div><span class="tag tag-primary">{{ ucfirst($task->type) }}</span></div>
-                        </div>
-                        @if(!empty($taskPlatforms))
-                            <div class="detail-item">
-                                <span class="detail-label">Platforms</span>
-                                <div style="display:flex;gap:4px;flex-wrap:wrap">
-                                    @foreach($taskPlatforms as $platform)
-                                        <span class="tag" style="background:#F1F5F9;border:none;font-size:10px">{{ ucfirst($platform) }}</span>
-                                    @endforeach
-                                </div>
-                            </div>
-                        @endif
-                    </div>
-
-                    @if(\App\Models\Task::isDevType($task->type))
-                        <x-dev-project-summary :task="$task" />
-                    @endif
-
-                    @if($task->is_urgent_task && $urgentBrief !== '')
-                        <div class="task-brief">
-                            <div class="task-brief-label">
-                                <i class="fa-solid fa-bolt"></i>
-                                <span>Urgent Brief</span>
-                            </div>
-                            <div class="task-brief-body">{{ $urgentBrief }}</div>
-                        </div>
-                    @endif
-
-                    @if($task->caption && (!$task->is_urgent_task || $showUrgentCaption))
-                        <div class="task-brief">
-                            <div class="task-brief-label">
-                                <i class="fa-solid fa-pen"></i>
-                                <span>Caption</span>
-                            </div>
-                            <div class="task-brief-body">{{ $task->caption }}</div>
-                        </div>
-                    @endif
-
-                    @if($task->brief && !$task->is_urgent_task)
-                        <div class="task-brief" style="margin-top:12px">
-                            <div class="task-brief-label">
-                                <i class="fa-solid fa-pen"></i>
-                                <span>{{ \App\Models\Task::isDevType($task->type) ? 'Project Brief' : 'Content Brief' }}</span>
-                            </div>
-                            <div class="task-brief-body">{{ $task->brief }}</div>
-                        </div>
-                    @endif
-
-                    @if(!empty($task->reference_links))
-                        <div class="detail-item">
-                            <span class="detail-label">Reference Materials</span>
-                            <div style="display:flex;flex-wrap:wrap;gap:8px">
-                                @foreach((is_array($task->reference_links) ? $task->reference_links : json_decode($task->reference_links, true)) ?? [] as $link)
-                                    @if(filter_var($link, FILTER_VALIDATE_URL))
-                                        <a href="{{ $link }}" target="_blank" class="btn-sec" style="font-size:12px;padding:6px 12px">
-                                            <i class="fas fa-link"></i> {{ Str::limit(str_replace(['https://','www.'],'',$link), 15) }}
-                                        </a>
-                                    @endif
+                    <div class="detail-item">
+                        <span class="detail-label">Target Platforms</span>
+                        <div style="display:flex;gap:4px;flex-wrap:wrap">
+                            @if(!empty($taskPlatforms))
+                                @foreach($taskPlatforms as $platform)
+                                    <span class="platform-pill" style="font-size:10px;padding:1px 5px">
+                                        @if(in_array($platform, ['instagram', 'facebook', 'linkedin', 'twitter', 'whatsapp']))
+                                            <i class="fa-brands fa-{{ $platform === 'twitter' ? 'x-twitter' : $platform }}"></i>
+                                        @endif
+                                        {{ ucfirst($platform) }}
+                                    </span>
                                 @endforeach
-                            </div>
+                            @else
+                                <span style="font-size:12px;color:var(--text-muted)">Standard</span>
+                            @endif
                         </div>
-                    @endif
-                </div>
-            </div>
-
-            {{-- ═══ TAB: MEDIA ═══ --}}
-            <div id="tab-media" class="tab-content">
-                <div class="card">
-                    <div class="sec-header">
-                        <div class="sec-icon"><i class="fas fa-images"></i></div>
-                        <h2 class="sec-title">Media & Design Files</h2>
                     </div>
+                </div>
 
-                    @php $allMedia = $task->media()->get(); @endphp
+                {{-- Brief / Content Copy (Capped Height to Prevent Vertical Bloat) --}}
+                @if($task->is_urgent_task && $urgentBrief !== '')
+                    <div class="task-brief" style="border-left:3px solid #DC2626;background:#FEF2F2">
+                        <div class="task-brief-label" style="color:#DC2626">
+                            <i class="fa-solid fa-bolt"></i>
+                            <span>Urgent Creative Brief</span>
+                        </div>
+                        <div class="task-brief-body" style="color:#991B1B">{{ $urgentBrief }}</div>
+                    </div>
+                @endif
 
-                    <div class="media-grid" id="mediaPreviewContainer" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:16px">
-                        @foreach($allMedia as $item)
-                            <div class="media-item">
-                                @if($item->isVideo())
-                                    <video class="media-file" muted preload="metadata" style="background:#000;object-fit:cover"><source src="{{ $item->getUrl() }}"></video>
-                                    <div style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.7);color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;z-index:2">
-                                        <i class="fa-solid fa-video"></i> Video
-                                    </div>
-                                @elseif($item->isPdf())
-                                    <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--card2)">
-                                        <i class="fa-solid fa-file-pdf" style="font-size:32px;color:#EF4444"></i>
-                                    </div>
-                                    <div style="position:absolute;top:8px;left:8px;background:rgba(239,68,68,0.85);color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;z-index:2">
-                                        <i class="fa-solid fa-file-pdf"></i> PDF
-                                    </div>
-                                @elseif($item->isImage())
-                                    <img src="{{ $item->getUrl() }}" class="media-file" loading="lazy">
-                                @else
-                                    <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--card2)">
-                                        <i class="fa-solid fa-file" style="font-size:32px;color:var(--text3)"></i>
-                                    </div>
+                @if($task->caption && (!$task->is_urgent_task || $showUrgentCaption))
+                    <div class="task-brief">
+                        <div class="task-brief-label">
+                            <i class="fa-solid fa-align-left"></i>
+                            <span>Post Caption & Copy</span>
+                        </div>
+                        <div class="task-brief-body">{{ $task->caption }}</div>
+                    </div>
+                @endif
+
+                @if($task->brief && !$task->is_urgent_task)
+                    <div class="task-brief">
+                        <div class="task-brief-label">
+                            <i class="fa-solid fa-pen-nib"></i>
+                            <span>Detailed Creative Brief</span>
+                        </div>
+                        <div class="task-brief-body">{{ $task->brief }}</div>
+                    </div>
+                @endif
+
+                {{-- Reference Links --}}
+                @if(!empty($task->reference_links))
+                    <div style="margin-top:10px">
+                        <span class="detail-label" style="display:block;margin-bottom:6px">Reference Materials</span>
+                        <div style="display:flex;flex-wrap:wrap;gap:6px">
+                            @foreach((is_array($task->reference_links) ? $task->reference_links : json_decode($task->reference_links, true)) ?? [] as $link)
+                                @if(filter_var($link, FILTER_VALIDATE_URL))
+                                    <a href="{{ $link }}" target="_blank" class="btn-sec" style="font-size:11.5px;padding:4px 10px">
+                                        <i class="fa-solid fa-arrow-up-right-from-square" style="font-size:10px"></i>
+                                        {{ Str::limit(str_replace(['https://','www.'],'',$link), 22) }}
+                                    </a>
                                 @endif
-                                <div class="media-overlay">
-                                    <a href="{{ $item->getUrl() }}" target="_blank" class="media-btn" title="View / Play Preview"><i class="fas fa-expand"></i></a>
-                                    <a href="{{ $item->getUrl() }}" download="{{ $item->name }}" class="media-btn" title="Download File"><i class="fas fa-download"></i></a>
-                                    <button type="button" onclick="deleteMediaAJAX({{ $item->id }}, event)" class="media-btn btn-danger" title="Remove"><i class="fas fa-trash"></i></button>
-                                </div>
-                            </div>
-                        @endforeach
+                            @endforeach
+                        </div>
                     </div>
-
-                    @if($allMedia->count() === 0)
-                        <div class="upload-zone" id="emptyUploadZone" onclick="document.getElementById('mediaInput').click()" style="padding:32px">
-                            <div class="upload-icon"><i class="fas fa-cloud-upload-alt" style="font-size:24px"></i></div>
-                            <h3 style="font-size:16px;font-weight:700">Upload your work</h3>
-                            <p style="font-size:13px;color:var(--text-muted)">Click to browse images, videos, documents</p>
-                        </div>
-                    @endif
-
-                    <form method="POST" action="{{ route('designer.tasks.upload-media', $task) }}" enctype="multipart/form-data" id="mediaUploadForm" style="margin-top:20px">
-                        @csrf
-                        <div style="display:flex;gap:12px;align-items:center">
-                            <input type="file" name="media[]" id="mediaInput" accept="image/*,video/*,.pdf,.doc,.docx,.zip,.rar" multiple style="display:none" onchange="handleMediaSelect()">
-                            <button type="button" onclick="document.getElementById('mediaInput').click()" class="btn-sec" style="font-size:13px;font-weight:800;border-radius:12px">
-                                <i class="fas fa-file-arrow-up" style="margin-right:6px"></i> Select Files / Videos / Images...
-                            </button>
-                            <button type="submit" id="mediaUploadBtn" class="wf-submit-btn" style="display:none;width:auto;padding:10px 24px;font-size:13px;border-radius:12px">
-                                <i class="fa-solid fa-cloud-arrow-up"></i> Upload Selected
-                            </button>
-                        </div>
-                        <div id="mediaPreview" style="display:none;margin-top:20px;padding:20px;background:rgba(var(--primary-rgb), 0.03);border-radius:16px;border:1.5px solid var(--primary-light)">
-                            <div style="font-size:11px;font-weight:800;color:var(--primary);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px">Ready for Upload:</div>
-                            <div id="fileList"></div>
-                        </div>
-                    </form>
-                </div>
+                @endif
             </div>
 
-            {{-- ═══ TAB: FEEDBACK ═══ --}}
-            <div id="tab-comments" class="tab-content">
-                <div class="card">
-                    <div class="sec-header">
-                        <div class="sec-icon"><i class="fas fa-comments"></i></div>
-                        <h2 class="sec-title">Discussion</h2>
+            {{-- 2 · DELIVERABLES & DESIGN ASSETS STUDIO (HERO) --}}
+            <div class="card" id="deliverablesSection" style="margin-bottom:0">
+                <div class="sec-header">
+                    <div class="sec-header-left">
+                        <div class="sec-icon"><i class="fa-solid fa-images"></i></div>
+                        <h2 class="sec-title">Deliverables & Attached Files</h2>
+                        <span class="task-tab-count" id="mediaTabCount">{{ $allMedia->count() }}</span>
                     </div>
 
-                    <div class="comments-list" id="commentsList" style="max-height:400px;overflow-y:auto;padding-right:10px">
-                        @forelse($task->comments as $comment)
-                            <div class="comment-item">
-                                <div class="comment-header">
-                                    <div class="av-sm" style="background:{{ $comment->user->avatar_color ?? 'var(--primary)' }}">
-                                        {{ strtoupper(substr($comment->user->name, 0, 1)) }}
-                                    </div>
-                                    <div style="flex:1">
-                                        <div style="font-weight:700;font-size:13px">{{ $comment->user->name }}</div>
-                                        <div style="font-size:10px;color:var(--text-muted)">{{ $comment->created_at->diffForHumans() }}</div>
-                                    </div>
-                                </div>
-                                <div style="font-size:13px;line-height:1.5;color:var(--text-main);padding-left:42px">
-                                    {{ $comment->body }}
-                                </div>
-                            </div>
-                        @empty
-                            <div class="no-comments-msg" style="text-align:center;padding:20px;font-size:13px;color:var(--text-muted)">No discussion yet.</div>
-                        @endforelse
-                    </div>
-
-                    <form method="POST" action="{{ route('designer.tasks.comment', $task) }}" id="commentForm" style="margin-top:20px;display:flex;gap:10px">
-                        @csrf
-                        <input name="body" placeholder="Write a message..." style="flex:1;padding:12px 16px;font-size:13px;border-radius:10px;border:1px solid var(--border)" required>
-                        <button type="submit" class="wf-submit-btn" style="width:auto;padding:0 20px;font-size:13px">Send</button>
-                    </form>
+                    @if($allMedia->count() > 0 && empty($isReadOnly))
+                        <button type="button" onclick="document.getElementById('mediaInput').click()" class="btn-sec" style="font-size:11.5px !important;padding:4px 10px !important">
+                            <i class="fa-solid fa-plus"></i> Upload Files
+                        </button>
+                    @endif
                 </div>
+
+                {{-- Upload Dropzone if 0 media --}}
+                @if($allMedia->count() === 0 && empty($isReadOnly))
+                    <div class="upload-zone" id="emptyUploadZone" onclick="document.getElementById('mediaInput').click()">
+                        <div class="upload-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+                        <div style="font-size:13.5px;font-weight:700;color:var(--text-main)">Upload design files</div>
+                        <p style="font-size:11.5px;color:var(--text-muted);margin:0">Click to attach creatives, videos, or PDFs</p>
+                    </div>
+                @endif
+
+                {{-- Uploaded Media Gallery Grid --}}
+                <div class="media-grid" id="mediaPreviewContainer">
+                    @foreach($allMedia as $item)
+                        <div class="media-item">
+                            @if($item->isVideo())
+                                <video class="media-file" muted preload="metadata" style="background:#0F172A;object-fit:cover"><source src="{{ $item->getUrl() }}"></video>
+                                <div style="position:absolute;top:6px;left:6px;background:rgba(15,23,42,0.75);color:#fff;font-size:9.5px;font-weight:700;padding:2px 5px;border-radius:3px;z-index:2">
+                                    <i class="fa-solid fa-video"></i> Video
+                                </div>
+                            @elseif($item->isPdf())
+                                <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg-main)">
+                                    <i class="fa-solid fa-file-pdf" style="font-size:26px;color:#DC2626"></i>
+                                </div>
+                                <div style="position:absolute;top:6px;left:6px;background:rgba(220,38,38,0.85);color:#fff;font-size:9.5px;font-weight:700;padding:2px 5px;border-radius:3px;z-index:2">
+                                    <i class="fa-solid fa-file-pdf"></i> PDF
+                                </div>
+                            @elseif($item->isImage())
+                                <img src="{{ $item->getUrl() }}" class="media-file" loading="lazy" alt="Design preview">
+                            @else
+                                <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg-main)">
+                                    <i class="fa-solid fa-file" style="font-size:26px;color:var(--text-muted)"></i>
+                                </div>
+                            @endif
+
+                            {{-- Hover Actions Overlay --}}
+                            <div class="media-overlay">
+                                <a href="{{ $item->getUrl() }}" target="_blank" class="media-btn" title="View Fullscreen">
+                                    <i class="fas fa-expand"></i>
+                                </a>
+                                <a href="{{ $item->getUrl() }}" download="{{ $item->name }}" class="media-btn" title="Download">
+                                    <i class="fas fa-download"></i>
+                                </a>
+                                @if(empty($isReadOnly))
+                                    <button type="button" onclick="deleteMediaAJAX({{ $item->id }}, event)" class="media-btn btn-danger" title="Remove">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                @endif
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+
+                {{-- Hidden Form & File Selection --}}
+                @if(empty($isReadOnly))
+                <form method="POST" action="{{ route('designer.tasks.upload-media', $task) }}" enctype="multipart/form-data" id="mediaUploadForm" style="margin-top:12px">
+                    @csrf
+                    <input type="file" name="media[]" id="mediaInput" accept="image/*,video/*,.pdf,.doc,.docx,.zip,.rar" multiple style="display:none" onchange="handleMediaSelect()">
+                    
+                    <div id="mediaPreview" style="display:none;margin-top:12px;padding:12px;background:var(--primary-light);border-radius:var(--radius-md);border:1px solid var(--primary-border)">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                            <div style="font-size:10.5px;font-weight:800;color:var(--primary);text-transform:uppercase;letter-spacing:0.06em">Selected for upload:</div>
+                            <button type="submit" id="mediaUploadBtn" class="btn-action-primary" style="padding:4px 12px !important;font-size:11.5px !important">
+                                <i class="fa-solid fa-cloud-arrow-up"></i> Upload Now
+                            </button>
+                        </div>
+                        <div id="fileList"></div>
+                    </div>
+                </form>
+                @endif
             </div>
         </main>
 
-        {{-- ═══ SIDEBAR ACTIONS ═══ --}}
+        {{-- ── COLUMN 2: ACTIONS & FEEDBACK (RIGHT 42%) ── --}}
         <aside class="action-card">
-            {{-- Status Card --}}
-            <div class="card" style="padding:24px">
-                <div class="detail-label" style="margin-bottom:16px">Current Status</div>
-                <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
-                    <div class="wf-step-icon {{ $task->status === 'completed' ? 'badge-success' : 'badge-primary' }}" style="width:48px;height:48px;font-size:20px">
-                        <i class="fas fa-{{ $task->status === 'completed' ? 'check-double' : 'pencil-ruler' }}"></i>
-                    </div>
-                    <div>
-                        <div style="font-weight:800;font-size:18px">{{ $task->status_label }}</div>
-                        <div style="font-size:12px;color:var(--text-muted)">ID: #TSK-{{ str_pad($task->id, 4, '0', STR_PAD_LEFT) }}</div>
+            {{-- 1 · WORKFLOW ACTION & PROPERTIES CARD --}}
+            <div class="card">
+                <div class="sec-header">
+                    <div class="sec-header-left">
+                        <div class="sec-icon"><i class="fa-solid fa-sliders"></i></div>
+                        <h2 class="sec-title">Status & Actions</h2>
                     </div>
                 </div>
+                
+                {{-- Phase badge & Submit Button --}}
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+                    <span class="status {{ $task->status_class }}">{{ $task->status_label }}</span>
+                    <span style="font-size:11.5px;font-weight:700;color:{{ $task->isOverdue() ? '#DC2626' : 'var(--text-muted)' }}">
+                        Due {{ $task->deadline?->format('d M') ?? 'Flexible' }}
+                    </span>
+                </div>
 
-                @if($task->status === 'inprogress' && !$task->is_paused)
+                @if($task->status === 'inprogress' && !$task->is_paused && empty($isReadOnly))
                     @if($task->revision_count > 0)
                         <div class="rev-card">
-                            <div class="rev-icon"><i class="fas fa-exclamation-circle"></i></div>
+                            <div class="rev-icon"><i class="fa-solid fa-rotate-left"></i></div>
                             <div>
                                 <div class="rev-title">Revision #{{ $task->revision_count }}</div>
-                                <div class="rev-meta">Review notes before re-submitting</div>
+                                <div class="rev-meta">Review notes before submitting</div>
                             </div>
                         </div>
                     @endif
 
                     <form method="POST" action="{{ route('designer.tasks.submit', $task) }}" id="submitForm">
                         @csrf
-                        <button type="submit" class="wf-submit-btn" id="submitBtn" {{ $task->media()->count() === 0 ? 'disabled' : '' }}>
+                        <button type="submit" class="wf-submit-btn" id="submitBtn" {{ $allMedia->count() === 0 ? 'disabled' : '' }}>
                             <i class="fas fa-paper-plane"></i> Submit for Review
                         </button>
-                        @if($task->media()->count() === 0)
-                            <p class="submit-lock-msg" style="font-size:11px;color:var(--danger);text-align:center;margin-top:12px;font-weight:600">
-                                <i class="fas fa-lock"></i> Upload media to unlock
+                        @if($allMedia->count() === 0)
+                            <p class="submit-lock-msg" style="font-size:11px;color:#DC2626;text-align:center;margin-top:6px;font-weight:600">
+                                <i class="fas fa-lock"></i> Upload a deliverable first to submit
                             </p>
                         @endif
                     </form>
 
                     {{-- Pause Button --}}
-                    <button type="button" onclick="document.getElementById('pauseModal').style.display='flex'" class="wf-pause-btn" style="margin-top:10px;width:100%;padding:12px;background:transparent;border:1.5px dashed #D97706;color:#D97706;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s">
+                    <button type="button" onclick="document.getElementById('pauseModal').style.display='flex'" class="btn-sec" style="margin-top:8px;width:100%;justify-content:center;color:#D97706;border-color:rgba(217,119,6,0.3);font-size:12px !important;padding:6px 12px !important">
                         ⏸️ Pause Task
                     </button>
-                @elseif($task->is_paused)
-                    {{-- Resume Button --}}
-                    <div style="text-align:center;padding:16px 0">
-                        <div style="font-size:32px;margin-bottom:8px">⏸️</div>
-                        <div style="font-size:14px;font-weight:700;color:#D97706;margin-bottom:4px">Task is Paused</div>
-                        <div style="font-size:12px;color:var(--text-muted);margin-bottom:16px">{{ $task->pause_reason }}</div>
-                        <form method="POST" action="{{ route('designer.tasks.resume', $task) }}">
-                            @csrf
-                            <button type="submit" class="wf-resume-btn" style="width:100%;padding:14px;background:#059669;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s">
-                                ▶️ Resume & Continue Working
-                            </button>
-                        </form>
+                @elseif($task->is_paused && empty($isReadOnly))
+                    <form method="POST" action="{{ route('designer.tasks.resume', $task) }}">
+                        @csrf
+                        <button type="submit" class="btn-action-primary" style="width:100%;background:#059669 !important;border-color:#059669 !important;padding:8px !important">
+                            ▶️ Resume & Continue Working
+                        </button>
+                    </form>
+                @endif
+
+                {{-- Compact Properties Row --}}
+                <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">
+                    <div>
+                        <span class="detail-label">Strategist</span>
+                        <div style="font-weight:600;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                            {{ $task->creator->name ?? 'Admin' }}
+                        </div>
+                    </div>
+                    <div>
+                        <span class="detail-label">Creative</span>
+                        <div style="font-weight:600;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                            {{ $task->assignee->name ?? 'Me' }}
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Client Social Links (if any) --}}
+                @if(($selectedSocialMediaLinks ?? collect())->isNotEmpty())
+                    <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:10px">
+                        <span class="detail-label" style="display:block;margin-bottom:6px">Client Socials</span>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap">
+                            @foreach($selectedSocialMediaLinks as $selectedLink)
+                                @php $linkInfo = $selectedLink->getPlatformIcon(); @endphp
+                                <a href="{{ $selectedLink->url }}" target="_blank" class="btn-sec" style="padding:4px 8px;font-size:11px">
+                                    <i class="fa-brands {{ $linkInfo['icon'] }}" style="color:var(--primary)"></i>
+                                    <span>{{ $selectedLink->label ?: ucfirst($selectedLink->platform) }}</span>
+                                </a>
+                            @endforeach
+                        </div>
                     </div>
                 @endif
             </div>
 
-            {{-- Social Media Links --}}
-            @if(($selectedSocialMediaLinks ?? collect())->isNotEmpty())
-                <div class="card" style="padding:24px">
-                    <div class="detail-label" style="margin-bottom:16px">Social Media Links</div>
-                    <div style="display:flex;flex-direction:column;gap:12px">
-                        @foreach($selectedSocialMediaLinks as $selectedLink)
-                            @php $linkInfo = $selectedLink->getPlatformIcon(); @endphp
-                            <a href="{{ $selectedLink->url }}" target="_blank" class="btn-sec" style="background:{{ $linkInfo['color'] }}08;border-color:{{ $linkInfo['color'] }}20;color:{{ $linkInfo['color'] }};padding:12px">
-                                <i class="fa-brands {{ $linkInfo['icon'] }}"></i>
-                                <span style="flex:1;text-align:left;font-weight:700">{{ $selectedLink->label ?: ucfirst($selectedLink->platform) }}</span>
-                                <i class="fas fa-external-link-alt" style="font-size:10px"></i>
-                            </a>
-                        @endforeach
+            {{-- 2 · DISCUSSION & FEEDBACK STREAM CARD (CAPPED HEIGHT) --}}
+            <div class="card" style="margin-bottom:0">
+                <div class="sec-header">
+                    <div class="sec-header-left">
+                        <div class="sec-icon"><i class="fa-solid fa-comments"></i></div>
+                        <h2 class="sec-title">Discussion & Feedback</h2>
+                        <span class="task-tab-count" id="commentCount">{{ $task->comments->count() }}</span>
                     </div>
                 </div>
-            @endif
+
+                <div class="comments-list" id="commentsList">
+                    @forelse($task->comments as $comment)
+                        <div class="comment-item">
+                            <div class="comment-header">
+                                <div class="av-sm" style="background:{{ $comment->user->avatar_color ?? 'var(--primary)' }}">
+                                    {{ strtoupper(substr($comment->user->name, 0, 1)) }}
+                                </div>
+                                <div style="flex:1">
+                                    <div style="font-weight:700;font-size:12px;color:var(--text-main)">{{ $comment->user->name }}</div>
+                                    <div style="font-size:10px;color:var(--text-muted)">{{ $comment->created_at->diffForHumans() }}</div>
+                                </div>
+                                @if($comment->user->role !== 'designer')
+                                    <span class="tag tag-primary" style="font-size:8.5px;padding:1px 5px">{{ strtoupper($comment->user->role) }}</span>
+                                @endif
+                            </div>
+                            <div style="font-size:12.5px;line-height:1.45;color:var(--text-main);padding-left:30px">
+                                {{ $comment->body }}
+                            </div>
+                        </div>
+                    @empty
+                        <div class="no-comments-msg" style="text-align:center;padding:16px 8px;font-size:12px;color:var(--text-muted)">
+                            <i class="fa-regular fa-comment-dots" style="font-size:18px;display:block;margin-bottom:4px"></i>
+                            No messages or revision notes yet.
+                        </div>
+                    @endforelse
+                </div>
+
+                <form method="POST" action="{{ route('designer.tasks.comment', $task) }}" id="commentForm" style="margin-top:10px;display:flex;gap:6px">
+                    @csrf
+                    <input name="body" placeholder="Write feedback, revision reply..." class="filter-input" style="flex:1;padding:6px 10px !important;font-size:12px !important" required autocomplete="off">
+                    <button type="submit" class="btn-action-primary" style="padding:0 12px !important;font-size:11.5px !important">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </form>
+            </div>
         </aside>
     </div>
 </div>
+
 @push('scripts')
 <script>
 /**
- * Tab Switching Logic
- */
-function switchTab(tabId, event) {
-    // Hide all contents
-    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-    // Deactivate all buttons
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-
-    // Show target content
-    const target = document.getElementById(tabId);
-    if (target) {
-        target.classList.add('active');
-    }
-
-    // Activate clicked button
-    if (event && event.currentTarget) {
-        event.currentTarget.classList.add('active');
-    } else if (event && event.target) {
-        const btn = event.target.closest('.tab-btn');
-        if (btn) btn.classList.add('active');
-    }
-}
-window.switchTab = switchTab;
-
-/**
- * Handle media file selection and display premium visual preview
+ * Handle media file selection and display visual preview
  */
 function handleMediaSelect() {
     const input = document.getElementById('mediaInput');
@@ -498,29 +448,28 @@ function handleMediaSelect() {
     if (input.files && input.files.length > 0) {
         fileList.innerHTML = '';
         preview.style.display = 'block';
-        uploadBtn.style.display = 'inline-flex';
+        if (uploadBtn) uploadBtn.style.display = 'inline-flex';
 
         Array.from(input.files).forEach((file) => {
             const item = document.createElement('div');
             item.className = 'preview-item';
+            item.style.cssText = 'position:relative;aspect-ratio:1/1;border-radius:6px;overflow:hidden;border:1px solid var(--border);background:#fff;display:inline-block;width:75px;margin-right:6px;margin-bottom:6px';
 
-            // Generate visual preview for images
             if (file.type.startsWith('image/')) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     item.innerHTML = `
-                        <img src="${e.target.result}" class="preview-img">
-                        <div class="preview-info">${(file.size / 1024 / 1024).toFixed(1)}MB</div>
+                        <img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover">
+                        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);color:#fff;font-size:8px;padding:2px;text-align:center;font-weight:700">${(file.size / 1024 / 1024).toFixed(1)}MB</div>
                     `;
                 };
                 reader.readAsDataURL(file);
             } else {
-                // Fallback for videos or other files
                 item.innerHTML = `
-                    <div style="display:flex;align-items:center;justify-content:center;height:100%;background:#F1F5F9;color:var(--primary);font-size:24px">
-                        <i class="fas fa-video"></i>
+                    <div style="display:flex;align-items:center;justify-content:center;height:100%;background:#F1F5F9;color:var(--primary);font-size:18px">
+                        <i class="fas fa-file"></i>
                     </div>
-                    <div class="preview-info">VIDEO</div>
+                    <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);color:#fff;font-size:8px;padding:2px;text-align:center;font-weight:700">${(file.size / 1024 / 1024).toFixed(1)}MB</div>
                 `;
             }
 
@@ -528,16 +477,14 @@ function handleMediaSelect() {
         });
     } else {
         preview.style.display = 'none';
-        uploadBtn.style.display = 'none';
+        if (uploadBtn) uploadBtn.style.display = 'none';
     }
 }
 window.handleMediaSelect = handleMediaSelect;
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Check media status on page load
     updateSubmitButtonState();
 
-    // Handle media upload
     const mediaUploadForm = document.getElementById('mediaUploadForm');
     if (mediaUploadForm) {
         mediaUploadForm.addEventListener('submit', function(e) {
@@ -546,7 +493,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Handle submit for review form
     const submitForm = document.querySelector('#submitForm');
     if (submitForm) {
         submitForm.addEventListener('submit', function(e) {
@@ -555,7 +501,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Handle comment form submission
     const commentForm = document.getElementById('commentForm');
     if (commentForm) {
         commentForm.addEventListener('submit', function(e) {
@@ -565,9 +510,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-/**
- * Show loading overlay for form
- */
 function showLoadingOverlay(btn, text = 'Loading...') {
     if (!btn) return;
     btn.dataset.originalText = btn.innerHTML;
@@ -575,22 +517,15 @@ function showLoadingOverlay(btn, text = 'Loading...') {
     btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ${text}`;
 }
 
-/**
- * Hide loading overlay from form
- */
 function hideLoadingOverlay(btn) {
     if (!btn) return;
     btn.disabled = false;
     btn.innerHTML = btn.dataset.originalText || btn.innerHTML;
 }
 
-/**
- * Delete specific media file via AJAX
- */
 async function deleteMediaAJAX(mediaId, event) {
     if (event) event.preventDefault();
-
-    if (!confirm('Permanently remove this file?')) return;
+    if (!confirm('Permanently remove this deliverable?')) return;
 
     const btn = event ? event.target.closest('button') : null;
     const mediaContainer = event ? event.target.closest('.media-item') : null;
@@ -614,11 +549,11 @@ async function deleteMediaAJAX(mediaId, event) {
         if (mediaContainer) {
             mediaContainer.style.opacity = '0';
             mediaContainer.style.transform = 'scale(0.9)';
-            setTimeout(() => mediaContainer.remove(), 300);
+            setTimeout(() => mediaContainer.remove(), 250);
         }
 
         if (window.ajax && window.ajax.showSuccess) {
-            window.ajax.showSuccess('File removed successfully');
+            window.ajax.showSuccess('File removed');
         }
         updateSubmitButtonState();
 
@@ -637,9 +572,6 @@ async function deleteMediaAJAX(mediaId, event) {
 }
 window.deleteMediaAJAX = deleteMediaAJAX;
 
-/**
- * Upload media via AJAX
- */
 async function uploadMediaAJAX(form) {
     const input = document.getElementById('mediaInput');
     if (!input.files || input.files.length === 0) return;
@@ -663,26 +595,22 @@ async function uploadMediaAJAX(form) {
         if (!response.ok) throw new Error('Upload failed');
 
         if (window.ajax && window.ajax.showSuccess) {
-            window.ajax.showSuccess('Designs uploaded successfully');
+            window.ajax.showSuccess('Designs uploaded');
         }
 
-        // Refresh to show new media items properly formatted
-        setTimeout(() => location.reload(), 1000);
+        setTimeout(() => location.reload(), 900);
 
     } catch (error) {
         if (window.ajax && window.ajax.showError) {
-            window.ajax.showError('Upload failed. Please check file size.');
+            window.ajax.showError('Upload failed. Check file size.');
         } else {
-            alert('Upload failed. Please check file size.');
+            alert('Upload failed. Check file size.');
         }
     } finally {
         if (btn) hideLoadingOverlay(btn);
     }
 }
 
-/**
- * Submit task update via AJAX
- */
 async function submitTaskForReviewAJAX(form) {
     const btn = form.querySelector('button[type="submit"]');
     const isUrgentTask = @json((bool) $task->is_urgent_task);
@@ -704,7 +632,7 @@ async function submitTaskForReviewAJAX(form) {
         if (window.ajax && window.ajax.showSuccess) {
             window.ajax.showSuccess(isUrgentTask ? 'Urgent task submitted for review!' : 'Task submitted for review!');
         }
-        setTimeout(() => location.reload(), 1500);
+        setTimeout(() => location.reload(), 1000);
 
     } catch (error) {
         if (window.ajax && window.ajax.showError) {
@@ -717,9 +645,6 @@ async function submitTaskForReviewAJAX(form) {
     }
 }
 
-/**
- * Submit comment via AJAX
- */
 async function submitCommentAJAX(form) {
     const input = form.querySelector('input[name="body"]');
     const btn = form.querySelector('button[type="submit"]');
@@ -765,9 +690,6 @@ async function submitCommentAJAX(form) {
     }
 }
 
-/**
- * Add comment to list dynamically
- */
 function addCommentToList(data) {
     const list = document.getElementById('commentsList');
     if (!list) return;
@@ -776,22 +698,22 @@ function addCommentToList(data) {
     if (noMsg) noMsg.remove();
 
     const roleTag = data.user_role !== 'designer'
-        ? `<span class="tag tag-primary" style="font-size:9px">${escapeHtml(data.user_role.toUpperCase())}</span>`
+        ? `<span class="tag tag-primary" style="font-size:8.5px;padding:1px 5px">${escapeHtml(data.user_role.toUpperCase())}</span>`
         : '';
 
     const html = `
-        <div class="comment-item" style="animation: slideIn 0.4s ease-out">
+        <div class="comment-item" style="animation: slideIn 0.3s ease-out">
             <div class="comment-header">
                 <div class="av-sm" style="background:${data.user_color || 'var(--primary)'}">
                     ${escapeHtml(data.user_initial)}
                 </div>
                 <div style="flex:1">
-                    <div style="font-weight:700;font-size:14px">${escapeHtml(data.user_name)}</div>
-                    <div style="font-size:11px;color:var(--text-muted)">Just now</div>
+                    <div style="font-weight:700;font-size:12px;color:var(--text-main)">${escapeHtml(data.user_name)}</div>
+                    <div style="font-size:10px;color:var(--text-muted)">Just now</div>
                 </div>
                 ${roleTag}
             </div>
-            <div style="font-size:14px;line-height:1.6;color:var(--text-main);padding-left:42px">
+            <div style="font-size:12.5px;line-height:1.45;color:var(--text-main);padding-left:30px">
                 ${escapeHtml(data.content)}
             </div>
         </div>
@@ -799,20 +721,12 @@ function addCommentToList(data) {
 
     list.insertAdjacentHTML('beforeend', html);
 
-    // Update count
     const countEl = document.getElementById('commentCount');
     if (countEl) countEl.textContent = parseInt(countEl.textContent || 0) + 1;
 
-    const tabCountEl = document.getElementById('commentTabCount');
-    if (tabCountEl) tabCountEl.textContent = parseInt(tabCountEl.textContent || 0) + 1;
-
-    // Scroll to new comment
     list.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-/**
- * Update submit button state
- */
 function updateSubmitButtonState() {
     const submitBtn = document.getElementById('submitBtn');
     if (!submitBtn) return;
@@ -832,9 +746,6 @@ function updateSubmitButtonState() {
     }
 }
 
-/**
- * Escape HTML to prevent XSS
- */
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
@@ -843,38 +754,38 @@ function escapeHtml(text) {
 </script>
 @endpush
 
-{{-- ═══ PAUSE MODAL ═══ --}}
+{{-- ═══ PAUSE TASK MODAL ═══ --}}
 @if($task->status === 'inprogress' && !$task->is_paused)
-<div id="pauseModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px">
-    <div class="wf-pause-modal-card" style="background:var(--card);border:1px solid var(--border);border-radius:16px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.2);overflow:hidden;animation:fadeSlideUp 0.3s ease">
-        <div style="padding:24px 24px 0">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-                <h3 style="font-size:18px;font-weight:800;color:#92400E;display:flex;align-items:center;gap:8px;margin:0">⏸️ Pause Task</h3>
-                <button onclick="document.getElementById('pauseModal').style.display='none'" style="background:none;border:none;font-size:20px;color:var(--text3);cursor:pointer">&times;</button>
+<div id="pauseModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,0.45);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px">
+    <div class="wf-pause-modal-card" style="background:#FFFFFF;border:1px solid var(--border);border-radius:var(--radius-lg);max-width:440px;width:100%;box-shadow:var(--shadow-md);overflow:hidden;animation:fadeSlideUp 0.25s ease">
+        <div style="padding:18px 20px 0">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                <h3 style="font-size:16px;font-weight:800;color:#92400E;display:flex;align-items:center;gap:6px;margin:0">⏸️ Pause Task</h3>
+                <button onclick="document.getElementById('pauseModal').style.display='none'" style="background:none;border:none;font-size:20px;color:var(--text-muted);cursor:pointer">&times;</button>
             </div>
-            <div style="padding:14px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;font-size:13px;color:#92400E;line-height:1.5;margin-bottom:20px">
-                <strong>"{{ $task->title }}"</strong> will be paused. You can resume it later and your progress will be saved.
+            <div style="padding:10px 12px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:var(--radius-sm);font-size:12px;color:#92400E;line-height:1.5;margin-bottom:14px">
+                <strong>"{{ $task->title }}"</strong> will be paused. Your progress and timer are preserved.
             </div>
         </div>
         <form method="POST" action="{{ route('designer.tasks.pause', $task) }}" id="pauseForm">
             @csrf
-            <div style="padding:0 24px 24px">
-                <div style="margin-bottom:16px;">
-                    <label style="display:block;font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">What did you accomplish in this session?</label>
-                    <textarea name="work_logged" placeholder="E.g. Built the homepage hero section and setup database migrations" rows="3" style="width:100%;padding:12px;border:1.5px solid #E5E7EB;border-radius:10px;font-size:14px;font-family:inherit;resize:vertical;box-sizing:border-box;transition:border 0.2s" onfocus="this.style.borderColor='#D97706'" onblur="this.style.borderColor='#E5E7EB'"></textarea>
+            <div style="padding:0 20px 20px">
+                <div style="margin-bottom:10px;">
+                    <label style="display:block;font-size:11px;font-weight:700;color:var(--text-sub);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px">Accomplished</label>
+                    <textarea name="work_logged" placeholder="E.g. Completed initial design variations" rows="2" class="filter-input" style="width:100%;font-size:12.5px !important;resize:vertical"></textarea>
                 </div>
-                <label style="display:block;font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">Why are you pausing? *</label>
-                <textarea name="reason" required placeholder="E.g. Admin called — urgent brochure needed for XYZ client" rows="2" style="width:100%;padding:12px;border:1.5px solid #E5E7EB;border-radius:10px;font-size:14px;font-family:inherit;resize:vertical;box-sizing:border-box;transition:border 0.2s" onfocus="this.style.borderColor='#D97706'" onblur="this.style.borderColor='#E5E7EB'"></textarea>
-                <div style="display:flex;gap:10px;margin-top:20px">
-                    <button type="button" onclick="document.getElementById('pauseModal').style.display='none'" style="flex:1;padding:12px;background:var(--card2);border:1px solid var(--border);border-radius:10px;font-size:13px;font-weight:700;color:var(--text2);cursor:pointer">Cancel</button>
-                    <button type="submit" style="flex:1;padding:12px;background:#D97706;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">⏸️ Pause Task</button>
+                <label style="display:block;font-size:11px;font-weight:700;color:var(--text-sub);text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px">Reason *</label>
+                <textarea name="reason" required placeholder="E.g. Urgent brief from client" rows="2" class="filter-input" style="width:100%;font-size:12.5px !important;resize:vertical"></textarea>
+                <div style="display:flex;gap:8px;margin-top:14px">
+                    <button type="button" onclick="document.getElementById('pauseModal').style.display='none'" class="btn-sec" style="flex:1;justify-content:center;padding:7px !important;font-size:12px !important">Cancel</button>
+                    <button type="submit" class="btn-action-primary" style="flex:1;background:#D97706 !important;border-color:#D97706 !important;justify-content:center;padding:7px !important;font-size:12px !important">⏸️ Pause</button>
                 </div>
             </div>
         </form>
     </div>
 </div>
 <style>
-@keyframes fadeSlideUp { from { opacity:0;transform:translateY(20px); } to { opacity:1;transform:translateY(0); } }
+@keyframes fadeSlideUp { from { opacity:0;transform:translateY(12px); } to { opacity:1;transform:translateY(0); } }
 </style>
 @endif
 

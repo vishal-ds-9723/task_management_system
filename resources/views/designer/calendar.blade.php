@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
 @push('styles')
-    <link href="{{ asset('css/pages/designer-theme.css') }}?v=2.0" rel="stylesheet">
+    <link href="{{ asset('css/pages/designer-theme.css') }}?v=3.0" rel="stylesheet">
 @endpush
 
 @section('content')
-<div class="designer-minimal-schedule" style="max-width:1240px;margin:0 auto;padding-bottom:50px">
+<div class="designer-minimal-schedule" style="width:100%;margin:0 auto;padding-bottom:40px">
     {{-- Header --}}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:16px">
         <div>
