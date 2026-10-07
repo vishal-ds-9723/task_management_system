@@ -11,7 +11,7 @@
 .pq-subtitle{font-size:12px;color:var(--text3);margin-top:2px;font-weight:500}
 
 /* Stats Grid */
-.pq-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.pq-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
 .pq-stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 16px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all .25s ease;text-decoration:none;position:relative;overflow:hidden}
 .pq-stat::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity .25s;pointer-events:none;border-radius:inherit}
 .pq-stat:hover{border-color:var(--primary);transform:translateY(-2px);box-shadow:var(--shadow)}
@@ -43,13 +43,23 @@
 /* Task Card */
 .pq-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:0;transition:all .25s ease;overflow:hidden;position:relative}
 .pq-card:hover{border-color:var(--primary);box-shadow:var(--shadow);transform:translateY(-1px)}
-.pq-card-inner{display:grid;grid-template-columns:1fr auto;align-items:center;gap:16px;padding:18px 20px}
-.pq-card-left{display:flex;flex-direction:column;gap:10px;min-width:0}
-.pq-card-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.pq-card-inner{display:flex;align-items:center;gap:18px;padding:18px 20px}
+.pq-thumb-box{position:relative;width:68px;height:68px;border-radius:12px;overflow:hidden;flex-shrink:0;background:var(--card2);border:1px solid var(--border);cursor:pointer;transition:all .25s ease}
+.pq-thumb-box:hover{transform:scale(1.06);border-color:var(--primary);box-shadow:0 6px 18px rgba(79,109,240,.22)}
+.pq-thumb-box img{width:100%;height:100%;object-fit:cover;display:block}
+.pq-thumb-overlay{position:absolute;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;opacity:0;transition:opacity .2s;backdrop-filter:blur(2px)}
+.pq-thumb-box:hover .pq-thumb-overlay{opacity:1}
+.pq-thumb-video-badge{position:absolute;bottom:3px;right:3px;background:rgba(0,0,0,.75);color:#fff;font-size:8px;padding:2px 5px;border-radius:4px;line-height:1}
+.pq-thumb-count{position:absolute;top:3px;right:3px;background:rgba(15,23,42,.75);color:#fff;font-size:8px;font-weight:700;padding:1px 5px;border-radius:4px}
+.pq-thumb-empty{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text3);font-size:16px;background:var(--card2);opacity:.6;cursor:default}
+.pq-thumb-empty:hover{transform:none;border-color:var(--border);box-shadow:none}
+.pq-card-left{display:flex;flex-direction:column;gap:10px;min-width:0;flex:1}
+.pq-card-right{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
 
 /* Task title row */
 .pq-task-title-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .pq-task-title{font-size:14.5px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:420px}
+.pq-task-title a:hover{color:var(--primary);text-decoration:underline}
 .pq-task-type{display:inline-flex;align-items:center;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;background:var(--primary-dim);color:var(--primary)}
 
 /* Meta */
@@ -71,19 +81,24 @@
 .pq-progress-track{flex:1;height:5px;background:var(--card2);border-radius:3px;overflow:hidden}
 .pq-progress-fill{height:100%;border-radius:3px;transition:width .4s ease}
 .pq-progress-fill-full{background:linear-gradient(135deg,#10B981,#059669)}
-.pq-progress-fill-partial{background:linear-gradient(135deg,#3B82F6,#2563EB)}
+.pq-progress-fill-partial{background:linear-gradient(135deg,#F59E0B,#D97706)}
 .pq-progress-fill-none{background:var(--border)}
 .pq-progress-label{font-size:11px;font-weight:700;white-space:nowrap;min-width:32px;text-align:right}
 
 /* Status badges */
 .pq-badge{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:8px;font-size:11px;font-weight:700;letter-spacing:.2px;white-space:nowrap}
-.pq-badge-published{background:rgba(16,185,129,.1);color:#059669}
-.pq-badge-partial{background:rgba(59,130,246,.1);color:#2563EB}
-.pq-badge-awaiting{background:rgba(245,158,11,.08);color:#D97706}
+.pq-badge-published{background:rgba(16,185,129,.1);color:#059669;border:1px solid rgba(16,185,129,.2)}
+.pq-badge-awaiting{background:rgba(245,158,11,.1);color:#D97706;border:1px solid rgba(245,158,11,.2)}
+.pq-badge-overdue{background:rgba(239,68,68,.1);color:#EF4444;border:1px solid rgba(239,68,68,.25)}
+.pq-badge-today{background:rgba(79,109,240,.1);color:var(--primary);border:1px solid rgba(79,109,240,.25)}
 
-/* Action button */
-.pq-action-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;color:#fff;background:var(--primary);transition:all .2s;border:none;cursor:pointer}
+/* Action buttons */
+.pq-action-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 15px;border-radius:8px;font-size:11.5px;font-weight:700;text-decoration:none;color:#fff;background:var(--primary);transition:all .2s;border:none;cursor:pointer}
 .pq-action-btn:hover{background:var(--primary-hover);box-shadow:0 4px 12px rgba(79,109,240,.2);transform:translateY(-1px)}
+.pq-action-btn-publish{background:linear-gradient(135deg,#10B981,#059669);color:#fff}
+.pq-action-btn-publish:hover{background:linear-gradient(135deg,#059669,#047857);box-shadow:0 4px 12px rgba(16,185,129,.3)}
+.pq-action-btn-revert{background:var(--card2);color:var(--text3);border:1px solid var(--border)}
+.pq-action-btn-revert:hover{border-color:rgba(239,68,68,.4);color:#EF4444;background:rgba(239,68,68,.05)}
 .pq-action-btn-view{background:var(--card2);color:var(--text2);border:1px solid var(--border)}
 .pq-action-btn-view:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-dim)}
 
@@ -117,7 +132,7 @@
         <div class="pq-icon-wrap"><i class="fa-solid fa-share-nodes"></i></div>
         <div>
             <div class="pq-title">Publishing Queue</div>
-            <div class="pq-subtitle">Upload proof links for approved tasks before they're marked done</div>
+            <div class="pq-subtitle">1-Click publish approved content to social platforms & track live status</div>
         </div>
     </div>
     <a href="{{ route('strategist.tracking') }}" class="pq-btn pq-btn-outline"><i class="fa-solid fa-arrow-left"></i> Back to Tracking</a>
@@ -128,29 +143,22 @@
     <a href="{{ route('strategist.publishing') }}" class="pq-stat {{ !request('filter') ? 'pq-stat-active' : '' }}">
         <div class="pq-stat-icon" style="background:var(--primary-dim);color:var(--primary)"><i class="fa-solid fa-layer-group"></i></div>
         <div>
-            <div class="pq-stat-val">{{ $totalCompleted }}</div>
-            <div class="pq-stat-label">All Tasks</div>
+            <div class="pq-stat-val">{{ $totalCount ?? $totalCompleted }}</div>
+            <div class="pq-stat-label">All Content</div>
         </div>
     </a>
-    <a href="{{ route('strategist.publishing', ['filter' => 'awaiting']) }}" class="pq-stat {{ request('filter') === 'awaiting' ? 'pq-stat-active' : '' }}">
+    <a href="{{ route('strategist.publishing', ['filter' => 'pending']) }}" class="pq-stat {{ in_array(request('filter'), ['pending', 'awaiting']) ? 'pq-stat-active' : '' }}">
         <div class="pq-stat-icon" style="background:var(--yellow-dim);color:var(--yellow)"><i class="fa-solid fa-hourglass-half"></i></div>
         <div>
-            <div class="pq-stat-val">{{ $awaitingCount }}</div>
-            <div class="pq-stat-label">Awaiting Proof</div>
-        </div>
-    </a>
-    <a href="{{ route('strategist.publishing', ['filter' => 'partial']) }}" class="pq-stat {{ request('filter') === 'partial' ? 'pq-stat-active' : '' }}">
-        <div class="pq-stat-icon" style="background:var(--blue-dim);color:var(--blue)"><i class="fa-solid fa-circle-half-stroke"></i></div>
-        <div>
-            <div class="pq-stat-val">{{ $partialCount }}</div>
-            <div class="pq-stat-label">Partial Proof</div>
+            <div class="pq-stat-val">{{ $pendingCount ?? $awaitingCount }}</div>
+            <div class="pq-stat-label">Ready to Publish</div>
         </div>
     </a>
     <a href="{{ route('strategist.publishing', ['filter' => 'published']) }}" class="pq-stat {{ request('filter') === 'published' ? 'pq-stat-active' : '' }}">
         <div class="pq-stat-icon" style="background:var(--teal-dim);color:var(--teal)"><i class="fa-solid fa-circle-check"></i></div>
         <div>
             <div class="pq-stat-val">{{ $publishedCount }}</div>
-            <div class="pq-stat-label">Published</div>
+            <div class="pq-stat-label">Published Live</div>
         </div>
     </a>
 </div>
@@ -225,13 +233,40 @@
             'github'    => '#181717', 'weibo'     => '#E6162D', 'signal'    => '#3A76F0',
             'clubhouse' => '#F2E351',
         ];
+        $thumb = $task->getPreviewThumbnail();
+        $hasThumb = !empty($thumb);
+        $detailUrl = route('strategist.publishing.show', $task);
     @endphp
     <div class="pq-card">
         <div class="pq-card-inner">
+            {{-- Media Thumbnail --}}
+            @if($hasThumb)
+                <div class="pq-thumb-box"
+                     onclick="event.stopPropagation(); window.openMediaLightbox('{{ addslashes($thumb['full_url']) }}', '{{ addslashes($task->title ?: $thumb['name']) }}', {{ $thumb['is_video'] ? 'true' : 'false' }}, '{{ $detailUrl }}')"
+                     title="Click to view full preview">
+                    <img src="{{ $thumb['url'] }}" alt="{{ $task->title }}" loading="lazy" />
+                    <div class="pq-thumb-overlay">
+                        <i class="fa-solid fa-magnifying-glass-plus"></i>
+                    </div>
+                    @if($thumb['is_video'])
+                        <span class="pq-thumb-video-badge"><i class="fa-solid fa-play"></i></span>
+                    @endif
+                    @if(($thumb['count'] ?? 1) > 1)
+                        <span class="pq-thumb-count">+{{ $thumb['count'] - 1 }}</span>
+                    @endif
+                </div>
+            @else
+                <div class="pq-thumb-box" title="No creative media uploaded yet">
+                    <div class="pq-thumb-empty">
+                        <i class="fa-regular fa-image"></i>
+                    </div>
+                </div>
+            @endif
+
             <div class="pq-card-left">
                 {{-- Title row --}}
                 <div class="pq-task-title-row">
-                    <span class="pq-task-title">{{ $task->title ?: 'Untitled Task' }}</span>
+                    <span class="pq-task-title"><a href="{{ $detailUrl }}" style="color:inherit;text-decoration:none">{{ $task->title ?: 'Untitled Task' }}</a></span>
                     @if($task->type)
                         <span class="pq-task-type">{{ $task->type }}</span>
                     @endif
@@ -244,6 +279,17 @@
                         <span class="pq-meta-sep"></span>
                         <span class="pq-meta-item" style="color:var(--primary);font-weight:700"><i class="fa-solid fa-user-pen"></i> By: {{ $task->creator->name }}</span>
                     @endif
+                    @if($task->post_date)
+                        @php
+                            $postDateCarbon = \Illuminate\Support\Carbon::parse($task->post_date);
+                            $isOverdue = $task->status !== 'published' && $postDateCarbon->isPast() && !$postDateCarbon->isToday();
+                            $isToday = $task->status !== 'published' && $postDateCarbon->isToday();
+                        @endphp
+                        <span class="pq-meta-sep"></span>
+                        <span class="pq-meta-item" style="color:{{ $isOverdue ? '#EF4444' : ($isToday ? 'var(--primary)' : 'var(--text2)') }};font-weight:700">
+                            <i class="fa-regular fa-calendar-check"></i> Post Date: {{ $postDateCarbon->format('M d, Y') }}
+                        </span>
+                    @endif
                     @if($task->completed_at)
                         <span class="pq-meta-sep"></span>
                         <span class="pq-meta-item"><i class="fa-solid fa-check-circle" style="color:var(--teal)"></i> Approved {{ $task->completed_at->diffForHumans() }}</span>
@@ -254,7 +300,7 @@
                 <div class="pq-platforms">
                     @foreach($platforms as $platform)
                         @php
-                            $posted = in_array($platform, $postedPlatforms);
+                            $posted = $task->status === 'published' || in_array($platform, $postedPlatforms);
                             $pIcon = $platformIcons[$platform] ?? 'fa-solid fa-globe';
                             $pColor = $platformColors[$platform] ?? '#6B7280';
                         @endphp
@@ -270,23 +316,41 @@
             <div class="pq-card-right">
                 @if($task->status === 'published')
                     <span class="pq-badge pq-badge-published"><i class="fa-solid fa-check-double"></i> Published</span>
-                    <a href="{{ route('strategist.publishing.show', $task) }}" class="pq-action-btn pq-action-btn-view"><i class="fa-solid fa-eye"></i> View</a>
+                    <form method="POST" action="{{ route('strategist.publishing.unpublish', $task) }}" onsubmit="return confirm('Revert publishing status back to Ready to Publish?')" style="margin:0;display:inline">
+                        @csrf
+                        <button type="submit" class="pq-action-btn pq-action-btn-revert" title="Revert back to unposted queue"><i class="fa-solid fa-rotate-left"></i> Revert</button>
+                    </form>
+                    <a href="{{ route('strategist.publishing.show', $task) }}" class="pq-action-btn pq-action-btn-view" title="View Details"><i class="fa-solid fa-eye"></i> View</a>
                 @else
-                    <span class="pq-badge {{ $progress['posted'] > 0 ? 'pq-badge-partial' : 'pq-badge-awaiting' }}">
-                        <i class="fa-solid fa-{{ $progress['posted'] > 0 ? 'circle-half-stroke' : 'hourglass-half' }}"></i>
-                        {{ $progress['posted'] }}/{{ $progress['total'] }}
-                    </span>
-                    <a href="{{ route('strategist.publishing.show', $task) }}" class="pq-action-btn"><i class="fa-solid fa-arrow-up-from-bracket"></i> Upload Proof</a>
+                    @php
+                        $postDateCarbon = $task->post_date ? \Illuminate\Support\Carbon::parse($task->post_date) : null;
+                        $isOverdue = $postDateCarbon && $postDateCarbon->isPast() && !$postDateCarbon->isToday();
+                        $isToday = $postDateCarbon && $postDateCarbon->isToday();
+                    @endphp
+                    @if($isOverdue)
+                        <span class="pq-badge pq-badge-overdue"><i class="fa-solid fa-triangle-exclamation"></i> Due to Post</span>
+                    @elseif($isToday)
+                        <span class="pq-badge pq-badge-today"><i class="fa-solid fa-clock"></i> Post Today</span>
+                    @else
+                        <span class="pq-badge pq-badge-awaiting"><i class="fa-solid fa-hourglass-half"></i> Ready to Publish</span>
+                    @endif
+                    <form method="POST" action="{{ route('strategist.publishing.publish', $task) }}" onsubmit="return confirm('Mark this task as Published on social media?')" style="margin:0;display:inline">
+                        @csrf
+                        <button type="submit" class="pq-action-btn pq-action-btn-publish" title="1-Click Mark as Published"><i class="fa-solid fa-rocket"></i> Mark Published</button>
+                    </form>
+                    <a href="{{ route('strategist.publishing.show', $task) }}" class="pq-action-btn pq-action-btn-view" title="Open Publishing Hub"><i class="fa-solid fa-eye"></i> View</a>
                 @endif
             </div>
         </div>
 
-        {{-- Progress bar --}}
+        {{-- Status bar --}}
         <div class="pq-progress">
             <div class="pq-progress-track">
-                <div class="pq-progress-fill {{ $pct >= 100 ? 'pq-progress-fill-full' : ($pct > 0 ? 'pq-progress-fill-partial' : 'pq-progress-fill-none') }}" style="width:{{ $pct }}%"></div>
+                <div class="pq-progress-fill {{ $task->status === 'published' ? 'pq-progress-fill-full' : 'pq-progress-fill-partial' }}" style="width:{{ $task->status === 'published' ? '100' : '45' }}%"></div>
             </div>
-            <span class="pq-progress-label" style="color:{{ $pct >= 100 ? '#059669' : ($pct > 0 ? '#2563EB' : 'var(--text3)') }}">{{ $pct }}%</span>
+            <span class="pq-progress-label" style="color:{{ $task->status === 'published' ? '#059669' : '#D97706' }}">
+                {{ $task->status === 'published' ? 'Live & Published' : 'Ready to Publish' }}
+            </span>
         </div>
     </div>
 @empty

@@ -31,7 +31,20 @@
 .apv-table { width:100%; border-collapse:collapse; }
 .apv-table thead th { text-align:left; padding:11px 14px; font-size:10.5px; color:var(--text3); letter-spacing:0.5px; text-transform:uppercase; font-weight:700; background:var(--card2); border-bottom:1px solid var(--border); white-space:nowrap; }
 .apv-table tbody td { padding:12px 14px; font-size:12.5px; color:var(--text2); vertical-align:middle; border-bottom:1px solid var(--border); }
-.apv-task-title { font-size:13px; font-weight:600; color:var(--text); line-height:1.3; margin-bottom:1px; }
+/* Composite task cell with thumbnail */
+.apv-task-composite { display:flex; align-items:center; gap:12px; min-width:240px; }
+.apv-thumb-wrap { position:relative; width:46px; height:46px; border-radius:10px; overflow:hidden; flex-shrink:0; background:var(--card2); border:1px solid var(--border); cursor:pointer; transition:all .2s ease; }
+.apv-thumb-wrap:hover { transform:scale(1.06); border-color:var(--primary); box-shadow:0 4px 14px rgba(79,109,240,.25); }
+.apv-thumb-img { width:100%; height:100%; object-fit:cover; display:block; }
+.apv-thumb-overlay { position:absolute; inset:0; background:rgba(15,23,42,.45); display:flex; align-items:center; justify-content:center; color:#fff; font-size:12px; opacity:0; transition:opacity .2s; backdrop-filter:blur(2px); }
+.apv-thumb-wrap:hover .apv-thumb-overlay { opacity:1; }
+.apv-thumb-video-badge { position:absolute; bottom:2px; right:2px; background:rgba(0,0,0,.75); color:#fff; font-size:8px; padding:2px 4px; border-radius:4px; line-height:1; }
+.apv-thumb-count { position:absolute; top:2px; right:2px; background:rgba(15,23,42,.75); color:#fff; font-size:8px; font-weight:700; padding:1px 4px; border-radius:4px; }
+.apv-thumb-empty { display:flex; align-items:center; justify-content:center; color:var(--text3); font-size:15px; cursor:default; opacity:.7; }
+.apv-thumb-empty:hover { transform:none; border-color:var(--border); box-shadow:none; }
+.apv-task-details { min-width:0; flex:1; }
+.apv-task-title { font-size:13px; font-weight:700; color:var(--text); line-height:1.3; margin-bottom:1px; }
+.apv-task-title a:hover { color:var(--primary); text-decoration:underline; }
 .apv-task-sub { font-size:11px; color:var(--text3); font-weight:500; }
 .apv-client { display:flex; align-items:center; gap:5px; font-size:12px; font-weight:500; }
 .apv-assignee { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:500; }
@@ -174,7 +187,7 @@ div.dt-processing {
         <table id="approvalsTable" class="apv-table display" style="width:100%">
             <thead>
                 <tr>
-                    <th style="min-width:200px">Task</th>
+                    <th style="min-width:260px">Task</th>
                     <th>Client</th>
                     <th>Type</th>
                     <th>Assigned To</th>

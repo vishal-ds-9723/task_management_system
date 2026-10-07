@@ -185,6 +185,50 @@ class Task extends Model
     }
 
     /**
+     * Get the primary preview media item or social proof for thumbnail displays.
+     */
+    public function getPreviewThumbnail(): ?array
+    {
+        // 1. Check for creative media attached to the task (images first, then video/other)
+        $mediaList = $this->relationLoaded('media') ? $this->media : $this->media()->get();
+
+        if ($mediaList && $mediaList->isNotEmpty()) {
+            $mediaItem = $mediaList->first(fn ($m) => $m->isImage()) ?? $mediaList->first();
+            if ($mediaItem) {
+                return [
+                    'url'      => $mediaItem->getUrl(),
+                    'full_url' => $mediaItem->getUrl(),
+                    'is_video' => (bool) $mediaItem->isVideo(),
+                    'is_proof' => false,
+                    'name'     => $mediaItem->name ?: $mediaItem->file_name ?: 'Creative Preview',
+                    'type'     => $mediaItem->isVideo() ? 'video' : 'image',
+                    'count'    => $mediaList->count(),
+                ];
+            }
+        }
+
+        // 2. Check for proof image from social media posts (for publishing lists)
+        $posts = $this->relationLoaded('socialMediaPosts') ? $this->socialMediaPosts : $this->socialMediaPosts()->get();
+        if ($posts && $posts->isNotEmpty()) {
+            $proofPost = $posts->first(fn ($p) => !empty($p->proof_image));
+            if ($proofPost && $proofPost->proof_image) {
+                $proofUrl = $proofPost->proof_image_url;
+                return [
+                    'url'      => $proofUrl,
+                    'full_url' => $proofUrl,
+                    'is_video' => false,
+                    'is_proof' => true,
+                    'name'     => 'Published Proof (' . ucfirst((string) $proofPost->platform) . ')',
+                    'type'     => 'image',
+                    'count'    => 1,
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Calculate design_deadline from deadline and post_date.
      * By default, design deadline matches the design task deadline (3 days before post_date).
      * Returns a Carbon instance or null if both are absent.

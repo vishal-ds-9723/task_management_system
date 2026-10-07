@@ -564,7 +564,7 @@
 }
 
 /* ===== Publishing ===== */
-.cmd-pub-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+.cmd-pub-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
 .cmd-pub-stat {
     background: var(--card2);
     border: 1px solid var(--border);

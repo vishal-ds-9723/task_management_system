@@ -13,22 +13,19 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>TheLayout – Task Management System</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
-    <link rel="preload" as="style" href="{{ asset('css/agencyflow.css') }}?v=3.0">
-    <link rel="preload" as="style" href="{{ asset('css/premium-ui.css') }}">
-    <link rel="preload" as="style" href="{{ asset('css/ui-enhancements.css') }}">
-    <link rel="stylesheet" href="{{ asset('css/agencyflow.css') }}?v=3.0">
-    <link rel="stylesheet" href="{{ asset('css/premium-ui.css') }}">
-    <link rel="stylesheet" href="{{ asset('css/ui-enhancements.css') }}">
+    <link rel="preload" as="style" href="{{ asset('css/agencyflow.css') }}?v=3.2">
+    <link rel="preload" as="style" href="{{ asset('css/premium-ui.css') }}?v=3.2">
+    <link rel="preload" as="style" href="{{ asset('css/ui-enhancements.css') }}?v=3.2">
+    <link rel="stylesheet" href="{{ asset('css/agencyflow.css') }}?v=3.2">
+    <link rel="stylesheet" href="{{ asset('css/premium-ui.css') }}?v=3.2">
+    <link rel="stylesheet" href="{{ asset('css/ui-enhancements.css') }}?v=3.2">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#4f46e5">
     @stack('styles')
     <script>
-        // Read sidebar expansion state synchronously, before first paint.
-        // Without this, the sidebar paints collapsed (52px logo), the
-        // IIFE at the bottom of body adds .expanded, and the logo jumps to
-        // 160px — visible as a "zoomed logo flash" on every admin page load.
+        // Read sidebar expansion state synchronously, before first paint (desktop only).
         try {
-            if (localStorage.getItem('sidebar-expanded') === '1') {
+            if (window.innerWidth > 900 && localStorage.getItem('sidebar-expanded') === '1') {
                 document.documentElement.classList.add('sidebar-pre-expanded');
             }
         } catch (_) {}
@@ -43,31 +40,44 @@
         body:not(.preload-done) .brand-logo,
         body:not(.preload-done) .main {
             transition: none !important;
+            animation: none !important;
         }
-        /* Apply expanded sidebar state on the very first paint, BEFORE the
-           body-level IIFE has had a chance to add .expanded to the sidebar.
-           Scoped to body:not(.preload-done) so these rules stop applying once
-           the user can toggle — at which point .sidebar.expanded from
-           agencyflow.css owns the styling. Mirrors agencyflow.css L291-311. */
-        html.sidebar-pre-expanded body:not(.preload-done) .sidebar { width: 220px; align-items: stretch; padding: 10px 0 12px; }
-        html.sidebar-pre-expanded body:not(.preload-done) .sidebar-brand { padding: 10px 16px 8px; text-align: left; justify-content: center; }
-        html.sidebar-pre-expanded body:not(.preload-done) .sidebar-brand .brand-name { text-align: left; flex: 1; }
-        html.sidebar-pre-expanded body:not(.preload-done) .sidebar-brand .brand-logo { width: 160px; height: auto; margin: 0 auto; }
-        html.sidebar-pre-expanded body:not(.preload-done) .nav-section { align-items: stretch; padding: 2px 10px; }
-        html.sidebar-pre-expanded body:not(.preload-done) .nav-item { width: 100%; height: auto; padding: 9px 12px; justify-content: flex-start; gap: 10px; font-size: 13px; border-radius: 10px; }
-        html.sidebar-pre-expanded body:not(.preload-done) .nav-item .icon { font-size: 17px; width: 22px; text-align: center; flex-shrink: 0; }
-        html.sidebar-pre-expanded body:not(.preload-done) .nav-item > span:not(.icon):not(.nav-tooltip) { display: inline; }
-        html.sidebar-pre-expanded body:not(.preload-done) .nav-item .nav-tooltip { display: none !important; }
-        html.sidebar-pre-expanded body:not(.preload-done) .sidebar-footer { padding: 8px 10px 0; justify-content: stretch; }
-        html.sidebar-pre-expanded body:not(.preload-done) .user-pill { justify-content: flex-start; gap: 10px; padding: 8px 10px; }
-        html.sidebar-pre-expanded body:not(.preload-done) .user-pill > div:not(.avatar) { display: block; }
-        html.sidebar-pre-expanded body:not(.preload-done) .sidebar ~ .main { margin-left: 220px; }
 
-        /* Ensure page loader / logo preloader is completely suppressed across all page navigation */
+        /* Prevent mobile sidebar / logo flash on initial paint */
+        @media (max-width: 900px) {
+            .sidebar:not(.mobile-open) {
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                transform: translateX(-100%) !important;
+            }
+        }
+
+        /* Apply expanded sidebar state on desktop only, BEFORE the
+           body-level IIFE has had a chance to add .expanded to the sidebar. */
+        @media (min-width: 901px) {
+            html.sidebar-pre-expanded body:not(.preload-done) .sidebar { width: 220px; align-items: stretch; padding: 10px 0 12px; }
+            html.sidebar-pre-expanded body:not(.preload-done) .sidebar-brand { padding: 10px 16px 8px; text-align: left; justify-content: center; }
+            html.sidebar-pre-expanded body:not(.preload-done) .sidebar-brand .brand-name { text-align: left; flex: 1; }
+            html.sidebar-pre-expanded body:not(.preload-done) .sidebar-brand .brand-logo { width: 160px; height: auto; margin: 0 auto; }
+            html.sidebar-pre-expanded body:not(.preload-done) .nav-section { align-items: stretch; padding: 2px 10px; }
+            html.sidebar-pre-expanded body:not(.preload-done) .nav-item { width: 100%; height: auto; padding: 9px 12px; justify-content: flex-start; gap: 10px; font-size: 13px; border-radius: 10px; }
+            html.sidebar-pre-expanded body:not(.preload-done) .nav-item .icon { font-size: 17px; width: 22px; text-align: center; flex-shrink: 0; }
+            html.sidebar-pre-expanded body:not(.preload-done) .nav-item > span:not(.icon):not(.nav-tooltip) { display: inline; }
+            html.sidebar-pre-expanded body:not(.preload-done) .nav-item .nav-tooltip { display: none !important; }
+            html.sidebar-pre-expanded body:not(.preload-done) .sidebar-footer { padding: 8px 10px 0; justify-content: stretch; }
+            html.sidebar-pre-expanded body:not(.preload-done) .user-pill { justify-content: flex-start; gap: 10px; padding: 8px 10px; }
+            html.sidebar-pre-expanded body:not(.preload-done) .user-pill > div:not(.avatar) { display: block; }
+            html.sidebar-pre-expanded body:not(.preload-done) .sidebar ~ .main { margin-left: 220px; }
+        }
+
+        /* Ensure page loader / logo preloader / PWA banner is completely suppressed across all page navigation */
         #pageLoader,
         .page-loader,
         .loader-container,
-        .loader-logo {
+        .loader-logo,
+        #pwaInstallBanner,
+        .pwa-banner {
             display: none !important;
             visibility: hidden !important;
             opacity: 0 !important;
@@ -105,24 +115,7 @@
     </div>
 </div>
 
-{{-- PWA Install Banner --}}
-<div id="pwaInstallBanner" class="pwa-banner">
-    <div class="pwa-banner-content">
-        <div class="pwa-banner-info">
-            <div class="pwa-icon-box">
-                <img src="{{ asset('images/logo.png') }}" alt="App Icon">
-            </div>
-            <div class="pwa-text-box">
-                <div class="pwa-title">Install TheLayout App</div>
-                <div class="pwa-desc">Get a faster, more premium experience on your device.</div>
-            </div>
-        </div>
-        <div class="pwa-btns">
-            <button id="pwaInstallBtn" class="btn-pwa-install">Install Now</button>
-            <button onclick="hidePwaBanner()" class="btn-pwa-close" title="Dismiss">Not now</button>
-        </div>
-    </div>
-</div>
+
 
 {{-- Notification Overlay --}}
 <div class="overlay-bg" id="overlayBg" onclick="handleOverlayClick(event)"></div>
@@ -151,6 +144,9 @@
 
 {{-- Self-Task Creation Modal for Team Members --}}
 <x-self-task-modal />
+
+{{-- Universal Media Lightbox Modal --}}
+<x-media-lightbox />
 
 {{-- Task Detail Modal --}}
 <div class="modal-overlay" id="taskModal">
@@ -942,46 +938,6 @@ if ('serviceWorker' in navigator) {
     });
 }
 
-// PWA Install Logic
-let deferredPrompt;
-const pwaBanner = document.getElementById('pwaInstallBanner');
-const installBtn = document.getElementById('pwaInstallBtn');
-
-window.addEventListener('beforeinstallprompt', (e) => {
-    // Prevent the native mini-infobar
-    e.preventDefault();
-    // Save event for later
-    deferredPrompt = e;
-    // Show our custom banner
-    if (pwaBanner && !localStorage.getItem('pwa-dismissed')) {
-        pwaBanner.classList.add('show');
-    }
-});
-
-if (installBtn) {
-    installBtn.addEventListener('click', async () => {
-        if (!deferredPrompt) return;
-
-        pwaBanner.classList.remove('show');
-        deferredPrompt.prompt();
-
-        const { outcome } = await deferredPrompt.userChoice;
-        console.log(`User response to install prompt: ${outcome}`);
-        deferredPrompt = null;
-    });
-}
-
-function hidePwaBanner() {
-    if (pwaBanner) pwaBanner.classList.remove('show');
-    // Don't show again for 24 hours
-    localStorage.setItem('pwa-dismissed', Date.now());
-}
-
-// Check if already installed
-window.addEventListener('appinstalled', () => {
-    if (pwaBanner) pwaBanner.classList.remove('show');
-    deferredPrompt = null;
-});
 </script>
 
 <style>
@@ -1000,126 +956,6 @@ window.addEventListener('appinstalled', () => {
     color: var(--text);
     transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-}
-
-/* ===== PWA Install Banner ===== */
-.pwa-banner {
-    position: fixed;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%) translateY(150%);
-    width: 90%;
-    max-width: 500px;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 20px;
-    padding: 16px 20px;
-    z-index: 99999;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-    display: block;
-}
-.pwa-banner.show {
-    transform: translateX(-50%) translateY(0);
-}
-.pwa-banner-content {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    flex-wrap: wrap;
-}
-.pwa-banner-info {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex: 1;
-}
-.pwa-icon-box {
-    width: 48px;
-    height: 48px;
-    background: var(--primary);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    flex-shrink: 0;
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
-}
-.pwa-icon-box img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-.pwa-title {
-    font-weight: 800;
-    font-size: 15px;
-    color: #1f2937;
-    margin-bottom: 2px;
-}
-.pwa-desc {
-    font-size: 12px;
-    color: #6b7280;
-    font-weight: 500;
-}
-.pwa-btns {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-}
-.btn-pwa-install {
-    background: #4f46e5;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 12px;
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-    white-space: nowrap;
-}
-.btn-pwa-install:hover {
-    background: #4338ca;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
-}
-.btn-pwa-close {
-    background: #f3f4f6;
-    color: #4b5563;
-    border: none;
-    padding: 10px 16px;
-    border-radius: 12px;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-.btn-pwa-close:hover {
-    background: #e5e7eb;
-}
-
-@media (max-width: 600px) {
-    .pwa-banner {
-        bottom: 12px;
-        width: calc(100% - 24px);
-        padding: 12px 16px;
-    }
-    .pwa-banner-info {
-        width: 100%;
-    }
-    .pwa-btns {
-        width: 100%;
-        justify-content: flex-end;
-        margin-top: 4px;
-    }
-    .btn-pwa-install {
-        flex: 1;
-        text-align: center;
-    }
 }
 .mobile-menu-btn {
     -webkit-tap-highlight-color: transparent;

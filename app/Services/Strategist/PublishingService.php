@@ -15,7 +15,7 @@ class PublishingService
 {
     public function getIndexData(Request $request)
     {
-        $query = Task::with(['client', 'assignee', 'creator', 'socialMediaPosts'])
+        $query = Task::with(['client', 'assignee', 'creator', 'media', 'socialMediaPosts'])
             ->strategistVisible(\App\Models\Task::STRATEGIST_PANEL_ROLES)
             ->publishable()
             ->whereIn('status', ['completed', 'published']);
@@ -23,10 +23,9 @@ class PublishingService
         // Filter
         if ($request->filled('filter')) {
             match ($request->filter) {
-                'awaiting'  => $query->where('status', 'completed')->whereDoesntHave('socialMediaPosts'),
-                'partial'   => $query->where('status', 'completed')->whereHas('socialMediaPosts'),
-                'published' => $query->where('status', 'published'),
-                default     => null,
+                'pending', 'awaiting' => $query->where('status', 'completed'),
+                'published'           => $query->where('status', 'published'),
+                default               => null,
             };
         }
 
@@ -50,16 +49,20 @@ class PublishingService
         $baseQuery = Task::query()
             ->strategistVisible(\App\Models\Task::STRATEGIST_PANEL_ROLES)
             ->publishable();
-        $awaitingCount = (clone $baseQuery)->where('status', 'completed')->whereDoesntHave('socialMediaPosts')->count();
-        $partialCount = (clone $baseQuery)->where('status', 'completed')->whereHas('socialMediaPosts')->count();
+        $pendingCount = (clone $baseQuery)->where('status', 'completed')->count();
         $publishedCount = (clone $baseQuery)->where('status', 'published')->count();
-        $totalCompleted = $awaitingCount + $partialCount + $publishedCount;
+        $totalCount = $pendingCount + $publishedCount;
+
+        // Legacy compatibility
+        $awaitingCount = $pendingCount;
+        $partialCount = 0;
+        $totalCompleted = $totalCount;
 
         $clients = \App\Models\Client::where('is_active', true)->orderBy('name')->get();
 
         return compact(
-            'tasks', 'awaitingCount', 'partialCount', 'publishedCount',
-            'totalCompleted', 'clients'
+            'tasks', 'pendingCount', 'publishedCount', 'totalCount',
+            'awaitingCount', 'partialCount', 'totalCompleted', 'clients'
         );
     }
 
@@ -121,18 +124,30 @@ class PublishingService
     }
 
 
-    public function markAsPublished(Task $task)
+    public function publish(Task $task): bool
     {
-        if (!$task->inPublishingFlow()) {
-            return;
-        }
+        abort_unless($task->inPublishingFlow(), 403, 'This urgent task was delivered before the approval flow and has no publishing step.');
+        abort_if(!in_array($task->status, ['completed', 'published']), 403, 'Task is not ready for publishing.');
 
         $task->update(['status' => 'published']);
 
+        // Record a social media post entry for target platforms if none exists
+        $platforms = is_array($task->platform) ? $task->platform : (is_string($task->platform) ? [$task->platform] : []);
+        foreach ($platforms as $platform) {
+            $task->socialMediaPosts()->firstOrCreate(
+                ['platform' => $platform],
+                [
+                    'post_type' => $task->type ?: 'post',
+                    'posted_at' => now()->toDateString(),
+                    'posted_by' => Auth::id() ?? 1,
+                ]
+            );
+        }
+
         AuditLog::create([
-            'user_id' => Auth::id(),
+            'user_id' => Auth::id() ?? 1,
             'task_id' => $task->id,
-            'action'  => 'Published task — all platform proofs uploaded',
+            'action'  => 'Marked task as Published',
         ]);
 
         // Notify admins
@@ -142,8 +157,8 @@ class PublishingService
                 'user_id'  => $admin->id,
                 'task_id'  => $task->id,
                 'icon'     => '🚀',
-                'title'    => 'Task Fully Published!',
-                'subtitle' => '"' . $task->title . '" has all social media proofs uploaded.',
+                'title'    => 'Task Published!',
+                'subtitle' => '"' . ($task->title ?: 'Untitled') . '" has been published by ' . (Auth::user()?->name ?? 'Strategist') . '.',
                 'link'     => '/admin/publishing/' . $task->id,
             ]);
         }
@@ -157,11 +172,37 @@ class PublishingService
                     'task_id'  => $task->id,
                     'icon'     => '✨',
                     'title'    => 'Your content is live!',
-                    'subtitle' => '"' . $task->title . '" has been published on social media.',
+                    'subtitle' => '"' . ($task->title ?: 'Untitled') . '" has been published on social media.',
                     'link'     => '/client/tasks/' . $task->id,
                 ]);
             }
         }
+
+        return true;
+    }
+
+    public function unpublish(Task $task): bool
+    {
+        abort_unless($task->inPublishingFlow(), 403, 'This urgent task was delivered before the approval flow.');
+        abort_if($task->status !== 'published', 403, 'Only published tasks can be reverted to pending.');
+
+        $task->update(['status' => 'completed']);
+
+        // Delete post records that were created for publishing
+        $task->socialMediaPosts()->delete();
+
+        AuditLog::create([
+            'user_id' => Auth::id() ?? 1,
+            'task_id' => $task->id,
+            'action'  => 'Reverted task publishing status to Pending',
+        ]);
+
+        return true;
+    }
+
+    public function markAsPublished(Task $task)
+    {
+        return $this->publish($task);
     }
 
 

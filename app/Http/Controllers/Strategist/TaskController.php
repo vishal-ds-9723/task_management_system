@@ -897,6 +897,8 @@ class TaskController extends Controller
                 'client:id,name,emoji',
                 'assignee:id,name,avatar_color',
                 'creator:id,name',
+                'media',
+                'socialMediaPosts',
             ])
             ->withCount('comments')
             ->strategistVisible()
@@ -1009,9 +1011,34 @@ class TaskController extends Controller
                 . ($task->urgent_requested_by ? ' for ' . e($task->urgent_requested_by) : '') . '</div>'
             : '';
 
-        return '<div class="apv-task-title">' . e($task->title ?? 'Untitled task') . '</div>'
+        $thumb = $task->getPreviewThumbnail();
+        $showUrl = route('strategist.tasks.show', $task);
+
+        if ($thumb) {
+            $thumbIsVideo = $thumb['is_video'] ? 'true' : 'false';
+            $videoBadge = $thumb['is_video'] ? '<span class="apv-thumb-video-badge"><i class="fa-solid fa-play"></i></span>' : '';
+            $countBadge = ($thumb['count'] ?? 1) > 1 ? '<span class="apv-thumb-count">+' . ($thumb['count'] - 1) . '</span>' : '';
+
+            $thumbHtml = '<div class="apv-thumb-wrap" onclick="event.stopPropagation(); window.openMediaLightbox(\'' . addslashes($thumb['full_url']) . '\', \'' . addslashes($task->title ?: $thumb['name']) . '\', ' . $thumbIsVideo . ', \'' . addslashes($showUrl) . '\')" title="Click to preview">'
+                . '<img src="' . e($thumb['url']) . '" class="apv-thumb-img" alt="' . e($task->title) . '" loading="lazy" />'
+                . '<div class="apv-thumb-overlay"><i class="fa-solid fa-magnifying-glass-plus"></i></div>'
+                . $videoBadge
+                . $countBadge
+                . '</div>';
+        } else {
+            $thumbHtml = '<div class="apv-thumb-wrap apv-thumb-empty" title="No creative media uploaded">'
+                . '<i class="fa-regular fa-image"></i>'
+                . '</div>';
+        }
+
+        return '<div class="apv-task-composite">'
+            . $thumbHtml
+            . '<div class="apv-task-details">'
+            . '<div class="apv-task-title"><a href="' . e($showUrl) . '" style="color:inherit;text-decoration:none">' . e($task->title ?? 'Untitled task') . '</a></div>'
             . '<div class="apv-task-sub">' . e($platformLabel) . '</div>'
-            . $urgentBadge;
+            . $urgentBadge
+            . '</div>'
+            . '</div>';
     }
 
     private function formatApprovalClientCell(Task $task): string

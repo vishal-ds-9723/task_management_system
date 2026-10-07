@@ -114,11 +114,10 @@ body {
 }
 
 .loader-logo {
-    animation: loaderLogoFloat 2s ease-in-out infinite;
-}
-@keyframes loaderLogoFloat {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
 }
 
 .page-loader .loader-spinner {

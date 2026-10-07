@@ -2381,9 +2381,12 @@
   }
 
   .loader-logo {
-    width:180px;
-    height:auto;
-    margin-bottom:8px;
+    display:none !important;
+    opacity:0 !important;
+    visibility:hidden !important;
+    pointer-events:none !important;
+    width:0 !important;
+    height:0 !important;
   }
 
   .loader-spinner {

@@ -40,7 +40,7 @@ class PublishingController extends Controller
         abort_unless($task->inPublishingFlow(), 404, 'This urgent task was delivered before the approval flow.');
         abort_if(!in_array($task->status, ['completed', 'published']), 403, 'Task is not ready for publishing.');
 
-        $task->load(['client', 'assignee', 'creator', 'socialMediaPosts.poster', 'socialMediaPosts.metrics.creator', 'socialMediaPosts.metrics.updater']);
+        $task->load(['client', 'assignee', 'creator', 'socialMediaPosts.poster', 'socialMediaPosts.metrics.creator', 'socialMediaPosts.metrics.updater', 'media']);
 
         $platforms = is_array($task->platform) ? $task->platform : (is_string($task->platform) ? [$task->platform] : []);
         $postedPlatforms = $task->socialMediaPosts->pluck('platform')->toArray();
@@ -56,6 +56,42 @@ class PublishingController extends Controller
         }
 
         return view('strategist.publishing-detail', compact('task', 'platformStatus'));
+    }
+
+    /**
+     * 1-Click Mark Task as Published
+     */
+    public function publish(Request $request, Task $task)
+    {
+        $this->service->publish($task);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Task marked as Published successfully!',
+                'status'  => 'published',
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Task marked as Published successfully!');
+    }
+
+    /**
+     * 1-Click Revert Task Publishing to Pending
+     */
+    public function unpublish(Request $request, Task $task)
+    {
+        $this->service->unpublish($task);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Task publishing reverted to Ready to Publish.',
+                'status'  => 'completed',
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Task publishing reverted to Ready to Publish.');
     }
 
     /**

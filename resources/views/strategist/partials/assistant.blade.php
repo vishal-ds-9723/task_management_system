@@ -100,8 +100,8 @@
     if($avaPublishingAwaiting > 0) {
         $avaReminders->push([
             'icon' => '📢', 'iconBg' => 'rgba(16,185,129,0.1)', 'iconColor' => '#10B981',
-            'text' => "<strong>{$avaPublishingAwaiting} completed task" . ($avaPublishingAwaiting > 1 ? 's' : '') . "</strong> awaiting publishing proof.",
-            'time' => 'Post & verify', 'priority' => 6,
+            'text' => "<strong>{$avaPublishingAwaiting} completed task" . ($avaPublishingAwaiting > 1 ? 's' : '') . "</strong> ready to publish.",
+            'time' => 'Ready to post', 'priority' => 6,
         ]);
     }
 

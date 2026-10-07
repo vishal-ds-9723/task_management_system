@@ -170,6 +170,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     // Publishing tracker
     Route::get('/publishing', [Admin\PublishingController::class, 'index'])->name('publishing');
     Route::get('/publishing/{task}', [Admin\PublishingController::class, 'show'])->name('publishing.show');
+    Route::post('/publishing/{task}/publish', [Admin\PublishingController::class, 'publish'])->name('publishing.publish');
+    Route::post('/publishing/{task}/unpublish', [Admin\PublishingController::class, 'unpublish'])->name('publishing.unpublish');
 
     // Action Items
     Route::get('/action-items', [Admin\ActionItemController::class, 'index'])->name('action-items');
@@ -235,6 +237,8 @@ Route::prefix('strategist')->name('strategist.')->middleware(['auth', 'role:stra
     // Publishing queue
     Route::get('/publishing', [Strategist\PublishingController::class, 'index'])->name('publishing');
     Route::get('/publishing/{task}', [Strategist\PublishingController::class, 'show'])->name('publishing.show');
+    Route::post('/publishing/{task}/publish', [Strategist\PublishingController::class, 'publish'])->name('publishing.publish');
+    Route::post('/publishing/{task}/unpublish', [Strategist\PublishingController::class, 'unpublish'])->name('publishing.unpublish');
     Route::post('/publishing/{task}/proof', [Strategist\PublishingController::class, 'storeProof'])->name('publishing.store-proof');
     Route::delete('/publishing/{task}/proof/{proof}', [Strategist\PublishingController::class, 'destroyProof'])->name('publishing.destroy-proof');
 

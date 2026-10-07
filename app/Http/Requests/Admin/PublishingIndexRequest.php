@@ -14,7 +14,7 @@ class PublishingIndexRequest extends FormRequest
     public function rules()
     {
         return [
-            'filter' => 'nullable|in:awaiting,partial,published',
+            'filter' => 'nullable|in:pending,awaiting,partial,published',
             'client' => 'nullable|exists:clients,id',
             'creator' => 'nullable|exists:users,id',
             'search' => 'nullable|string|max:100',

@@ -30,5 +30,35 @@ class PublishingController extends Controller
 
         return view('admin.publishing.show', $data);
     }
+
+    public function publish(Request $request, Task $task)
+    {
+        $this->service->publish($task);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Task marked as Published successfully!',
+                'status'  => 'published',
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Task marked as Published successfully!');
+    }
+
+    public function unpublish(Request $request, Task $task)
+    {
+        $this->service->unpublish($task);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Task publishing reverted to Ready to Publish.',
+                'status'  => 'completed',
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Task publishing reverted to Ready to Publish.');
+    }
 }
 

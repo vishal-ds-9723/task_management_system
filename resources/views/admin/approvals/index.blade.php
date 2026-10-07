@@ -1,5 +1,95 @@
 @extends('layouts.app')
 
+@push('styles')
+<style>
+/* ── Admin Approvals Premium UI ────────────────── */
+.aap-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:22px; flex-wrap:wrap; gap:16px; }
+.aap-header-left { display:flex; align-items:center; gap:14px; }
+.aap-icon-wrap { width:48px; height:48px; border-radius:14px; background:linear-gradient(135deg, var(--primary), #818cf8); display:flex; align-items:center; justify-content:center; color:#fff; font-size:20px; box-shadow:0 4px 14px rgba(79,70,229,0.28); }
+.aap-title { font-size:22px; font-weight:800; color:var(--text); letter-spacing:-0.3px; font-family:'Plus Jakarta Sans',sans-serif; margin:0; }
+.aap-subtitle { font-size:12.5px; color:var(--text3); margin-top:2px; font-weight:500; }
+.aap-header-right { display:flex; gap:10px; align-items:center; }
+.aap-count-pill { font-size:12px; color:var(--text2); font-weight:600; background:var(--card); border:1px solid var(--border); padding:6px 14px; border-radius:10px; display:flex; align-items:center; gap:6px; box-shadow:var(--shadow-sm); }
+.aap-count-pill strong { color:var(--primary); font-weight:800; }
+
+/* Stats Bar */
+.aap-stats { display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; margin-bottom:22px; }
+.aap-stat-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:16px; display:flex; align-items:center; gap:14px; transition:all 0.2s ease; box-shadow:var(--shadow-sm); }
+.aap-stat-card:hover { border-color:var(--primary); transform:translateY(-2px); box-shadow:var(--shadow); }
+.aap-stat-icon { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+.aap-stat-val { font-size:22px; font-weight:800; color:var(--text); line-height:1; }
+.aap-stat-lbl { font-size:11px; color:var(--text3); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-top:4px; }
+
+/* Filter Card */
+.aap-filter-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:14px 18px; margin-bottom:20px; box-shadow:var(--shadow-sm); }
+.aap-filter-form { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.aap-search-wrap { flex:1; min-width:260px; position:relative; }
+.aap-search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:13px; color:var(--text3); pointer-events:none; }
+.aap-search-input { width:100%; padding:10px 14px 10px 36px; border:1px solid var(--border); border-radius:10px; background:var(--card2); font-size:13px; color:var(--text); font-family:inherit; transition:border-color 0.2s, box-shadow 0.2s; outline:none; }
+.aap-search-input:focus { border-color:var(--primary); box-shadow:0 0 0 3px rgba(79,70,229,0.1); background:var(--card); }
+.aap-filter-btn { padding:10px 18px; border-radius:10px; background:var(--primary); color:#fff; border:none; font-size:12.5px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px; transition:all 0.2s; }
+.aap-filter-btn:hover { background:var(--primary-hover); box-shadow:0 2px 10px rgba(79,70,229,0.25); }
+.aap-clear-btn { padding:10px 16px; border-radius:10px; background:var(--card2); color:var(--text3); border:1px solid var(--border); text-decoration:none; font-size:12.5px; font-weight:600; display:inline-flex; align-items:center; gap:5px; transition:all 0.2s; }
+.aap-clear-btn:hover { color:var(--text); border-color:var(--border2); }
+
+/* Task Card List */
+.aap-list { display:flex; flex-direction:column; gap:12px; }
+.aap-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:16px 20px; display:flex; align-items:center; gap:18px; text-decoration:none; color:inherit; transition:all 0.25s cubic-bezier(0.16,1,0.3,1); box-shadow:var(--shadow-sm); position:relative; overflow:hidden; }
+.aap-card:hover { border-color:var(--primary); box-shadow:0 8px 24px rgba(79,70,229,0.08); transform:translateY(-1px); }
+
+/* Left: Thumbnail */
+.aap-thumb-container { width:68px; height:68px; border-radius:14px; overflow:hidden; position:relative; flex-shrink:0; background:var(--card2); border:1px solid var(--border); cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+.aap-thumb-container:hover { border-color:var(--primary); box-shadow:0 4px 14px rgba(79,70,229,0.22); }
+.aap-thumb-img { width:100%; height:100%; object-fit:cover; display:block; transition:transform 0.3s ease; }
+.aap-thumb-container:hover .aap-thumb-img { transform:scale(1.08); }
+.aap-thumb-overlay { position:absolute; inset:0; background:linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.2) 60%, transparent 100%); display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity 0.2s ease; color:#fff; font-size:16px; }
+.aap-thumb-container:hover .aap-thumb-overlay { opacity:1; }
+.aap-thumb-badge-video { position:absolute; top:4px; right:4px; width:18px; height:18px; border-radius:50%; background:rgba(0,0,0,0.7); color:#fff; display:flex; align-items:center; justify-content:center; font-size:8px; }
+.aap-thumb-count { position:absolute; bottom:4px; right:4px; background:rgba(0,0,0,0.75); color:#fff; font-size:9.5px; font-weight:800; padding:1px 5px; border-radius:6px; }
+.aap-thumb-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; height:100%; width:100%; background:linear-gradient(135deg, rgba(79,70,229,0.04), rgba(129,140,248,0.04)); color:var(--text3); font-size:18px; }
+.aap-thumb-empty span { font-size:8.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; }
+
+/* Middle: Info */
+.aap-card-body { flex:1; min-width:0; display:flex; flex-direction:column; gap:6px; }
+.aap-tags-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.aap-tag { font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; letter-spacing:0.2px; text-transform:uppercase; }
+.aap-tag-status { background:rgba(129,140,248,0.15); color:#4f46e5; border:1px solid rgba(129,140,248,0.25); }
+.aap-tag-urgent { background:rgba(239,68,68,0.12); color:#dc2626; border:1px solid rgba(239,68,68,0.25); font-weight:800; }
+.aap-tag-high { background:rgba(249,115,22,0.12); color:#ea580c; border:1px solid rgba(249,115,22,0.25); }
+.aap-tag-media { background:rgba(16,185,129,0.12); color:#059669; border:1px solid rgba(16,185,129,0.2); }
+.aap-tag-nomedia { background:rgba(156,163,175,0.12); color:#6b7280; border:1px solid rgba(156,163,175,0.2); }
+
+.aap-card-title { font-size:14.5px; font-weight:700; color:var(--text); margin:0; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.aap-meta-row { display:flex; align-items:center; gap:16px; font-size:12px; color:var(--text3); flex-wrap:wrap; }
+.aap-meta-item { display:inline-flex; align-items:center; gap:6px; }
+.aap-meta-item strong { color:var(--text2); font-weight:600; }
+.aap-avatar-mini { width:20px; height:20px; border-radius:6px; display:inline-flex; align-items:center; justify-content:center; font-size:9.5px; font-weight:800; color:#fff; text-transform:uppercase; }
+
+/* Right: Action Button */
+.aap-card-actions { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+.aap-btn-review { padding:9px 18px; border-radius:10px; background:var(--primary); color:#fff; font-size:12.5px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:7px; transition:all 0.2s; border:none; cursor:pointer; box-shadow:0 2px 8px rgba(79,70,229,0.25); }
+.aap-btn-review:hover { background:var(--primary-hover); transform:translateY(-1px); box-shadow:0 4px 14px rgba(79,70,229,0.35); color:#fff; }
+.aap-btn-preview { padding:9px 12px; border-radius:10px; background:var(--card2); color:var(--text2); border:1px solid var(--border); font-size:12.5px; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:5px; transition:all 0.2s; cursor:pointer; }
+.aap-btn-preview:hover { border-color:var(--primary); color:var(--primary); background:var(--card); }
+
+/* Empty State */
+.aap-empty { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:60px 24px; text-align:center; box-shadow:var(--shadow-sm); }
+.aap-empty-icon { width:64px; height:64px; border-radius:18px; background:rgba(79,70,229,0.08); color:var(--primary); display:flex; align-items:center; justify-content:center; font-size:26px; margin:0 auto 16px; }
+.aap-empty-title { font-size:16px; font-weight:700; color:var(--text); margin-bottom:6px; }
+.aap-empty-desc { font-size:13px; color:var(--text3); max-width:340px; margin:0 auto; }
+
+@media(max-width:900px) {
+    .aap-stats { grid-template-columns:repeat(2,1fr); }
+    .aap-card { flex-direction:column; align-items:flex-start; gap:14px; }
+    .aap-card-actions { width:100%; justify-content:flex-end; }
+}
+@media(max-width:600px) {
+    .aap-stats { grid-template-columns:1fr; }
+    .aap-header { flex-direction:column; align-items:flex-start; }
+}
+</style>
+@endpush
+
 @section('content')
 <div class="topbar">
     <div>
@@ -8,104 +98,209 @@
             <span class="breadcrumb-sep">›</span>
             <span>Task Approvals</span>
         </div>
-        <div class="page-title"><i class="fas fa-clipboard-check" style="margin-right:8px;color:var(--primary)"></i> Task Approvals</div>
+        <div class="page-title"><i class="fa-solid fa-clipboard-check" style="margin-right:8px;color:var(--primary)"></i> Task Approvals</div>
     </div>
     <a href="{{ route('admin.dashboard') }}" class="btn-sec">← Dashboard</a>
 </div>
 
 {{-- MAIN CONTENT --}}
-<div class="layout-main">
-    {{-- FILTERS --}}
-    <div class="card" style="margin-bottom:20px">
-        <form method="GET" action="{{ route('admin.approvals') }}" id="approvalsFilterForm" style="display:flex;gap:12px;align-items:flex-end">
-            <div style="flex:1">
-                <label style="font-size:12px;font-weight:600;color:var(--text);display:block;margin-bottom:6px">Search Tasks</label>
-                <input type="text" name="search" id="approvalsSearchInput" value="{{ request('search') }}" placeholder="Search by title or client…" autocomplete="off"
-                       style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card2);font-size:12.5px;color:var(--text)">
+<div class="layout-main" style="margin-top:16px">
+
+    {{-- Stats Counters --}}
+    @php
+        $pendingCount = $tasks->total();
+        $urgentCount = $tasks->filter(fn($t) => $t->is_urgent_task || $t->priority === 'urgent')->count();
+        $withMediaCount = $tasks->filter(fn($t) => $t->media()->count() > 0)->count();
+        $noMediaCount = max(0, $tasks->count() - $withMediaCount);
+    @endphp
+    <div class="aap-stats">
+        <div class="aap-stat-card">
+            <div class="aap-stat-icon" style="background:rgba(79,70,229,0.1);color:#4f46e5"><i class="fa-solid fa-hourglass-half"></i></div>
+            <div>
+                <div class="aap-stat-val">{{ $pendingCount }}</div>
+                <div class="aap-stat-lbl">Pending Review</div>
             </div>
-            <button type="submit" class="btn-primary" style="padding:10px 20px;font-size:12px">
-                <i class="fas fa-search"></i> Search
+        </div>
+        <div class="aap-stat-card">
+            <div class="aap-stat-icon" style="background:rgba(239,68,68,0.1);color:#ef4444"><i class="fa-solid fa-bolt"></i></div>
+            <div>
+                <div class="aap-stat-val">{{ $urgentCount }}</div>
+                <div class="aap-stat-lbl">Urgent Submissions</div>
+            </div>
+        </div>
+        <div class="aap-stat-card">
+            <div class="aap-stat-icon" style="background:rgba(16,185,129,0.1);color:#10b981"><i class="fa-solid fa-photo-film"></i></div>
+            <div>
+                <div class="aap-stat-val">{{ $withMediaCount }}</div>
+                <div class="aap-stat-lbl">Artwork Attached</div>
+            </div>
+        </div>
+        <div class="aap-stat-card">
+            <div class="aap-stat-icon" style="background:rgba(245,158,11,0.1);color:#f59e0b"><i class="fa-solid fa-file-circle-question"></i></div>
+            <div>
+                <div class="aap-stat-val">{{ $noMediaCount }}</div>
+                <div class="aap-stat-lbl">Awaiting Files</div>
+            </div>
+        </div>
+    </div>
+
+    {{-- FILTERS --}}
+    <div class="aap-filter-card">
+        <form method="GET" action="{{ route('admin.approvals') }}" id="approvalsFilterForm" class="aap-filter-form">
+            <div class="aap-search-wrap">
+                <i class="fa-solid fa-magnifying-glass aap-search-icon"></i>
+                <input type="text" name="search" id="approvalsSearchInput" value="{{ request('search') }}" placeholder="Search by task title, client, or designer…" autocomplete="off" class="aap-search-input">
+            </div>
+            <button type="submit" class="aap-filter-btn">
+                <i class="fa-solid fa-magnifying-glass"></i> Search
             </button>
-            <a href="{{ route('admin.approvals') }}" class="btn-sec" style="padding:10px 20px;font-size:12px">Clear</a>
+            @if(request()->filled('search'))
+                <a href="{{ route('admin.approvals') }}" class="aap-clear-btn"><i class="fa-solid fa-xmark"></i> Clear</a>
+            @endif
         </form>
     </div>
 
     <div id="approvalsResultsContainer">
         {{-- NO TASKS MESSAGE --}}
         @if($tasks->isEmpty())
-            <div class="card" style="padding:40px;text-align:center">
-                <div style="font-size:40px;margin-bottom:12px"><i class="fas fa-sparkles" style="color:var(--primary)"></i></div>
-                <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px">No tasks pending approval</div>
-                <div style="font-size:12px;color:var(--text3)">All submitted tasks have been reviewed!</div>
+            <div class="aap-empty">
+                <div class="aap-empty-icon"><i class="fa-solid fa-sparkles"></i></div>
+                <div class="aap-empty-title">No tasks pending approval</div>
+                <div class="aap-empty-desc">All submitted deliverables have been reviewed. When designers submit tasks, they will appear here.</div>
             </div>
         @else
             {{-- TASKS LIST --}}
-            <div style="display:grid;gap:12px">
+            <div class="aap-list">
                 @foreach($tasks as $task)
-                    <a href="{{ route('admin.approvals.show', $task) }}" class="card" style="display:flex;gap:16px;padding:16px;transition:all 0.2s;text-decoration:none;color:inherit;cursor:pointer;border:2px solid var(--border)">
+                    @php
+                        $thumb = $task->getPreviewThumbnail();
+                        $hasMedia = !empty($thumb);
+                        $typeClass = $task->type_tag_class ?? 'tag-blue';
+                        $priority = strtolower((string) $task->priority);
+                        $avatarColor = $task->assignee?->avatar_color ?: '#4f46e5';
+                        $assigneeInitial = $task->assignee ? strtoupper(substr($task->assignee->name, 0, 1)) : '?';
+                        $reviewUrl = route('admin.approvals.show', $task);
+                    @endphp
+                    <div class="aap-card">
+                        {{-- THUMBNAIL BOX (CLICK TO DIRECTLY PREVIEW FULL IMAGE) --}}
+                        @if($hasMedia)
+                            <div class="aap-thumb-container"
+                                 onclick="window.openMediaLightbox({
+                                     url: '{{ $thumb['full_url'] }}',
+                                     isVideo: {{ $thumb['is_video'] ? 'true' : 'false' }},
+                                     title: '{{ addslashes($task->title) }}',
+                                     client: '{{ addslashes($task->client?->name ?? 'Client') }}',
+                                     taskUrl: '{{ $reviewUrl }}',
+                                     downloadUrl: '{{ $thumb['full_url'] }}'
+                                 })"
+                                 title="Click to view full preview">
+                                <img src="{{ $thumb['url'] }}" class="aap-thumb-img" alt="{{ $task->title }}" loading="lazy">
+                                <div class="aap-thumb-overlay">
+                                    <i class="fa-solid fa-magnifying-glass-plus"></i>
+                                </div>
+                                @if($thumb['is_video'])
+                                    <span class="aap-thumb-badge-video"><i class="fa-solid fa-play"></i></span>
+                                @endif
+                                @if(($thumb['count'] ?? 1) > 1)
+                                    <span class="aap-thumb-count">+{{ $thumb['count'] - 1 }}</span>
+                                @endif
+                            </div>
+                        @else
+                            <div class="aap-thumb-container" onclick="window.location.href='{{ $reviewUrl }}'" title="No media uploaded yet — click to review task">
+                                <div class="aap-thumb-empty">
+                                    <i class="fa-solid fa-file-circle-exclamation"></i>
+                                    <span>No Media</span>
+                                </div>
+                            </div>
+                        @endif
 
-                        {{-- LEFT: Status Badge + Title --}}
-                        <div style="flex:1">
-                            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-                                <span class="tag" style="background:rgba(168,85,247,0.15);color:#a855f7;font-size:10px;padding:4px 8px;border-radius:4px">
-                                    <i class="fas fa-hourglass-half" style="font-size:9px"></i> Pending Admin Review
+                        {{-- MIDDLE: Content & Meta --}}
+                        <div class="aap-card-body">
+                            {{-- Badges Row --}}
+                            <div class="aap-tags-row">
+                                <span class="aap-tag aap-tag-status">
+                                    <i class="fa-solid fa-hourglass-half" style="font-size:9px"></i> Pending Review
                                 </span>
-                                {{-- Icon for media presence --}}
-                                @if($task->media()->count() > 0)
-                                    <span class="tag" style="background:rgba(34,197,94,0.15);color:#22c55e;font-size:10px;padding:4px 8px;border-radius:4px">
-                                        <i class="fas fa-image" style="font-size:9px"></i> Media Uploaded
+                                @if($task->is_urgent_task || $priority === 'urgent')
+                                    <span class="aap-tag aap-tag-urgent">
+                                        <i class="fa-solid fa-bolt" style="font-size:9px"></i> Urgent
+                                    </span>
+                                @elseif($priority === 'high')
+                                    <span class="aap-tag aap-tag-high">
+                                        <i class="fa-solid fa-arrow-trend-up" style="font-size:9px"></i> High Priority
+                                    </span>
+                                @endif
+                                @if($task->type)
+                                    <span class="tag {{ $typeClass }}" style="font-size:10px;padding:2px 7px">
+                                        {{ ucfirst($task->type) }}
+                                    </span>
+                                @endif
+                                @if($hasMedia)
+                                    <span class="aap-tag aap-tag-media">
+                                        <i class="fa-solid fa-image" style="font-size:9px"></i> {{ $thumb['count'] ?? 1 }} {{ ($thumb['count'] ?? 1) > 1 ? 'Files' : 'File' }}
                                     </span>
                                 @else
-                                    <span class="tag" style="background:rgba(239,68,68,0.15);color:#ef4444;font-size:10px;padding:4px 8px;border-radius:4px">
-                                        <i class="fas fa-exclamation-triangle" style="font-size:9px"></i> No Media
+                                    <span class="aap-tag aap-tag-nomedia">
+                                        <i class="fa-solid fa-circle-exclamation" style="font-size:9px"></i> No Media
                                     </span>
                                 @endif
                             </div>
 
-                            <div style="font-weight:600;font-size:14px;color:var(--text);margin-bottom:4px;line-height:1.4">
-                                {{ Str::limit($task->title, 60) }}
-                            </div>
+                            {{-- Title --}}
+                            <h4 class="aap-card-title" title="{{ $task->title }}">
+                                {{ $task->title ?: 'Untitled Task' }}
+                            </h4>
 
-                            <div style="display:flex;gap:16px;font-size:12px;color:var(--text3)">
-                                <span>
-                                    <strong style="color:var(--text)">Designer:</strong> {{ $task->assignee?->name ?? 'Unassigned' }}
+                            {{-- Meta Row --}}
+                            <div class="aap-meta-row">
+                                <span class="aap-meta-item">
+                                    <i class="fa-solid fa-building" style="color:var(--text3)"></i>
+                                    <strong>Client:</strong> {{ $task->client?->name ?? 'N/A' }}
                                 </span>
-                                <span>
-                                    <strong style="color:var(--text)">Client:</strong> {{ $task->client?->name ?? 'N/A' }}
+                                <span class="aap-meta-item">
+                                    <span class="aap-avatar-mini" style="background:{{ $avatarColor }}">{{ $assigneeInitial }}</span>
+                                    <strong>Designer:</strong> {{ $task->assignee?->name ?? 'Unassigned' }}
                                 </span>
-                                <span>
-                                    <strong style="color:var(--text)">Submitted:</strong> {{ $task->submitted_at?->format('d M, h:i A') ?? 'N/A' }}
+                                <span class="aap-meta-item">
+                                    <i class="fa-regular fa-clock" style="color:var(--text3)"></i>
+                                    <strong>Submitted:</strong> {{ $task->updated_at ? $task->updated_at->diffForHumans() : 'Recently' }}
                                 </span>
                             </div>
                         </div>
 
-                        {{-- RIGHT: Action Button --}}
-                        <div style="display:flex;align-items:center;gap:8px">
-                            <button type="button" class="btn-primary" style="padding:10px 16px;font-size:12px;white-space:nowrap;cursor:pointer" onclick="event.preventDefault(); window.location.href='{{ route('admin.approvals.show', $task) }}'">
-                                <i class="fas fa-eye"></i> Review
-                            </button>
+                        {{-- RIGHT: Actions --}}
+                        <div class="aap-card-actions">
+                            @if($hasMedia)
+                                <button type="button" class="aap-btn-preview"
+                                        onclick="window.openMediaLightbox({
+                                            url: '{{ $thumb['full_url'] }}',
+                                            isVideo: {{ $thumb['is_video'] ? 'true' : 'false' }},
+                                            title: '{{ addslashes($task->title) }}',
+                                            client: '{{ addslashes($task->client?->name ?? 'Client') }}',
+                                            taskUrl: '{{ $reviewUrl }}',
+                                            downloadUrl: '{{ $thumb['full_url'] }}'
+                                        })"
+                                        title="Quick View Artwork">
+                                    <i class="fa-solid fa-eye"></i> Quick View
+                                </button>
+                            @endif
+                            <a href="{{ $reviewUrl }}" class="aap-btn-review">
+                                <i class="fa-solid fa-clipboard-check"></i> Review & Decide
+                            </a>
                         </div>
-                    </a>
+                    </div>
                 @endforeach
             </div>
 
             {{-- PAGINATION --}}
             @if($tasks->hasPages())
-                <div style="margin-top:20px;display:flex;justify-content:center;gap:8px">
+                <div style="margin-top:24px;display:flex;justify-content:center;gap:8px">
                     {{ $tasks->links('vendor.pagination.custom') }}
                 </div>
             @endif
         @endif
     </div>
 </div>
-
-<style>
-.card:hover {
-    border-color: var(--primary) !important;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-}
-</style>
-
 @endsection
 
 @push('scripts')
@@ -175,7 +370,7 @@
 
     resultsContainer.addEventListener('click', (event) => {
         const pageLink = event.target.closest('a[href]');
-        if (!pageLink) return;
+        if (!pageLink || pageLink.classList.contains('aap-btn-review') || pageLink.closest('.aap-thumb-container')) return;
 
         const pageUrl = new URL(pageLink.href, window.location.origin);
         const formUrl = new URL(form.action, window.location.origin);

@@ -592,19 +592,15 @@
                         <div class="db-pub-stats">
                             <div class="db-pub-stat-box" style="--psc-color:#6366F1">
                                 <div class="db-pub-stat-num">{{ $publishingTotalCount }}</div>
-                                <div class="db-pub-stat-label">Total Posts</div>
+                                <div class="db-pub-stat-label">Total Content</div>
                             </div>
                             <div class="db-pub-stat-box" style="--psc-color:#F59E0B">
-                                <div class="db-pub-stat-num">{{ $publishingAwaitingCount }}</div>
-                                <div class="db-pub-stat-label">Awaiting Proof</div>
-                            </div>
-                            <div class="db-pub-stat-box" style="--psc-color:#3B82F6">
-                                <div class="db-pub-stat-num">{{ $publishingPartialCount }}</div>
-                                <div class="db-pub-stat-label">Partial</div>
+                                <div class="db-pub-stat-num">{{ $publishingAwaitingCount + $publishingPartialCount }}</div>
+                                <div class="db-pub-stat-label">Ready to Publish</div>
                             </div>
                             <div class="db-pub-stat-box" style="--psc-color:#10B981">
                                 <div class="db-pub-stat-num">{{ $publishingPublishedCount }}</div>
-                                <div class="db-pub-stat-label">Published</div>
+                                <div class="db-pub-stat-label">Published Live</div>
                             </div>
                         </div>
 
@@ -625,10 +621,10 @@
                         </div>
                         @endif
 
-                        {{-- Recent Proof Uploads --}}
+                        {{-- Recently Published Posts --}}
                         @if($recentPublishing->count())
                         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--db-text-muted);margin:12px 0 8px 0">
-                            <i class="fas fa-clock-rotate-left" style="margin-right:4px"></i> Recent Proof Uploads
+                            <i class="fas fa-clock-rotate-left" style="margin-right:4px"></i> Recently Published Posts
                         </div>
                         <div class="db-pub-recent-list">
                             @foreach($recentPublishing as $proof)

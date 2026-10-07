@@ -14,7 +14,7 @@
 .apt-result-count strong{color:var(--text);font-weight:700}
 
 /* Stats */
-.apt-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.apt-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
 .apt-stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 16px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all .25s ease;text-decoration:none;position:relative;overflow:hidden}
 .apt-stat:hover{border-color:var(--primary);transform:translateY(-2px);box-shadow:var(--shadow)}
 .apt-stat-active{border-color:var(--primary) !important;box-shadow:0 0 0 3px rgba(79,109,240,.08),var(--shadow-sm)}
@@ -54,11 +54,19 @@
 .apt-table tbody tr:nth-child(even):hover td{background:rgba(79,109,240,.03)}
 
 /* Task cell */
-.apt-task-cell{display:flex;align-items:center;gap:10px;min-width:180px}
+.apt-task-cell{display:flex;align-items:center;gap:12px;min-width:220px}
 .apt-task-num{width:28px;height:28px;border-radius:8px;background:var(--card2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--text3);flex-shrink:0;border:1px solid var(--border)}
+.apt-thumb-box{position:relative;width:44px;height:44px;border-radius:10px;overflow:hidden;flex-shrink:0;background:var(--card2);border:1px solid var(--border);cursor:pointer;transition:all .2s ease}
+.apt-thumb-box:hover{transform:scale(1.06);border-color:var(--primary);box-shadow:0 4px 14px rgba(79,109,240,.25)}
+.apt-thumb-box img{width:100%;height:100%;object-fit:cover;display:block}
+.apt-thumb-overlay{position:absolute;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;opacity:0;transition:opacity .2s;backdrop-filter:blur(2px)}
+.apt-thumb-box:hover .apt-thumb-overlay{opacity:1}
+.apt-thumb-video-badge{position:absolute;bottom:2px;right:2px;background:rgba(0,0,0,.75);color:#fff;font-size:8px;padding:2px 4px;border-radius:4px;line-height:1}
+.apt-thumb-empty{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:15px;background:var(--card2);opacity:.7}
 .apt-task-info{min-width:0;flex:1}
 .apt-task-title{font-weight:700;color:var(--text);font-size:13px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3}
-.apt-task-type{font-size:10px;color:var(--text3);font-weight:500;margin-top:1px;display:flex;align-items:center;gap:4px}
+.apt-task-title a:hover{color:var(--primary);text-decoration:underline}
+.apt-task-type{font-size:10px;color:var(--text3);font-weight:500;margin-top:2px;display:flex;align-items:center;gap:4px}
 .apt-task-type i{font-size:9px}
 
 /* Person cell */
@@ -85,13 +93,19 @@
 /* Status */
 .apt-status-tag{padding:4px 10px;border-radius:6px;font-size:10.5px;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;letter-spacing:.2px}
 .apt-status-awaiting{background:rgba(245,158,11,.08);color:#D97706}
+.apt-status-overdue{background:rgba(239,68,68,.08);color:#DC2626;border:1px solid rgba(239,68,68,.2)}
+.apt-status-today{background:rgba(79,109,240,.08);color:var(--primary);border:1px solid rgba(79,109,240,.2)}
 .apt-status-partial{background:rgba(59,130,246,.08);color:#2563EB}
 .apt-status-published{background:rgba(16,185,129,.08);color:#059669}
 .apt-status-icon{font-size:8px}
 
-/* View button */
+/* Action buttons */
 .apt-view-btn{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:8px;font-size:11.5px;font-weight:600;text-decoration:none;transition:all .2s;border:1px solid var(--border);color:var(--text2);background:var(--card)}
 .apt-view-btn:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-dim);transform:translateY(-1px)}
+.apt-btn-publish{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:8px;font-size:11.5px;font-weight:700;border:none;cursor:pointer;background:linear-gradient(135deg,#10B981,#059669);color:#fff;box-shadow:0 2px 6px rgba(16,185,129,.25);transition:all .2s}
+.apt-btn-publish:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(16,185,129,.35);filter:brightness(1.05)}
+.apt-btn-revert{display:inline-flex;align-items:center;gap:5px;padding:6px 10px;border-radius:8px;font-size:11.5px;font-weight:600;border:1px solid rgba(239,68,68,.3);cursor:pointer;background:rgba(239,68,68,.06);color:#DC2626;transition:all .2s}
+.apt-btn-revert:hover{background:rgba(239,68,68,.12);border-color:#EF4444}
 
 /* Date cell */
 .apt-date{font-size:11.5px;color:var(--text3);font-weight:500;white-space:nowrap}
@@ -136,7 +150,7 @@
         <div class="apt-icon-wrap"><i class="fa-solid fa-tower-broadcast"></i></div>
         <div>
             <div class="apt-title">Publishing Tracker</div>
-            <div class="apt-subtitle">Monitor social media proof uploads across all approved tasks</div>
+            <div class="apt-subtitle">Track and manage post-launch publishing across all approved tasks</div>
         </div>
     </div>
     <div class="apt-header-right">
@@ -156,25 +170,18 @@
             <div class="apt-stat-label">All Tasks</div>
         </div>
     </a>
-    <a href="{{ route('admin.publishing', ['filter' => 'awaiting']) }}" class="apt-stat {{ request('filter') === 'awaiting' ? 'apt-stat-active' : '' }}">
-        <div class="apt-stat-icon" style="background:var(--yellow-dim);color:var(--yellow)"><i class="fa-solid fa-hourglass-half"></i></div>
+    <a href="{{ route('admin.publishing', ['filter' => 'pending']) }}" class="apt-stat {{ in_array(request('filter'), ['pending', 'awaiting']) ? 'apt-stat-active' : '' }}">
+        <div class="apt-stat-icon" style="background:var(--yellow-dim);color:var(--yellow)"><i class="fa-solid fa-clock"></i></div>
         <div>
-            <div class="apt-stat-val">{{ $awaitingCount }}</div>
-            <div class="apt-stat-label">Awaiting Proof</div>
-        </div>
-    </a>
-    <a href="{{ route('admin.publishing', ['filter' => 'partial']) }}" class="apt-stat {{ request('filter') === 'partial' ? 'apt-stat-active' : '' }}">
-        <div class="apt-stat-icon" style="background:var(--blue-dim);color:var(--blue)"><i class="fa-solid fa-circle-half-stroke"></i></div>
-        <div>
-            <div class="apt-stat-val">{{ $partialCount }}</div>
-            <div class="apt-stat-label">Partial Proof</div>
+            <div class="apt-stat-val">{{ $pendingCount }}</div>
+            <div class="apt-stat-label">Ready to Publish</div>
         </div>
     </a>
     <a href="{{ route('admin.publishing', ['filter' => 'published']) }}" class="apt-stat {{ request('filter') === 'published' ? 'apt-stat-active' : '' }}">
         <div class="apt-stat-icon" style="background:var(--teal-dim);color:var(--teal)"><i class="fa-solid fa-circle-check"></i></div>
         <div>
             <div class="apt-stat-val">{{ $publishedCount }}</div>
-            <div class="apt-stat-label">Published</div>
+            <div class="apt-stat-label">Published Live</div>
         </div>
     </a>
 </div>
@@ -239,7 +246,7 @@
             <th>Client</th>
             <th>Strategist</th>
             <th>Platforms</th>
-            <th>Progress</th>
+            <th>Schedule</th>
             <th>Status</th>
             <th>Approved</th>
             <th style="text-align:right">Action</th>
@@ -248,40 +255,69 @@
     <tbody>
         @foreach($tasks as $i => $task)
             @php
-                $progress = $task->getPublishingProgress();
-                $pct = $progress['total'] > 0 ? round(($progress['posted'] / $progress['total']) * 100) : 0;
                 $platforms = is_array($task->platform) ? $task->platform : [];
                 $postedPlatforms = $task->socialMediaPosts->pluck('platform')->toArray();
                 $rowNum = ($tasks->currentPage() - 1) * $tasks->perPage() + $i + 1;
+
+                $postDateCarbon = $task->post_date ? \Illuminate\Support\Carbon::parse($task->post_date) : null;
+                $isOverdue = $task->status !== 'published' && $postDateCarbon && $postDateCarbon->isPast() && !$postDateCarbon->isToday();
+                $isToday = $task->status !== 'published' && $postDateCarbon && $postDateCarbon->isToday();
 
                 if ($task->status === 'published') {
                     $statusLabel = 'Published';
                     $statusClass = 'apt-status-published';
                     $statusIcon = 'fa-check-double';
-                } elseif ($progress['posted'] > 0) {
-                    $statusLabel = 'Partial';
-                    $statusClass = 'apt-status-partial';
-                    $statusIcon = 'fa-circle-half-stroke';
+                } elseif ($isOverdue) {
+                    $statusLabel = 'Due to Post';
+                    $statusClass = 'apt-status-overdue';
+                    $statusIcon = 'fa-triangle-exclamation';
+                } elseif ($isToday) {
+                    $statusLabel = 'Post Today';
+                    $statusClass = 'apt-status-today';
+                    $statusIcon = 'fa-clock';
                 } else {
-                    $statusLabel = 'Awaiting';
+                    $statusLabel = 'Ready to Publish';
                     $statusClass = 'apt-status-awaiting';
                     $statusIcon = 'fa-hourglass-half';
                 }
 
-                $progressClass = $pct >= 100 ? 'apt-progress-fill-full' : ($pct > 0 ? 'apt-progress-fill-partial' : 'apt-progress-fill-none');
-                $progressColor = $pct >= 100 ? '#059669' : ($pct > 0 ? '#2563EB' : 'var(--text3)');
-
                 $creatorColor = $avatarColors[($task->created_by ?? 0) % count($avatarColors)];
                 $creatorInitials = $task->creator ? strtoupper(substr($task->creator->name, 0, 2)) : '—';
+                $thumb = $task->getPreviewThumbnail();
+                $hasThumb = !empty($thumb);
+                $detailUrl = route('admin.publishing.show', $task);
             @endphp
             <tr>
                 <td><span class="apt-task-num">{{ $rowNum }}</span></td>
                 <td>
-                    <div class="apt-task-info">
-                        <div class="apt-task-title" title="{{ $task->title }}">{{ Str::limit($task->title ?: 'Untitled', 40) }}</div>
-                        @if($task->type)
-                            <div class="apt-task-type"><i class="fa-solid fa-tag"></i> {{ ucfirst($task->type) }}</div>
+                    <div class="apt-task-cell">
+                        @if($hasThumb)
+                            <div class="apt-thumb-box"
+                                 onclick="event.stopPropagation(); window.openMediaLightbox('{{ addslashes($thumb['full_url']) }}', '{{ addslashes($task->title ?: $thumb['name']) }}', {{ $thumb['is_video'] ? 'true' : 'false' }}, '{{ $detailUrl }}')"
+                                 title="Click to view full preview">
+                                <img src="{{ $thumb['url'] }}" alt="{{ $task->title }}" loading="lazy" />
+                                <div class="apt-thumb-overlay">
+                                    <i class="fa-solid fa-magnifying-glass-plus"></i>
+                                </div>
+                                @if($thumb['is_video'])
+                                    <span class="apt-thumb-video-badge"><i class="fa-solid fa-play"></i></span>
+                                @endif
+                            </div>
+                        @else
+                            <div class="apt-thumb-box" title="No creative media uploaded yet">
+                                <div class="apt-thumb-empty">
+                                    <i class="fa-regular fa-image"></i>
+                                </div>
+                            </div>
                         @endif
+                        <div class="apt-task-info">
+                            <div class="apt-task-title" title="{{ $task->title }}">
+                                <a href="{{ $detailUrl }}" style="color:inherit;text-decoration:none">{{ Str::limit($task->title ?: 'Untitled', 40) }}</a>
+                            </div>
+                            @if($task->type)
+                                <div class="apt-task-type"><i class="fa-solid fa-tag"></i> {{ ucfirst($task->type) }}</div>
+                            @endif
+                        </div>
                     </div>
                 </td>
                 <td>
@@ -297,23 +333,29 @@
                     <div class="apt-platform-dots">
                         @foreach($platforms as $platform)
                             @php
-                                $done = in_array($platform, $postedPlatforms);
+                                $done = ($task->status === 'published') || in_array($platform, $postedPlatforms);
                                 $pIcon = $platformIcons[$platform] ?? 'fa-solid fa-globe';
                                 $pColor = $platformColors[$platform] ?? '#6B7280';
                             @endphp
-                            <span class="apt-platform-dot {{ $done ? 'apt-platform-dot-done' : 'apt-platform-dot-pending' }}" title="{{ ucfirst($platform) }}: {{ $done ? 'Posted' : 'Pending' }}">
+                            <span class="apt-platform-dot {{ $done ? 'apt-platform-dot-done' : 'apt-platform-dot-pending' }}" title="{{ ucfirst($platform) }}: {{ $done ? 'Published' : 'Pending' }}">
                                 <i class="{{ $pIcon }}" style="color:{{ $pColor }}"></i>
                             </span>
                         @endforeach
                     </div>
                 </td>
                 <td>
-                    <div class="apt-progress-mini">
-                        <div class="apt-progress-bar">
-                            <div class="apt-progress-fill {{ $progressClass }}" style="width:{{ $pct }}%"></div>
+                    @if($postDateCarbon)
+                        <div class="apt-date" style="{{ $isOverdue ? 'color:#DC2626;font-weight:700' : ($isToday ? 'color:var(--primary);font-weight:700' : '') }}">
+                            <i class="fa-regular fa-calendar-check" style="margin-right:2px"></i> {{ $postDateCarbon->format('M d, Y') }}
+                            @if($isOverdue)
+                                <span class="apt-date-ago" style="color:#DC2626;font-weight:700">Overdue</span>
+                            @elseif($isToday)
+                                <span class="apt-date-ago" style="color:var(--primary);font-weight:700">Today</span>
+                            @endif
                         </div>
-                        <span class="apt-progress-text" style="color:{{ $progressColor }}">{{ $progress['posted'] }}/{{ $progress['total'] }}</span>
-                    </div>
+                    @else
+                        <span style="color:var(--text3);font-size:11.5px">Flexible</span>
+                    @endif
                 </td>
                 <td>
                     <span class="apt-status-tag {{ $statusClass }}">
@@ -329,7 +371,20 @@
                     </div>
                 </td>
                 <td style="text-align:right">
-                    <a href="{{ route('admin.publishing.show', $task) }}" class="apt-view-btn"><i class="fa-solid fa-eye"></i> View</a>
+                    <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px">
+                        @if($task->status === 'published')
+                            <form method="POST" action="{{ route('admin.publishing.unpublish', $task) }}" onsubmit="return confirm('Revert publishing status back to Ready to Publish?')" style="margin:0;display:inline">
+                                @csrf
+                                <button type="submit" class="apt-btn-revert" title="Revert to pending"><i class="fa-solid fa-rotate-left"></i> Revert</button>
+                            </form>
+                        @else
+                            <form method="POST" action="{{ route('admin.publishing.publish', $task) }}" onsubmit="return confirm('Mark this task as Published on social media?')" style="margin:0;display:inline">
+                                @csrf
+                                <button type="submit" class="apt-btn-publish" title="1-Click Mark as Published"><i class="fa-solid fa-rocket"></i> Publish</button>
+                            </form>
+                        @endif
+                        <a href="{{ route('admin.publishing.show', $task) }}" class="apt-view-btn"><i class="fa-solid fa-eye"></i> View</a>
+                    </div>
                 </td>
             </tr>
         @endforeach

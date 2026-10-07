@@ -20,7 +20,7 @@ class ApprovalService
     {
         // Urgent tasks follow the same approval flow as everything else
         $query = Task::whereIn('status', ['review', 'pending_approval'])
-            ->with('creator', 'assignee', 'client')
+            ->with(['creator', 'assignee', 'client', 'media'])
             ->latest('updated_at');
 
         if ($request->filled('search')) {

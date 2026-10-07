@@ -862,8 +862,7 @@
         </div>
         <div class="cmd-pub-stats">
             <div class="cmd-pub-stat" style="--pc:var(--primary)"><div class="cmd-pub-num">{{ $myPublishingTotal }}</div><div class="cmd-pub-label">Total</div></div>
-            <div class="cmd-pub-stat" style="--pc:#F59E0B"><div class="cmd-pub-num">{{ $myPublishingAwaiting }}</div><div class="cmd-pub-label">Awaiting</div></div>
-            <div class="cmd-pub-stat" style="--pc:#3B82F6"><div class="cmd-pub-num">{{ $myPublishingPartial }}</div><div class="cmd-pub-label">Partial</div></div>
+            <div class="cmd-pub-stat" style="--pc:#F59E0B"><div class="cmd-pub-num">{{ $myPublishingAwaiting + $myPublishingPartial }}</div><div class="cmd-pub-label">Ready</div></div>
             <div class="cmd-pub-stat" style="--pc:#10B981"><div class="cmd-pub-num">{{ $myPublishingDone }}</div><div class="cmd-pub-label">Published</div></div>
         </div>
         @if($myPublishingByPlatform->count())
