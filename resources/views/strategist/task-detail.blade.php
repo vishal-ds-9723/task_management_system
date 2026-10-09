@@ -533,7 +533,9 @@
         $isTaskOwner = (int) $task->created_by === (int) Auth::id();
         $isDevTask = in_array($task->type, ['website', 'software', 'maintenance']);
         $taskMedia = $task->media;
-        $hasMedia = $taskMedia->isNotEmpty();
+        $deliverableMedia = $taskMedia->filter(fn($m) => $m->isDeliverable())->values();
+        $referenceMedia = $taskMedia->filter(fn($m) => $m->isReference())->values();
+        $hasMedia = $deliverableMedia->isNotEmpty();
 
         $statusColors = [
             'todo' => '#F59E0B',
@@ -675,34 +677,34 @@
         {{-- LEFT COLUMN: PRIMARY WORKSPACE --}}
         <main class="std-main-col">
 
-            {{-- 1. SUBMITTED CREATIVE ASSETS --}}
+            {{-- 1. SUBMITTED CREATIVE DELIVERABLES --}}
             <div class="std-card">
                 <div class="std-card-header">
                     <div class="std-card-title">
-                        <i class="fa-solid fa-images" style="color:var(--primary)"></i>
-                        <span>Submitted Design Files</span>
-                        @if($hasMedia)
-                            <span style="font-size:10px;font-weight:800;background:rgba(79,109,240,0.12);color:var(--primary);padding:1px 6px;border-radius:99px">{{ $taskMedia->count() }}</span>
-                        @endif
+                        <i class="fa-solid fa-paintbrush" style="color:var(--primary)"></i>
+                        <span>Submitted Design Deliverables</span>
+                        <span style="font-size:10px;font-weight:800;background:rgba(79,109,240,0.12);color:var(--primary);padding:1px 6px;border-radius:99px">{{ $deliverableMedia->count() }}</span>
                     </div>
-                    @if($hasMedia && $taskMedia->count() > 1)
+                    @if($deliverableMedia->count() > 1)
                         <button type="button" class="btn-sec" onclick="strategistDownloadAllMedia()" style="font-size:11px;font-weight:600;padding:5px 12px;display:inline-flex;align-items:center;gap:6px;border-radius:6px;cursor:pointer">
-                            <i class="fa-solid fa-cloud-arrow-down" style="color:#10B981"></i> Download All ({{ $taskMedia->count() }})
+                            <i class="fa-solid fa-cloud-arrow-down" style="color:#10B981"></i> Download All
                         </button>
                     @endif
                 </div>
 
-                @if($hasMedia)
+                @if($deliverableMedia->isNotEmpty())
                     <div class="std-media-grid">
-                        @foreach($taskMedia as $index => $m)
+                        @foreach($deliverableMedia as $index => $m)
                             @php
                                 $isVid = $m->isVideo();
                                 $isPdf = $m->isPdf();
                                 $mUrl = $m->getUrl();
-                                $mName = $m->name ?: $m->file_name ?: ('Design File #' . ($index + 1));
+                                $mName = $m->name ?: $m->file_name ?: ('Deliverable #' . ($index + 1));
+                                $overallIndex = $taskMedia->search(fn($item) => $item->id === $m->id);
+                                if ($overallIndex === false) $overallIndex = $index;
                             @endphp
-                            <div class="std-media-item">
-                                <div class="std-thumb-wrap" onclick="strategistOpenLightbox({{ $index }})" title="Click to view full preview">
+                            <div class="std-media-item" style="border:1.5px solid {{ $m->getRevisionCount() > 0 ? '#F59E0B' : 'var(--border)' }};border-radius:10px">
+                                <div class="std-thumb-wrap" onclick="strategistOpenLightbox({{ $overallIndex }})" title="Click to view full preview">
                                     @if($isVid)
                                         <video src="{{ $mUrl }}" muted preload="metadata"></video>
                                         <div style="position:absolute;font-size:22px;color:#fff;pointer-events:none;background:rgba(0,0,0,0.45);width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px)">
@@ -725,8 +727,13 @@
                                         <span class="std-thumb-badge"><i class="fa-solid fa-paperclip"></i> File</span>
                                     @endif
 
+                                    {{-- Deliverable Version Badge --}}
+                                    <div style="position:absolute;bottom:6px;left:6px;right:6px;background:{{ $m->getRevisionCount() > 0 ? 'rgba(217,119,6,0.92)' : 'rgba(16,185,129,0.92)' }};color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;z-index:2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                                        {{ $m->getVersionBadgeLabel() }}
+                                    </div>
+
                                     <div class="std-thumb-overlay">
-                                        <button type="button" class="std-icon-btn std-icon-btn-view" onclick="event.stopPropagation(); strategistOpenLightbox({{ $index }})" title="Review Video/File">
+                                        <button type="button" class="std-icon-btn std-icon-btn-view" onclick="event.stopPropagation(); strategistOpenLightbox({{ $overallIndex }})" title="Review Video/File">
                                             <i class="fa-solid fa-expand"></i>
                                         </button>
                                         <a href="{{ $mUrl }}" download="{{ $mName }}" class="std-icon-btn std-icon-btn-dl" title="Download {{ $mName }}" onclick="event.stopPropagation()">
@@ -737,9 +744,12 @@
                                 <div class="std-media-meta">
                                     <div style="min-width:0;flex:1">
                                         <span class="std-media-filename" title="{{ $mName }}">{{ $mName }}</span>
-                                        @if($m->size)
-                                            <div style="font-size:9.5px;color:var(--text3)">{{ $m->getFormattedSize() }}</div>
-                                        @endif
+                                        <div style="font-size:9.5px;color:var(--text3)">
+                                            @if($m->getUploaderName())
+                                                By {{ $m->getUploaderName() }} · 
+                                            @endif
+                                            {{ $m->getFormattedSize() }}
+                                        </div>
                                     </div>
                                     <a href="{{ $mUrl }}" download="{{ $mName }}" class="std-dl-chip" title="Download" onclick="event.stopPropagation()">
                                         <i class="fa-solid fa-arrow-down-to-line"></i> Download
@@ -751,8 +761,103 @@
                 @else
                     <div style="text-align:center;padding:36px 16px;color:var(--text3);background:var(--card2);border-radius:8px;border:1px dashed var(--border)">
                         <i class="fa-regular fa-image" style="font-size:32px;opacity:0.4;margin-bottom:8px"></i>
-                        <div style="font-size:13px;font-weight:600;color:var(--text2)">No design files submitted yet</div>
-                        <div style="font-size:11.5px;margin-top:2px">Files attached by the designer will appear here for review.</div>
+                        <div style="font-size:13px;font-weight:600;color:var(--text2)">No design deliverables submitted yet</div>
+                        <div style="font-size:11.5px;margin-top:2px">Completed designs uploaded by the designer will appear here for review.</div>
+                    </div>
+                @endif
+            </div>
+
+            {{-- 1.5 RECEIVED REFERENCE & CLIENT ASSETS --}}
+            <div class="std-card">
+                <div class="std-card-header">
+                    <div class="std-card-title">
+                        <i class="fa-solid fa-folder-open" style="color:#2563EB"></i>
+                        <span>Received Reference Assets & Materials</span>
+                        <span style="font-size:10px;font-weight:800;background:rgba(59,130,246,0.12);color:#2563EB;padding:1px 6px;border-radius:99px">{{ $referenceMedia->count() }}</span>
+                    </div>
+                    <div>
+                        <button type="button" class="btn-sec" onclick="document.getElementById('stratRefFileInput').click()" style="font-size:11px;font-weight:600;padding:5px 12px;display:inline-flex;align-items:center;gap:6px;border-radius:6px;cursor:pointer">
+                            <i class="fa-solid fa-cloud-arrow-up" style="color:#2563EB"></i> + Add Reference File
+                        </button>
+                        <form id="stratRefUploadForm" method="POST" action="{{ route('strategist.tasks.upload-media', $task) }}" enctype="multipart/form-data" style="display:none">
+                            @csrf
+                            <input type="hidden" name="collection_name" value="task-reference">
+                            <input type="file" name="media[]" id="stratRefFileInput" multiple accept="image/*,video/*,.pdf,.zip,.doc,.docx" onchange="document.getElementById('stratRefUploadForm').submit()">
+                        </form>
+                    </div>
+                </div>
+
+                @if($referenceMedia->isNotEmpty())
+                    <div class="std-media-grid">
+                        @foreach($referenceMedia as $index => $m)
+                            @php
+                                $isVid = $m->isVideo();
+                                $isPdf = $m->isPdf();
+                                $mUrl = $m->getUrl();
+                                $mName = $m->name ?: $m->file_name ?: ('Reference File #' . ($index + 1));
+                                $overallIndex = $taskMedia->search(fn($item) => $item->id === $m->id);
+                                if ($overallIndex === false) $overallIndex = $index;
+                            @endphp
+                            <div class="std-media-item" style="border:1.5px solid rgba(59,130,246,0.3);border-radius:10px">
+                                <div class="std-thumb-wrap" onclick="strategistOpenLightbox({{ $overallIndex }})" title="Click to view full preview">
+                                    @if($isVid)
+                                        <video src="{{ $mUrl }}" muted preload="metadata"></video>
+                                        <div style="position:absolute;font-size:22px;color:#fff;pointer-events:none;background:rgba(0,0,0,0.45);width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px)">
+                                            <i class="fa-solid fa-play" style="margin-left:2px"></i>
+                                        </div>
+                                        <span class="std-thumb-badge"><i class="fa-solid fa-video"></i> Video</span>
+                                    @elseif($isPdf)
+                                        <div style="height:100%;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--card2)">
+                                            <i class="fa-solid fa-file-pdf" style="font-size:32px;color:#EF4444"></i>
+                                            <span style="font-size:9.5px;font-weight:700;color:var(--text3);margin-top:4px">PDF Document</span>
+                                        </div>
+                                        <span class="std-thumb-badge" style="background:rgba(239,68,68,0.85)"><i class="fa-solid fa-file-pdf"></i> PDF</span>
+                                    @elseif($m->isImage())
+                                        <img src="{{ $mUrl }}" alt="{{ $mName }}" loading="lazy">
+                                        <span class="std-thumb-badge"><i class="fa-solid fa-image"></i> Image</span>
+                                    @else
+                                        <div style="height:100%;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--card2)">
+                                            <i class="fa-solid fa-file" style="font-size:32px;color:var(--text3)"></i>
+                                        </div>
+                                        <span class="std-thumb-badge"><i class="fa-solid fa-paperclip"></i> File</span>
+                                    @endif
+
+                                    {{-- Reference Badge --}}
+                                    <div style="position:absolute;bottom:6px;left:6px;right:6px;background:rgba(15,23,42,0.82);color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;z-index:2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                                        <i class="fa-solid fa-paperclip" style="color:#60A5FA"></i> {{ $m->getVersionBadgeLabel() }}
+                                    </div>
+
+                                    <div class="std-thumb-overlay">
+                                        <button type="button" class="std-icon-btn std-icon-btn-view" onclick="event.stopPropagation(); strategistOpenLightbox({{ $overallIndex }})" title="Review Video/File">
+                                            <i class="fa-solid fa-expand"></i>
+                                        </button>
+                                        <a href="{{ $mUrl }}" download="{{ $mName }}" class="std-icon-btn std-icon-btn-dl" title="Download {{ $mName }}" onclick="event.stopPropagation()">
+                                            <i class="fa-solid fa-download"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="std-media-meta">
+                                    <div style="min-width:0;flex:1">
+                                        <span class="std-media-filename" title="{{ $mName }}">{{ $mName }}</span>
+                                        <div style="font-size:9.5px;color:var(--text3)">
+                                            @if($m->getUploaderName())
+                                                By {{ $m->getUploaderName() }} · 
+                                            @endif
+                                            {{ $m->getFormattedSize() }}
+                                        </div>
+                                    </div>
+                                    <a href="{{ $mUrl }}" download="{{ $mName }}" class="std-dl-chip" title="Download" onclick="event.stopPropagation()">
+                                        <i class="fa-solid fa-arrow-down-to-line"></i> Download
+                                    </a>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div style="text-align:center;padding:24px 16px;color:var(--text3);background:var(--card2);border-radius:8px;border:1px dashed var(--border)">
+                        <i class="fa-regular fa-folder-open" style="font-size:26px;opacity:0.4;margin-bottom:6px"></i>
+                        <div style="font-size:12.5px;font-weight:600;color:var(--text2)">No reference assets attached</div>
+                        <div style="font-size:11px;margin-top:2px">Click "+ Add Reference File" above to upload raw assets or client references.</div>
                     </div>
                 @endif
             </div>
@@ -1330,12 +1435,19 @@
 <div id="revisionModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
     <div style="background:var(--card);border-radius:12px;padding:24px;width:90%;max-width:480px;border:1px solid var(--border);box-shadow:0 20px 40px rgba(0,0,0,0.2)">
         <h3 style="margin:0 0 14px 0;font-size:16px;font-weight:700;color:var(--text)"><i class="fa-solid fa-rotate-left" style="color:#F59E0B;margin-right:8px"></i> Request Revision</h3>
-        <form id="revisionForm" method="POST" action="{{ route('strategist.tasks.request-revision', $task) }}">
+        <form id="revisionForm" method="POST" action="{{ route('strategist.tasks.request-revision', $task) }}" enctype="multipart/form-data">
             @csrf
             @method('PATCH')
             <div style="margin-bottom:14px">
                 <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text2)">What needs to be revised?</label>
                 <textarea name="revision_note" required rows="4" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card2);font-size:12.5px;font-family:inherit;resize:vertical;color:var(--text);box-sizing:border-box" placeholder="Describe the changes needed..."></textarea>
+            </div>
+            <div style="margin-bottom:14px">
+                <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text2)">
+                    <i class="fa-solid fa-paperclip" style="color:#F59E0B;margin-right:4px"></i> Attach Reference / Markup Images (Optional)
+                </label>
+                <input type="file" name="reference_files[]" multiple accept="image/*,video/*,.pdf,.zip" style="width:100%;padding:8px;border:1px dashed var(--border);border-radius:8px;background:var(--card2);font-size:12px;color:var(--text);box-sizing:border-box">
+                <div style="font-size:10.5px;color:var(--text3);margin-top:4px">Attach screenshots with markup or new reference assets for the designer.</div>
             </div>
             <div style="display:flex;justify-content:flex-end;gap:10px">
                 <button type="button" class="btn-sec" onclick="document.getElementById('revisionModal').style.display='none'" style="font-size:12px;padding:7px 14px">Cancel</button>

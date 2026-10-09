@@ -179,6 +179,37 @@ class Task extends Model
         return $this->morphMany(Media::class, 'model');
     }
 
+    public function referenceMedia()
+    {
+        return $this->morphMany(Media::class, 'model')->where(function ($q) {
+            $q->whereIn('collection_name', ['task-reference', 'reference-media', 'brief-assets'])
+              ->orWhere('metadata->is_reference', true);
+        });
+    }
+
+    public function deliverableMedia()
+    {
+        return $this->morphMany(Media::class, 'model')->where(function ($q) {
+            $q->whereNotIn('collection_name', ['task-reference', 'reference-media', 'brief-assets'])
+              ->where(function ($sq) {
+                  $sq->whereNull('metadata->is_reference')
+                     ->orWhere('metadata->is_reference', false);
+              });
+        });
+    }
+
+    public function getReferenceMediaList()
+    {
+        $all = $this->relationLoaded('media') ? $this->media : $this->media()->get();
+        return $all->filter(fn ($m) => $m->isReference())->values();
+    }
+
+    public function getDeliverableMediaList()
+    {
+        $all = $this->relationLoaded('media') ? $this->media : $this->media()->get();
+        return $all->filter(fn ($m) => $m->isDeliverable())->values();
+    }
+
     public function socialMediaPosts()
     {
         return $this->hasMany(SocialMediaPost::class);
@@ -193,7 +224,9 @@ class Task extends Model
         $mediaList = $this->relationLoaded('media') ? $this->media : $this->media()->get();
 
         if ($mediaList && $mediaList->isNotEmpty()) {
-            $mediaItem = $mediaList->first(fn ($m) => $m->isImage()) ?? $mediaList->first();
+            $deliverables = $mediaList->filter(fn ($m) => $m->isDeliverable());
+            $pool = $deliverables->isNotEmpty() ? $deliverables : $mediaList;
+            $mediaItem = $pool->first(fn ($m) => $m->isImage()) ?? $pool->first();
             if ($mediaItem) {
                 return [
                     'url'      => $mediaItem->getUrl(),

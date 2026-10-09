@@ -535,56 +535,22 @@ class TaskController extends Controller
     public function requestRevision(Request $request, Task $task)
     {
         $validated = $request->validate([
-            'revision_note' => ['required', 'string', 'max:2000'],
+            'revision_note'     => ['required', 'string', 'max:2000'],
+            'reference_files'   => ['nullable', 'array'],
+            'reference_files.*' => ['file', 'mimes:jpg,jpeg,jfif,png,gif,webp,svg,mp4,mov,webm,mkv,avi,m4v,3gp,ts,pdf,doc,docx,zip,rar,7z', 'max:512000'],
         ]);
 
-        $oldStatus = $task->status;
-        // Same as admin rejection and the mobile app: back to the designer as in progress
-        $task->update([
-            'status'         => 'inprogress',
-            'revision_count' => $task->revision_count + 1,
-        ]);
-
-        Comment::create([
-            'task_id' => $task->id,
-            'user_id' => Auth::id(),
-            'body'    => '🔄 Revision requested: ' . $validated['revision_note'],
-        ]);
-
-        \App\Models\AuditLog::create([
-            'user_id'    => Auth::id(),
-            'task_id'    => $task->id,
-            'action'     => 'revision_requested',
-            'old_values' => ['status' => $oldStatus, 'revision_count' => $task->revision_count - 1],
-            'new_values' => ['status' => 'inprogress', 'revision_count' => $task->revision_count, 'note' => $validated['revision_note']],
-        ]);
-
-        if ($task->assigned_to) {
-            $assignedUser = \App\Models\User::find($task->assigned_to);
-            $link = '/designer/tasks/' . $task->id;
-            if ($assignedUser && $assignedUser->role === 'developer') {
-                $link = '/developer/tasks';
-            }
-
-            Notification::create([
-                'user_id' => $task->assigned_to,
-                'task_id' => $task->id,
-                'icon'    => '🔄',
-                'title'   => 'Revision requested',
-                'subtitle' => Auth::user()->name . ' requested changes on "' . $task->title . '"',
-                'link'    => $link,
-            ]);
-        }
+        app(TaskService::class)->requestRevision($task, $validated, $request->file('reference_files'));
 
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Revision requested — task moved back to To Do.',
+                'message' => 'Revision requested — task sent back to designer.',
                 'task'    => $task,
             ]);
         }
 
-        return back()->with('success', 'Revision requested — task moved back to To Do.');
+        return back()->with('success', 'Revision requested — task sent back to designer.');
     }
 
     public function putOnHold(Request $request, Task $task)

@@ -272,13 +272,21 @@ class TaskService
         }
     }
 
-    public function requestRevision(Task $task, array $validated)
+    public function requestRevision(Task $task, array $validated, ?array $files = null)
     {
         $oldStatus = $task->status;
         $task->update([
             'status'         => 'inprogress',
             'revision_count' => $task->revision_count + 1,
         ]);
+
+        if (!empty($files)) {
+            $this->storeUploadedTaskMedia($task, $files, 'task-reference', [
+                'is_reference'   => true,
+                'revision_count' => (int) $task->revision_count,
+                'revision_note'  => $validated['revision_note'],
+            ]);
+        }
 
         Comment::create([
             'task_id' => $task->id,
@@ -319,7 +327,14 @@ class TaskService
             'media.*' => ['required', 'file', 'mimes:jpg,jpeg,jfif,png,gif,webp,svg,mp4,mov,webm,mkv,avi,m4v,3gp,ts,pdf,doc,docx,zip,rar,7z', 'max:512000'],
         ]);
 
-        [$uploadedCount, $failedFiles] = $this->storeUploadedTaskMedia($task, $request->file('media'));
+        $isReference = ($request->input('collection_name') !== 'task-media');
+        $collection = $isReference ? 'task-reference' : 'task-media';
+        $extraMeta = [
+            'is_reference'   => $isReference,
+            'revision_count' => (int) ($task->revision_count ?? 0),
+        ];
+
+        [$uploadedCount, $failedFiles] = $this->storeUploadedTaskMedia($task, $request->file('media'), $collection, $extraMeta);
 
         if ($uploadedCount === 0) {
             return response()->json(['success' => false, 'message' => 'All files failed.'], 422);

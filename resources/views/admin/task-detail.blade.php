@@ -660,34 +660,40 @@
             @endif
         </div>
 
-        {{-- ====== MEDIA & ATTACHMENTS (Video & Image Review) ====== --}}
-        <div class="td-card">
+        @php
+            $deliverableMedia = $task->media->filter(fn($m) => $m->isDeliverable());
+            $referenceMedia = $task->media->filter(fn($m) => $m->isReference());
+        @endphp
+
+        {{-- ====== SUBMITTED DELIVERABLES & OUTPUTS ====== --}}
+        <div class="td-card" style="border-top:3px solid #10B981">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)">
                 <div class="td-section-title" style="margin-bottom:0">
-                    <span><i class="fas fa-images" style="color:var(--primary)"></i></span>
-                    <span>Media & Attachments</span>
-                    @if($task->media->count())
-                        <span style="font-size:11px;font-weight:700;background:rgba(79,109,240,0.12);color:var(--primary);padding:2px 8px;border-radius:99px">{{ $task->media->count() }}</span>
+                    <span><i class="fa-solid fa-paintbrush" style="color:#10B981"></i></span>
+                    <span>Submitted Deliverables & Outputs</span>
+                    @if($deliverableMedia->count())
+                        <span style="font-size:11px;font-weight:700;background:rgba(16,185,129,0.12);color:#10B981;padding:2px 8px;border-radius:99px">{{ $deliverableMedia->count() }}</span>
                     @endif
                 </div>
-                @if($task->media->count() > 1)
-                    <button type="button" class="btn-sec" onclick="adminDownloadAllMedia()" style="font-size:11px;font-weight:600;padding:5px 12px;display:inline-flex;align-items:center;gap:6px;border-radius:6px;cursor:pointer">
-                        <i class="fa-solid fa-cloud-arrow-down" style="color:#10B981"></i> Download All ({{ $task->media->count() }})
+                @if($deliverableMedia->count() > 1)
+                    <button type="button" class="btn-sec" onclick="adminDownloadDeliverables()" style="font-size:11px;font-weight:600;padding:5px 12px;display:inline-flex;align-items:center;gap:6px;border-radius:6px;cursor:pointer">
+                        <i class="fa-solid fa-cloud-arrow-down" style="color:#10B981"></i> Download Deliverables ({{ $deliverableMedia->count() }})
                     </button>
                 @endif
             </div>
 
-            @if($task->media->count())
+            @if($deliverableMedia->count())
                 <div class="td-media-grid">
-                    @foreach($task->media as $index => $m)
+                    @foreach($deliverableMedia as $m)
                         @php
+                            $globalIdx = $task->media->search(fn($x) => $x->id === $m->id);
                             $isVid = $m->isVideo();
                             $isPdf = $m->isPdf();
                             $mUrl = $m->getUrl();
-                            $mName = $m->name ?: $m->file_name ?: ('Media File #' . ($index + 1));
+                            $mName = $m->name ?: $m->file_name ?: ('Deliverable File #' . ($loop->iteration));
                         @endphp
                         <div class="td-media-card">
-                            <div class="td-thumb-wrap" onclick="openAdminLightbox({{ $index }})" title="Click to view full preview">
+                            <div class="td-thumb-wrap" onclick="openAdminLightbox({{ $globalIdx }})" title="Click to view full preview">
                                 @if($isVid)
                                     <video src="{{ $mUrl }}" muted preload="metadata" class="td-vid-thumb"></video>
                                     <div style="position:absolute;font-size:22px;color:#fff;pointer-events:none;background:rgba(0,0,0,0.45);width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px)">
@@ -710,8 +716,12 @@
                                     <span class="td-thumb-badge"><i class="fa-solid fa-paperclip"></i> File</span>
                                 @endif
 
+                                <span style="position:absolute;bottom:6px;left:6px;background:{{ $m->getRevisionCount() > 0 ? 'rgba(245,158,11,0.9)' : 'rgba(16,185,129,0.9)' }};color:#fff;font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:4px;z-index:2">
+                                    {{ $m->getVersionBadgeLabel() }}
+                                </span>
+
                                 <div class="td-thumb-overlay">
-                                    <button type="button" class="td-icon-btn td-icon-btn-view" onclick="event.stopPropagation(); openAdminLightbox({{ $index }})" title="Review Video/File">
+                                    <button type="button" class="td-icon-btn td-icon-btn-view" onclick="event.stopPropagation(); openAdminLightbox({{ $globalIdx }})" title="Review Deliverable">
                                         <i class="fa-solid fa-expand"></i>
                                     </button>
                                     <a href="{{ $mUrl }}" download="{{ $mName }}" class="td-icon-btn td-icon-btn-dl" title="Download {{ $mName }}" onclick="event.stopPropagation()">
@@ -722,9 +732,14 @@
                             <div class="td-media-meta">
                                 <div style="min-width:0;flex:1">
                                     <div class="td-media-filename" title="{{ $mName }}">{{ $mName }}</div>
-                                    @if($m->size)
-                                        <div style="font-size:10px;color:var(--text3)">{{ $m->getFormattedSize() }}</div>
-                                    @endif
+                                    <div style="font-size:10px;color:var(--text3);display:flex;align-items:center;gap:6px;margin-top:2px">
+                                        @if($m->size)
+                                            <span>{{ $m->getFormattedSize() }}</span>
+                                        @endif
+                                        @if($m->getUploaderName())
+                                            <span>• {{ $m->getUploaderName() }}</span>
+                                        @endif
+                                    </div>
                                 </div>
                                 <a href="{{ $mUrl }}" download="{{ $mName }}" class="td-dl-chip" title="Download File" onclick="event.stopPropagation()">
                                     <i class="fa-solid fa-arrow-down-to-line"></i> Download
@@ -735,8 +750,97 @@
                 </div>
             @else
                 <div class="td-media-empty">
-                    <i class="fa-solid fa-cloud-arrow-up" style="font-size:28px;margin-bottom:8px;display:block;opacity:0.5"></i>
-                    No media uploaded yet
+                    <i class="fa-solid fa-palette" style="font-size:28px;margin-bottom:8px;display:block;opacity:0.4;color:#10B981"></i>
+                    No design deliverables submitted yet
+                </div>
+            @endif
+        </div>
+
+        {{-- ====== RECEIVED REFERENCE ASSETS & CLIENT MATERIALS ====== --}}
+        <div class="td-card" style="border-top:3px solid #6366F1">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border)">
+                <div class="td-section-title" style="margin-bottom:0">
+                    <span><i class="fa-solid fa-box-archive" style="color:#6366F1"></i></span>
+                    <span>Received Reference Assets & Client Materials</span>
+                    @if($referenceMedia->count())
+                        <span style="font-size:11px;font-weight:700;background:rgba(99,102,241,0.12);color:#6366F1;padding:2px 8px;border-radius:99px">{{ $referenceMedia->count() }}</span>
+                    @endif
+                </div>
+                @if($referenceMedia->count() > 1)
+                    <button type="button" class="btn-sec" onclick="adminDownloadReferences()" style="font-size:11px;font-weight:600;padding:5px 12px;display:inline-flex;align-items:center;gap:6px;border-radius:6px;cursor:pointer">
+                        <i class="fa-solid fa-cloud-arrow-down" style="color:#6366F1"></i> Download References ({{ $referenceMedia->count() }})
+                    </button>
+                @endif
+            </div>
+
+            @if($referenceMedia->count())
+                <div class="td-media-grid">
+                    @foreach($referenceMedia as $m)
+                        @php
+                            $globalIdx = $task->media->search(fn($x) => $x->id === $m->id);
+                            $isVid = $m->isVideo();
+                            $isPdf = $m->isPdf();
+                            $mUrl = $m->getUrl();
+                            $mName = $m->name ?: $m->file_name ?: ('Reference File #' . ($loop->iteration));
+                        @endphp
+                        <div class="td-media-card" style="border-color:rgba(99,102,241,0.2)">
+                            <div class="td-thumb-wrap" onclick="openAdminLightbox({{ $globalIdx }})" title="Click to view reference preview">
+                                @if($isVid)
+                                    <video src="{{ $mUrl }}" muted preload="metadata" class="td-vid-thumb"></video>
+                                    <div style="position:absolute;font-size:22px;color:#fff;pointer-events:none;background:rgba(0,0,0,0.45);width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px)">
+                                        <i class="fa-solid fa-play" style="margin-left:3px"></i>
+                                    </div>
+                                    <span class="td-thumb-badge"><i class="fa-solid fa-video"></i> Video</span>
+                                @elseif($isPdf)
+                                    <div style="height:100%;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--card2)">
+                                        <i class="fa-solid fa-file-pdf" style="font-size:36px;color:#EF4444"></i>
+                                        <span style="font-size:10px;font-weight:700;color:var(--text3);margin-top:6px">PDF Document</span>
+                                    </div>
+                                    <span class="td-thumb-badge" style="background:rgba(239,68,68,0.85)"><i class="fa-solid fa-file-pdf"></i> PDF</span>
+                                @elseif($m->isImage())
+                                    <img src="{{ $mUrl }}" alt="{{ $mName }}" loading="lazy">
+                                    <span class="td-thumb-badge"><i class="fa-solid fa-image"></i> Image</span>
+                                @else
+                                    <div style="height:100%;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--card2)">
+                                        <i class="fa-solid fa-file" style="font-size:36px;color:var(--text3)"></i>
+                                    </div>
+                                    <span class="td-thumb-badge"><i class="fa-solid fa-paperclip"></i> File</span>
+                                @endif
+
+                                <span style="position:absolute;bottom:6px;left:6px;background:rgba(99,102,241,0.9);color:#fff;font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:4px;z-index:2">
+                                    <i class="fa-solid fa-inbox"></i> Reference Material
+                                </span>
+
+                                <div class="td-thumb-overlay">
+                                    <button type="button" class="td-icon-btn td-icon-btn-view" onclick="event.stopPropagation(); openAdminLightbox({{ $globalIdx }})" title="Review Reference File">
+                                        <i class="fa-solid fa-expand"></i>
+                                    </button>
+                                    <a href="{{ $mUrl }}" download="{{ $mName }}" class="td-icon-btn td-icon-btn-dl" title="Download {{ $mName }}" onclick="event.stopPropagation()">
+                                        <i class="fa-solid fa-download"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="td-media-meta">
+                                <div style="min-width:0;flex:1">
+                                    <div class="td-media-filename" title="{{ $mName }}">{{ $mName }}</div>
+                                    <div style="font-size:10px;color:var(--text3);display:flex;align-items:center;gap:6px;margin-top:2px">
+                                        @if($m->size)
+                                            <span>{{ $m->getFormattedSize() }}</span>
+                                        @endif
+                                        <span>• Received from {{ $m->getUploaderName() ?? 'Strategist / Brief' }}</span>
+                                    </div>
+                                </div>
+                                <a href="{{ $mUrl }}" download="{{ $mName }}" class="td-dl-chip" style="background:rgba(99,102,241,0.1);color:#6366F1" title="Download Reference" onclick="event.stopPropagation()">
+                                    <i class="fa-solid fa-arrow-down-to-line"></i> Download
+                                </a>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <div class="td-media-empty">
+                    <i class="fa-solid fa-box-open" style="font-size:28px;margin-bottom:8px;display:block;opacity:0.4;color:#6366F1"></i>
+                    No reference materials or brief assets attached
                 </div>
             @endif
         </div>
@@ -1048,6 +1152,7 @@ const adminMediaList = [
             name: '{{ addslashes($m->name ?: $m->file_name ?: "Media File") }}',
             isVideo: {{ $m->isVideo() ? 'true' : 'false' }},
             isPdf: {{ $m->isPdf() ? 'true' : 'false' }},
+            isDeliverable: {{ $m->isDeliverable() ? 'true' : 'false' }},
             size: '{{ $m->getFormattedSize() }}'
         },
     @endforeach
@@ -1118,6 +1223,38 @@ function closeAdminLightbox(e) {
     const content = document.getElementById('adminLightboxContent');
     if (content) content.innerHTML = '';
     document.body.style.overflow = '';
+}
+
+function adminDownloadDeliverables() {
+    if (!adminMediaList || !adminMediaList.length) return;
+    const list = adminMediaList.filter(m => m.isDeliverable);
+    list.forEach((media, idx) => {
+        setTimeout(() => {
+            const link = document.createElement('a');
+            link.href = media.url;
+            link.download = media.name || ('Deliverable_' + (idx + 1));
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }, idx * 350);
+    });
+}
+
+function adminDownloadReferences() {
+    if (!adminMediaList || !adminMediaList.length) return;
+    const list = adminMediaList.filter(m => !m.isDeliverable);
+    list.forEach((media, idx) => {
+        setTimeout(() => {
+            const link = document.createElement('a');
+            link.href = media.url;
+            link.download = media.name || ('Reference_' + (idx + 1));
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }, idx * 350);
+    });
 }
 
 function adminDownloadAllMedia() {

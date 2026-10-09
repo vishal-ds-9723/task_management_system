@@ -148,8 +148,10 @@
 {{-- Universal Media Lightbox Modal --}}
 <x-media-lightbox />
 
+@if(auth()->check() && auth()->user()->role === 'admin')
 {{-- Universal Dynamic Dropdown Options Manager Modal --}}
 <x-dropdown-options-modal />
+@endif
 
 {{-- Task Detail Modal --}}
 <div class="modal-overlay" id="taskModal">

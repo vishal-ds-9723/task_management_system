@@ -19,6 +19,18 @@
     $unplanned = $rows->filter(fn ($r) => $r->planned === 0)->values();
     $attention = $planned->filter(fn ($r) => in_array($r->status, ['behind', 'needs_tasks'], true))->count();
 
+    $isAdmin = auth()->check() && (auth()->user()->role === 'admin' || request()->routeIs('admin.*'));
+    $scheduleRoute = $isAdmin ? 'admin.content-schedules' : 'strategist.content-schedules';
+    $createTaskRoute = fn ($clientId, $type) => $isAdmin
+        ? route('admin.tasks.create', array_filter(['client_id' => $clientId, 'type' => $type]))
+        : route('strategist.create-task', array_filter(['client_id' => $clientId, 'type' => $type]));
+    $taskViewRoute = fn ($task) => $isAdmin
+        ? route('admin.tasks.show', $task->id)
+        : route('strategist.tracking', ['task' => $task->id]);
+    $calendarViewRoute = fn ($clientId, $date) => $isAdmin
+        ? route('admin.calendar', ['client' => $clientId, 'view' => 'month', 'date' => $date])
+        : route('strategist.calendar', ['client' => $clientId, 'view' => 'month', 'date' => $date]);
+
     // Overall stacked bar, relative to everything planned (or created, if more)
     $totalScale = max($summary['planned'], $summary['created'], 1);
     $overall = [
@@ -219,11 +231,11 @@ body.dark-mode .st-amber { color: #fbbf24; } body.dark-mode .st-blue { color: #9
             <p>Monthly packages set by admin, and how much of each is created and posted.</p>
         </div>
         <nav class="cp2-month" aria-label="Month">
-            <a href="{{ route('strategist.content-schedules', ['month' => $prev->month, 'year' => $prev->year]) }}" aria-label="Previous month"><i class="fas fa-chevron-left"></i></a>
+            <a href="{{ route($scheduleRoute, ['month' => $prev->month, 'year' => $prev->year]) }}" aria-label="Previous month"><i class="fas fa-chevron-left"></i></a>
             <span>{{ $monthStart->format('F Y') }}</span>
-            <a href="{{ route('strategist.content-schedules', ['month' => $next->month, 'year' => $next->year]) }}" aria-label="Next month"><i class="fas fa-chevron-right"></i></a>
+            <a href="{{ route($scheduleRoute, ['month' => $next->month, 'year' => $next->year]) }}" aria-label="Next month"><i class="fas fa-chevron-right"></i></a>
             @unless($isCurrentMonth)
-                <a href="{{ route('strategist.content-schedules') }}" class="is-today">Today</a>
+                <a href="{{ route($scheduleRoute) }}" class="is-today">Today</a>
             @endunless
         </nav>
     </header>
@@ -337,7 +349,7 @@ body.dark-mode .st-amber { color: #fbbf24; } body.dark-mode .st-blue { color: #9
                                             @if($type->toCreate)<span class="is-todo">{{ $type->toCreate }} to create</span>@endif
                                         @endif
                                         @if($type->toCreate && $type->meta['taskType'] && !$isPastMonth)
-                                            <a class="cp2-create" href="{{ route('strategist.create-task', ['client_id' => $row->client->id, 'type' => $type->meta['taskType']]) }}"><i class="fas fa-plus"></i> Create</a>
+                                            <a class="cp2-create" href="{{ $createTaskRoute($row->client->id, $type->meta['taskType']) }}"><i class="fas fa-plus"></i> Create</a>
                                         @endif
                                     </div>
                                     <span class="cp2-type-open">View all <i class="fas fa-arrow-right"></i></span>
@@ -373,7 +385,7 @@ body.dark-mode .st-amber { color: #fbbf24; } body.dark-mode .st-blue { color: #9
                                                     <small>{{ $item->planDate->format('D') }}</small>
                                                 </div>
                                                 <div class="cp2-item-main">
-                                                    <a class="cp2-item-title" href="{{ route('strategist.tracking', ['task' => $task->id]) }}">{{ $task->title ?? 'Untitled' }}</a>
+                                                    <a class="cp2-item-title" href="{{ $taskViewRoute($task) }}">{{ $task->title ?? 'Untitled' }}</a>
                                                     <div class="cp2-item-meta">
                                                         <span><i class="fas fa-user"></i> {{ $task->assignee->name ?? 'Unassigned' }}</span>
                                                         @foreach($item->channels as $channel)
@@ -398,7 +410,7 @@ body.dark-mode .st-amber { color: #fbbf24; } body.dark-mode .st-blue { color: #9
                                                     <div class="cp2-item-meta"><span>Planned {{ Str::singular(strtolower($type->meta['label'])) }} #{{ $type->created + $i + 1 }}</span></div>
                                                 </div>
                                                 @if($i === 0 && $type->meta['taskType'] && !$isPastMonth)
-                                                    <a class="cp2-create" href="{{ route('strategist.create-task', ['client_id' => $row->client->id, 'type' => $type->meta['taskType']]) }}"><i class="fas fa-plus"></i> Create</a>
+                                                    <a class="cp2-create" href="{{ $createTaskRoute($row->client->id, $type->meta['taskType']) }}"><i class="fas fa-plus"></i> Create</a>
                                                 @endif
                                             </div>
                                         @endfor
@@ -418,7 +430,14 @@ body.dark-mode .st-amber { color: #fbbf24; } body.dark-mode .st-blue { color: #9
                                     Nothing else scheduled this month.
                                 @endif
                             </span>
-                            <a href="{{ route('strategist.calendar', ['client' => $row->client->id, 'view' => 'month', 'date' => $monthStart->toDateString()]) }}">Open in calendar <i class="fas fa-arrow-right"></i></a>
+                            <div style="display:flex;align-items:center;gap:14px">
+                                @if($isAdmin)
+                                    <a href="{{ route('admin.clients.show', $row->client->id) }}" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--soft);text-decoration:none" title="Configure package for {{ $row->client->name }}">
+                                        <i class="fas fa-sliders"></i> Edit Package
+                                    </a>
+                                @endif
+                                <a href="{{ $calendarViewRoute($row->client->id, $monthStart->toDateString()) }}">Open in calendar <i class="fas fa-arrow-right"></i></a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -429,7 +448,12 @@ body.dark-mode .st-amber { color: #fbbf24; } body.dark-mode .st-blue { color: #9
         <div class="cp2-list">
             <div class="cp2-empty">
                 <i class="fas fa-calendar-plus"></i>
-                No content plans for {{ $monthStart->format('F Y') }} yet. Plans are set by an admin on each client's page.
+                @if($isAdmin)
+                    No content plans for {{ $monthStart->format('F Y') }} yet.<br>
+                    <span style="font-size:13px;color:var(--muted);margin-top:6px;display:inline-block">Go to <a href="{{ route('admin.clients') }}" style="color:var(--accent);font-weight:700">Clients</a> to set monthly packages for your clients.</span>
+                @else
+                    No content plans for {{ $monthStart->format('F Y') }} yet. Plans are set by an admin on each client's page.
+                @endif
             </div>
         </div>
     @endif
@@ -437,15 +461,29 @@ body.dark-mode .st-amber { color: #fbbf24; } body.dark-mode .st-blue { color: #9
     @if($planned->isNotEmpty() && $unplanned->isNotEmpty())
         <section class="cp2-unplanned">
             <h3>No plan yet · {{ $unplanned->count() }} {{ Str::plural('client', $unplanned->count()) }}</h3>
-            <p>Ask an admin to set their monthly package. Posts already scheduled are shown in brackets.</p>
+            @if($isAdmin)
+                <p>Click any client below to set up their monthly content package.</p>
+            @else
+                <p>Ask an admin to set their monthly package. Posts already scheduled are shown in brackets.</p>
+            @endif
             <div class="cp2-chips">
                 @foreach($unplanned as $row)
-                    <span class="cp2-chip">
-                        <span class="cp2-logo" style="background: {{ $row->client->color ?: $hue($row->client->name) }}">
-                            @if($row->client->logo)<img src="{{ asset('storage/' . $row->client->logo) }}" alt="">@else{{ $initials($row->client->name) }}@endif
+                    @if($isAdmin)
+                        <a href="{{ route('admin.clients.show', $row->client->id) }}" class="cp2-chip" style="text-decoration:none;cursor:pointer" title="Configure schedule for {{ $row->client->name }}">
+                            <span class="cp2-logo" style="background: {{ $row->client->color ?: $hue($row->client->name) }}">
+                                @if($row->client->logo)<img src="{{ asset('storage/' . $row->client->logo) }}" alt="">@else{{ $initials($row->client->name) }}@endif
+                            </span>
+                            {{ $row->client->name }} <small>({{ $row->created }})</small>
+                            <i class="fas fa-plus" style="font-size:10px;margin-left:4px;color:var(--accent)"></i>
+                        </a>
+                    @else
+                        <span class="cp2-chip">
+                            <span class="cp2-logo" style="background: {{ $row->client->color ?: $hue($row->client->name) }}">
+                                @if($row->client->logo)<img src="{{ asset('storage/' . $row->client->logo) }}" alt="">@else{{ $initials($row->client->name) }}@endif
+                            </span>
+                            {{ $row->client->name }} <small>({{ $row->created }})</small>
                         </span>
-                        {{ $row->client->name }} <small>({{ $row->created }})</small>
-                    </span>
+                    @endif
                 @endforeach
             </div>
         </section>

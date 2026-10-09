@@ -179,7 +179,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::put('/action-items/{actionItem}', [Admin\ActionItemController::class, 'update'])->name('action-items.update');
     Route::delete('/action-items/{actionItem}', [Admin\ActionItemController::class, 'destroy'])->name('action-items.destroy');
 
-    // Settings
+    // Settings & Dropdown Management
+    Route::get('/settings', [\App\Http\Controllers\SettingsController::class, 'index'])->name('settings');
     Route::post('/settings/toggle-away-mode', [Admin\SettingsController::class, 'toggleAwayMode'])->name('settings.toggle-away-mode');
 
     // Festival Calendar & Selections for Admin
@@ -191,6 +192,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::delete('/festivals/{festival}', [Strategist\FestivalController::class, 'destroy'])->name('festivals.destroy');
     Route::get('/festival-selections', [Admin\FestivalSelectionController::class, 'index'])->name('festival-selections');
     Route::get('/api/festival-events', [Strategist\FestivalController::class, 'calendarEvents'])->name('festival-events.api');
+
+    // Monthly Content Schedules
+    Route::get('/content-schedules', [Admin\ContentScheduleController::class, 'index'])->name('content-schedules');
+    Route::get('/content-schedule', fn() => redirect()->route('admin.content-schedules'));
 
     // Chatbot API endpoints
     Route::get('/api/chatbot/tasks-summary', [Admin\DashboardController::class, 'getChatbotTasksSummary'])->name('api.tasks-summary');
@@ -340,18 +345,26 @@ Route::get('/team/daily-logs', [\App\Http\Controllers\DailyLogReportController::
     ->middleware(['auth', 'role:admin,strategist,manager'])
     ->name('daily-logs.report');
 
-// ──────────── SETTINGS & DROPDOWN MANAGEMENT ────────────
+// ──────────── SETTINGS REDIRECTS ────────────
 Route::middleware(['auth'])->group(function () {
-    Route::get('/settings', [\App\Http\Controllers\SettingsController::class, 'index'])->name('settings');
-    Route::get('/designer/settings', fn() => redirect()->route('settings'))->name('designer.settings');
+    Route::get('/settings', function () {
+        if (auth()->user()->role === 'admin') {
+            return redirect()->route('admin.settings');
+        }
+        return redirect()->route('login');
+    })->name('settings');
+    Route::get('/designer/settings', fn() => redirect()->route('admin.settings'))->name('designer.settings');
 });
 
 // ──────────── DYNAMIC DROPDOWN OPTIONS (CRUD) ────────────
 Route::middleware(['auth'])->prefix('api/dropdown-options')->name('dropdown-options.')->group(function () {
     Route::get('/', [\App\Http\Controllers\DropdownOptionController::class, 'index'])->name('index');
-    Route::post('/', [\App\Http\Controllers\DropdownOptionController::class, 'store'])->name('store');
-    Route::put('/{dropdownOption}', [\App\Http\Controllers\DropdownOptionController::class, 'update'])->name('update');
-    Route::delete('/{dropdownOption}', [\App\Http\Controllers\DropdownOptionController::class, 'destroy'])->name('destroy');
-    Route::post('/reorder', [\App\Http\Controllers\DropdownOptionController::class, 'reorder'])->name('reorder');
+
+    Route::middleware(['role:admin'])->group(function () {
+        Route::post('/', [\App\Http\Controllers\DropdownOptionController::class, 'store'])->name('store');
+        Route::put('/{dropdownOption}', [\App\Http\Controllers\DropdownOptionController::class, 'update'])->name('update');
+        Route::delete('/{dropdownOption}', [\App\Http\Controllers\DropdownOptionController::class, 'destroy'])->name('destroy');
+        Route::post('/reorder', [\App\Http\Controllers\DropdownOptionController::class, 'reorder'])->name('reorder');
+    });
 });
 

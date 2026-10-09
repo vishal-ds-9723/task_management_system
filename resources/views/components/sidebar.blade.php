@@ -187,6 +187,16 @@
                 <span class="nav-text">Festival Selections</span>
                 <span class="nav-tooltip">Client Festival Selections</span>
             </a>
+            <a href="{{ route('admin.content-schedules') }}" class="nav-item {{ request()->routeIs('admin.content-schedules*') ? 'active' : '' }}" title="Content Schedules">
+                <span class="icon"><i class="fa-solid fa-calendar-days"></i></span>
+                <span class="nav-text">Content Schedules</span>
+                <span class="nav-tooltip">Monthly Content Schedules</span>
+            </a>
+            <a href="{{ route('admin.settings') }}" class="nav-item {{ request()->routeIs('admin.settings*') ? 'active' : '' }}" title="Settings">
+                <span class="icon"><i class="fas fa-cog"></i></span>
+                <span class="nav-text">Settings</span>
+                <span class="nav-tooltip">Settings & Dropdown Options</span>
+            </a>
            {{-- <a href="{{ route('admin.active-users') }}" class="nav-item {{ request()->routeIs('admin.active-users') ? 'active' : '' }}" title="Active Users">
                 <span class="icon"><i class="fas fa-circle" style="font-size:8px;color:#22c55e"></i></span>
                 <span class="nav-text">Active Users</span>
@@ -471,15 +481,6 @@
                 @if($unreadMessages > 0)
                     <span class="nav-badge" style="margin-left:auto;background:#EF4444;color:#fff;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700">{{ $unreadMessages > 99 ? '99+' : $unreadMessages }}</span>
                 @endif
-            </a>
-        </div>
-
-        {{-- Settings (internal roles) --}}
-        <div class="nav-section">
-            <a href="{{ route('settings') }}" class="nav-item {{ request()->routeIs('settings*') ? 'active' : '' }}" title="Settings">
-                <span class="icon"><i class="fas fa-cog"></i></span>
-                <span class="nav-text">Settings</span>
-                <span class="nav-tooltip">Settings & Dropdown Options</span>
             </a>
         </div>
     @endif

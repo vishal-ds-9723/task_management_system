@@ -283,19 +283,22 @@
     <div class="st-header">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px">
             <div>
-                <a href="{{ route('designer.dashboard') }}" class="btn-sec" style="padding:6px 12px !important;font-size:12px !important;margin-bottom:12px;display:inline-flex">
+                <a href="{{ route('admin.dashboard') }}" class="btn-sec" style="padding:6px 12px !important;font-size:12px !important;margin-bottom:12px;display:inline-flex">
                     <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
                 </a>
                 <h1 class="designer-greeting" style="font-size:24px;margin:0">
                     <i class="fa-solid fa-gear" style="color:var(--dz-accent, #6366F1)"></i> System & Dropdown Settings
                 </h1>
                 <p style="font-size:13px;color:var(--dz-text-muted);margin:4px 0 0">
-                    Manage all dropdown options, categories, platforms, and choices used across task creation and tracking.
+                    Admin control panel to manage dynamic dropdown options, categories, platforms, and choices.
                 </p>
             </div>
-            <div>
-                <a href="{{ route('designer.urgent-task') }}" class="btn-action-urgent" style="text-decoration:none">
-                    <i class="fa-solid fa-bolt" style="font-size:11px"></i> Go to Urgent Task
+            <div style="display:flex;gap:8px;align-items:center">
+                <a href="{{ route('admin.urgent-tasks') }}" class="btn-sec" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">
+                    <i class="fa-solid fa-bolt" style="color:#ef4444;font-size:11px"></i> Urgent Tasks
+                </a>
+                <a href="{{ route('admin.tasks') }}" class="btn-action-urgent" style="text-decoration:none">
+                    <i class="fa-solid fa-tasks" style="font-size:11px"></i> All Tasks
                 </a>
             </div>
         </div>

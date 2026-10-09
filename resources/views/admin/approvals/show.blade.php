@@ -133,8 +133,10 @@
         {{-- MEDIA VIEWER --}}
         @php
             $mediaItems = $task->media;
-            $media = $mediaItems->first();
-            $hasMedia = $mediaItems->isNotEmpty();
+            $deliverableMedia = $mediaItems->filter(fn($m) => $m->isDeliverable())->values();
+            $referenceMedia = $mediaItems->filter(fn($m) => $m->isReference())->values();
+            $media = $deliverableMedia->first() ?? $mediaItems->first();
+            $hasMedia = $deliverableMedia->isNotEmpty();
         @endphp
         @if($isDevType)
             <div class="card premium" style="margin-bottom:16px">
@@ -161,6 +163,16 @@
         @else
             @if($media)
                 <div class="card" style="margin-bottom:16px;padding:0;overflow:hidden">
+                    <div style="padding:10px 14px;background:var(--card2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <i class="fa-solid fa-paintbrush" style="color:var(--primary)"></i>
+                            <span style="font-size:12px;font-weight:700;color:var(--text)">Primary Deliverable Preview</span>
+                            <span style="font-size:10px;font-weight:700;background:{{ $media->getRevisionCount() > 0 ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)' }};color:{{ $media->getRevisionCount() > 0 ? '#D97706' : '#059669' }};padding:2px 8px;border-radius:99px">
+                                {{ $media->getVersionBadgeLabel() }}
+                            </span>
+                        </div>
+                        <span style="font-size:11px;color:var(--text3)">{{ $deliverableMedia->count() }} {{ Str::plural('deliverable', $deliverableMedia->count()) }}</span>
+                    </div>
                     <div class="media-viewer">
                         <div class="media-viewer-content">
                             <div id="mediaPreview" style="width:100%;height:100%"></div>
@@ -174,11 +186,11 @@
                     </div>
                 </div>
 
-                @if($mediaItems->count() > 1)
+                @if($deliverableMedia->count() > 1)
                     <div class="card" style="margin-bottom:16px">
-                        <div class="section-title"><i class="fas fa-images" style="opacity:0.6"></i> All Media ({{ $mediaItems->count() }})</div>
+                        <div class="section-title"><i class="fas fa-images" style="opacity:0.6"></i> All Deliverables & Versions ({{ $deliverableMedia->count() }})</div>
                         <div class="media-thumbs" id="mediaThumbs">
-                            @foreach($mediaItems as $index => $m)
+                            @foreach($deliverableMedia as $index => $m)
                                 @php
                                     $mType = $m->isVideo() ? 'video' : ($m->isImage() ? 'image' : ($m->isPdf() ? 'pdf' : 'file'));
                                     $typeLabel = $m->isVideo() ? 'Video' : ($m->isImage() ? 'Image' : ($m->isPdf() ? 'PDF' : 'File'));
@@ -199,9 +211,48 @@
                                             <i class="fa-solid {{ $typeIcon }}" style="font-size:22px;color:var(--text3)"></i>
                                         </div>
                                     @endif
-                                    <div class="thumb-badge"><i class="fa-solid {{ $typeIcon }}" style="font-size:9px"></i> {{ $typeLabel }}</div>
+                                    <div class="thumb-badge"><i class="fa-solid {{ $typeIcon }}" style="font-size:9px"></i> {{ $m->getVersionBadgeLabel() }}</div>
                                     <div class="thumb-name">{{ $m->name ?: $m->file_name }}</div>
                                 </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
+                {{-- Reference & Brief Assets Section (Received from Client/Strategist) --}}
+                @if($referenceMedia->isNotEmpty())
+                    <div class="card premium" style="margin-bottom:16px">
+                        <div class="section-title" style="display:flex;align-items:center;justify-content:space-between">
+                            <div style="display:flex;align-items:center;gap:6px">
+                                <i class="fa-solid fa-folder-open" style="color:#2563EB"></i>
+                                <span>Reference & Brief Materials (Received)</span>
+                                <span style="font-size:10px;font-weight:700;background:rgba(37,99,235,0.12);color:#2563EB;padding:1px 6px;border-radius:99px">{{ $referenceMedia->count() }}</span>
+                            </div>
+                            <span style="font-size:10.5px;color:var(--text3);text-transform:none;font-weight:500">Provided by strategist/client</span>
+                        </div>
+                        <div class="media-thumbs" style="grid-template-columns:repeat(auto-fill, minmax(100px, 1fr))">
+                            @foreach($referenceMedia as $rIndex => $rItem)
+                                @php
+                                    $rType = $rItem->isVideo() ? 'video' : ($rItem->isImage() ? 'image' : ($rItem->isPdf() ? 'pdf' : 'file'));
+                                @endphp
+                                <a href="{{ $rItem->getUrl() }}" target="_blank" class="media-thumb" style="border-color:rgba(37,99,235,0.3);text-decoration:none">
+                                    @if($rItem->isImage())
+                                        <img src="{{ $rItem->getUrl() }}" alt="{{ $rItem->name }}" loading="lazy">
+                                    @elseif($rItem->isVideo())
+                                        <video src="{{ $rItem->getUrl() }}" muted preload="metadata"></video>
+                                        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;background:rgba(0,0,0,0.35)"><i class="fa-solid fa-play"></i></div>
+                                    @elseif($rItem->isPdf())
+                                        <div style="height:100%;display:flex;align-items:center;justify-content:center;background:var(--card2)">
+                                            <i class="fa-solid fa-file-pdf" style="font-size:24px;color:#EF4444"></i>
+                                        </div>
+                                    @else
+                                        <div style="height:100%;display:flex;align-items:center;justify-content:center;background:var(--card2)">
+                                            <i class="fa-solid fa-file" style="font-size:22px;color:var(--text3)"></i>
+                                        </div>
+                                    @endif
+                                    <div class="thumb-badge" style="background:rgba(37,99,235,0.85);font-size:8.5px"><i class="fa-solid fa-paperclip"></i> Reference</div>
+                                    <div class="thumb-name">{{ $rItem->name ?: $rItem->file_name }}</div>
+                                </a>
                             @endforeach
                         </div>
                     </div>
@@ -209,8 +260,8 @@
             @else
                 <div class="card" style="margin-bottom:16px;background:rgba(239,68,68,0.06);border:2px dashed rgba(239,68,68,0.3);padding:40px;text-align:center">
                     <div style="font-size:40px;margin-bottom:12px;opacity:0.6"><i class="fas fa-image" style="color:var(--text3)"></i></div>
-                    <div style="font-size:13px;font-weight:600;color:#ef4444;margin-bottom:4px">No Media Uploaded</div>
-                    <div style="font-size:12px;color:var(--text2)">Designer didn't upload design file</div>
+                    <div style="font-size:13px;font-weight:600;color:#ef4444;margin-bottom:4px">No Deliverables Uploaded</div>
+                    <div style="font-size:12px;color:var(--text2)">The designer has not uploaded any deliverable design files yet.</div>
                 </div>
             @endif
         @endif
@@ -567,7 +618,7 @@
             </button>
 
             <div id="rejectSection" style="display:none;margin-top:12px">
-                <form method="POST" action="{{ route('admin.approvals.reject', $task) }}" id="rejectForm">
+                <form method="POST" action="{{ route('admin.approvals.reject', $task) }}" id="rejectForm" enctype="multipart/form-data">
                     @csrf
                     @method('PATCH')
                     <div style="margin-bottom:10px">
@@ -583,6 +634,15 @@
                         <button type="button" class="revision-chip" onclick="addFeedback('Low resolution / quality')"><i class="fas fa-search-plus" style="font-size:10px"></i> Quality issue</button>
                         <button type="button" class="revision-chip" onclick="addFeedback('Wrong format/dimensions')"><i class="fas fa-expand-arrows-alt" style="font-size:10px"></i> Wrong size</button>
                         <button type="button" class="revision-chip" onclick="addFeedback('Missing elements from brief')"><i class="fas fa-clipboard-list" style="font-size:10px"></i> Missing elements</button>
+                    </div>
+
+                    {{-- Reference/Markup file upload --}}
+                    <div style="margin-bottom:12px;padding:10px 12px;border:1px dashed var(--border);border-radius:8px;background:var(--card2)">
+                        <label style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px">
+                            <i class="fas fa-paperclip" style="color:#6366f1"></i> Attach Markup / Reference Files (Optional)
+                        </label>
+                        <p style="font-size:10.5px;color:var(--text3);margin:0 0 6px 0">Upload annotated screenshots, redline notes, or replacement assets for the designer.</p>
+                        <input type="file" name="reference_files[]" multiple accept="image/*,.pdf,.zip" style="width:100%;font-size:11.5px;color:var(--text2);cursor:pointer">
                     </div>
 
                     <button type="submit" class="btn-primary" style="width:100%;padding:12px;font-size:12.5px;font-weight:600;border-radius:8px;background:var(--red);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">

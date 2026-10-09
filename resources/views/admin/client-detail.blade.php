@@ -1135,6 +1135,9 @@
                 </select>
             </form>
 
+            <a href="{{ route('admin.content-schedules', ['month' => $currentMonth, 'year' => $currentYear]) }}" class="btn-sec" style="font-size:12px;padding:8px 12px;gap:6px;display:inline-flex;align-items:center;text-decoration:none" title="View all clients content schedule overview">
+                <i class="fa-solid fa-calendar-days"></i> All Schedules
+            </a>
             <button type="button" onclick="document.getElementById('monthlyScheduleModal').classList.add('show')" class="btn-primary" style="font-size:12px;padding:8px 14px;gap:6px;display:flex;align-items:center">
                 <i class="fa-solid fa-pencil"></i> {{ $exactSchedule ? 'Edit Schedule' : 'Set Schedule' }}
             </button>

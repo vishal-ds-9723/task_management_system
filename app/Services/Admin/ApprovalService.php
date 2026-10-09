@@ -13,6 +13,8 @@ use Illuminate\Support\Str;
 
 class ApprovalService
 {
+    use \App\Support\Concerns\StoresTaskMedia;
+
     /**
      * Get pending approval tasks with filters
      */
@@ -131,7 +133,7 @@ class ApprovalService
     /**
      * Reject task for revision.
      */
-    public function rejectTask(array $data, Task $task)
+    public function rejectTask(array $data, Task $task, ?array $files = null)
     {
         abort_if(!in_array($task->status, ['review', 'pending_approval']), 403);
 
@@ -145,6 +147,14 @@ class ApprovalService
             'admin_approved_by'     => Auth::id(),
             'admin_approved_at'     => now(),
         ]);
+
+        if (!empty($files)) {
+            $this->storeUploadedTaskMedia($task, $files, 'task-reference', [
+                'is_reference'     => true,
+                'revision_count'   => (int) $task->revision_count,
+                'rejection_reason' => $data['rejection_reason'],
+            ]);
+        }
 
         // Add comment
         Comment::create([

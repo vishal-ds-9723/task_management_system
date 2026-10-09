@@ -19,10 +19,11 @@ trait StoresTaskMedia
      * @param  \Illuminate\Http\UploadedFile[]  $files
      * @return array{0: int, 1: string[]} [uploadedCount, failedFileNames]
      */
-    protected function storeUploadedTaskMedia(Task $task, array $files, string $collection = 'task-media'): array
+    protected function storeUploadedTaskMedia(Task $task, array $files, string $collection = 'task-media', array $extraMetadata = []): array
     {
         $uploadedCount = 0;
         $failedFiles = [];
+        $user = \Illuminate\Support\Facades\Auth::user();
 
         foreach ($files as $file) {
             try {
@@ -40,6 +41,14 @@ trait StoresTaskMedia
                 $isImage = str_contains($mimeType, 'image') || in_array($ext, ['jpg', 'jpeg', 'jfif', 'png', 'gif', 'webp', 'svg', 'bmp']);
                 $type = $isVideo ? 'video' : ($isImage ? 'image' : ($ext === 'pdf' ? 'pdf' : 'document'));
 
+                $metadata = array_merge([
+                    'uploaded_by_id'   => $user?->id,
+                    'uploaded_by_name' => $user?->name,
+                    'uploaded_by_role' => $user?->role,
+                    'revision_count'   => (int) ($task->revision_count ?? 0),
+                    'is_reference'     => ($collection === 'task-reference'),
+                ], $extraMetadata);
+
                 Media::create([
                     'model_type'      => Task::class,
                     'model_id'        => $task->id,
@@ -51,7 +60,7 @@ trait StoresTaskMedia
                     'path'            => "{$collection}/{$filename}",
                     'size'            => $file->getSize(),
                     'type'            => $type,
-                    'metadata'        => [],
+                    'metadata'        => $metadata,
                 ]);
 
                 $uploadedCount++;

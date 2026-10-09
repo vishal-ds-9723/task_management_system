@@ -37,6 +37,10 @@ class DropdownOptionController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        if ($request->user() && $request->user()->role !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Unauthorized. Admin rights required.'], 403);
+        }
+
         $validated = $request->validate([
             'category'    => ['required', 'string', 'max:50'],
             'label'       => ['required', 'string', 'max:100'],
@@ -109,6 +113,10 @@ class DropdownOptionController extends Controller
      */
     public function update(Request $request, DropdownOption $dropdownOption): JsonResponse
     {
+        if ($request->user() && $request->user()->role !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Unauthorized. Admin rights required.'], 403);
+        }
+
         $validated = $request->validate([
             'label'       => ['sometimes', 'required', 'string', 'max:100'],
             'value'       => ['sometimes', 'required', 'string', 'max:100'],
@@ -146,8 +154,12 @@ class DropdownOptionController extends Controller
     /**
      * Delete an option.
      */
-    public function destroy(DropdownOption $dropdownOption): JsonResponse
+    public function destroy(Request $request, DropdownOption $dropdownOption): JsonResponse
     {
+        if ($request->user() && $request->user()->role !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Unauthorized. Admin rights required.'], 403);
+        }
+
         $category = $dropdownOption->category;
         $dropdownOption->delete();
 
@@ -163,6 +175,10 @@ class DropdownOptionController extends Controller
      */
     public function reorder(Request $request): JsonResponse
     {
+        if ($request->user() && $request->user()->role !== 'admin') {
+            return response()->json(['success' => false, 'message' => 'Unauthorized. Admin rights required.'], 403);
+        }
+
         $validated = $request->validate([
             'items' => ['required', 'array'],
             'items.*.id' => ['required', 'integer', 'exists:dropdown_options,id'],

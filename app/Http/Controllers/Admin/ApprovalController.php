@@ -74,7 +74,7 @@ class ApprovalController extends Controller
 
     public function reject(RejectTaskRequest $request, Task $task)
     {
-        $task = $this->service->rejectTask($request->validated(), $task);
+        $task = $this->service->rejectTask($request->validated(), $task, $request->file('reference_files'));
 
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([

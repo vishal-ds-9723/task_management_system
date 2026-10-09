@@ -12,6 +12,10 @@ class SettingsController extends Controller
      */
     public function index(Request $request)
     {
+        if (!auth()->check() || auth()->user()->role !== 'admin') {
+            abort(403, 'Unauthorized access. Settings are restricted to administrators.');
+        }
+
         $category = $request->query('tab', 'urgent_requested_by');
 
         $optionsByCategory = DropdownOption::ordered()->get()->groupBy('category');

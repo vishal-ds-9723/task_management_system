@@ -75,7 +75,7 @@ class TaskService
             abort(403, 'Submit the current task first to unlock this one.');
         }
 
-        $task->load(['client.socialMediaLinks', 'comments.user', 'creator', 'assignee', 'socialMediaLink']);
+        $task->load(['client.socialMediaLinks', 'comments.user', 'creator', 'assignee', 'socialMediaLink', 'media']);
 
         $selectedSocialMediaLinks = collect();
 
@@ -216,7 +216,7 @@ class TaskService
         abort_if($task->assigned_to !== Auth::id(), 403);
         abort_if($task->status !== 'inprogress' || $task->is_paused, 403, 'Only active in-progress tasks can be submitted.');
 
-        abort_if($task->media()->count() === 0, 422, 'Media upload is required before submission. Please upload your design file.');
+        abort_if($task->deliverableMedia()->count() === 0, 422, 'Deliverable design file is required before submission. Please upload your design file.');
 
         $oldStatus = $task->status;
         $isUrgentTask = (bool) $task->is_urgent_task;
@@ -422,7 +422,14 @@ class TaskService
             'media.*' => ['required', 'file', 'mimes:jpg,jpeg,jfif,png,gif,webp,svg,mp4,mov,webm,mkv,avi,m4v,3gp,ts,pdf,doc,docx,zip,rar,7z', 'max:512000'],
         ]);
 
-        [$uploadedCount, $failedFiles] = $this->storeUploadedTaskMedia($task, $request->file('media'));
+        $isReference = ($request->input('collection_name') === 'task-reference' || $request->boolean('is_reference'));
+        $collection = $isReference ? 'task-reference' : 'task-media';
+        $extraMeta = [
+            'is_reference'   => $isReference,
+            'revision_count' => (int) ($task->revision_count ?? 0),
+        ];
+
+        [$uploadedCount, $failedFiles] = $this->storeUploadedTaskMedia($task, $request->file('media'), $collection, $extraMeta);
 
         if ($uploadedCount === 0) {
             $message = 'All files failed to upload: ' . implode(', ', $failedFiles);

@@ -26,11 +26,6 @@
                     Fast-track emergency deliverables, client requests, and high-priority creatives.
                 </p>
             </div>
-            <div>
-                <a href="{{ route('settings') }}" class="btn-sec" style="display:inline-flex;align-items:center;gap:6px;font-size:12px">
-                    <i class="fa-solid fa-gear"></i> Settings
-                </a>
-            </div>
         </div>
     </div>
 

@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class Media extends Model
 {
+    public const COLLECTION_DELIVERABLE = 'task-media';
+    public const COLLECTION_REFERENCE   = 'task-reference';
+
     protected $fillable = [
         'model_type',
         'model_id',
@@ -135,4 +138,67 @@ class Media extends Model
         $power = $bytes > 0 ? floor(log($bytes, 1024)) : 0;
         return number_format($bytes / pow(1024, $power), 1) . ' ' . ($units[$power] ?? 'B');
     }
+
+    /**
+     * Determine if this media is a reference/brief asset received from client or strategist
+     */
+    public function isReference(): bool
+    {
+        if (in_array($this->collection_name, ['task-reference', 'reference-media', 'brief-assets'])) {
+            return true;
+        }
+
+        $meta = is_array($this->metadata) ? $this->metadata : [];
+        if (!empty($meta['is_reference'])) {
+            return true;
+        }
+
+        if (($meta['uploaded_by_role'] ?? null) === 'strategist' && ($meta['type'] ?? null) === 'reference') {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Determine if this media is a designer's deliverable/submission
+     */
+    public function isDeliverable(): bool
+    {
+        return !$this->isReference();
+    }
+
+    public function getUploaderName(): ?string
+    {
+        $meta = is_array($this->metadata) ? $this->metadata : [];
+        return $meta['uploaded_by_name'] ?? null;
+    }
+
+    public function getUploaderRole(): ?string
+    {
+        $meta = is_array($this->metadata) ? $this->metadata : [];
+        return $meta['uploaded_by_role'] ?? null;
+    }
+
+    public function getRevisionCount(): int
+    {
+        $meta = is_array($this->metadata) ? $this->metadata : [];
+        return (int) ($meta['revision_count'] ?? 0);
+    }
+
+    public function getVersionBadgeLabel(): string
+    {
+        if ($this->isReference()) {
+            $rev = $this->getRevisionCount();
+            return $rev > 0 ? "Rev #{$rev} Reference" : "Reference Asset";
+        }
+
+        $rev = $this->getRevisionCount();
+        if ($rev > 0) {
+            return "Revision #{$rev} (v" . ($rev + 1) . ")";
+        }
+
+        return "Initial (v1)";
+    }
 }
+

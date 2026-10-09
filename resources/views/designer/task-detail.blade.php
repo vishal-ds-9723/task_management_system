@@ -11,6 +11,8 @@
         && trim((string) ($task->caption ?? '')) !== ''
         && trim((string) $task->caption) !== $urgentBrief;
     $allMedia = $task->media()->get();
+    $referenceMedia = $allMedia->filter(fn($m) => $m->isReference())->values();
+    $deliverableMedia = $allMedia->filter(fn($m) => $m->isDeliverable())->values();
 @endphp
 @push('styles')
     <link href="{{ asset('css/task-detail.css') }}?v=4.0" rel="stylesheet">
@@ -208,37 +210,109 @@
                         </div>
                     </div>
                 @endif
+
+                {{-- 📥 RECEIVED REFERENCE ASSETS & CLIENT MATERIALS --}}
+                <div style="margin-top:16px;padding-top:14px;border-top:1px dashed var(--border)">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px">
+                        <div style="display:flex;align-items:center;gap:7px">
+                            <i class="fa-solid fa-folder-open" style="color:var(--primary);font-size:12px"></i>
+                            <span class="detail-label" style="margin:0;font-size:11px;font-weight:700">Received Reference Assets & Client Materials</span>
+                            <span class="task-tab-count" style="font-size:10px;padding:1px 6px;background:rgba(59,130,246,0.12);color:#2563EB">{{ $referenceMedia->count() }}</span>
+                        </div>
+                        @if(empty($isReadOnly))
+                            <button type="button" onclick="triggerReferenceUpload()" class="btn-sec" style="font-size:10.5px !important;padding:2px 8px !important">
+                                <i class="fa-solid fa-plus"></i> Add Reference File
+                            </button>
+                        @endif
+                    </div>
+
+                    @if($referenceMedia->isNotEmpty())
+                        <div class="media-grid" style="grid-template-columns:repeat(auto-fill, minmax(130px, 1fr));gap:10px">
+                            @foreach($referenceMedia as $refItem)
+                                <div class="media-item" style="border:1.5px solid rgba(59,130,246,0.3);border-radius:10px;overflow:hidden">
+                                    @if($refItem->isVideo())
+                                        <video class="media-file" muted preload="metadata" style="background:#0F172A;object-fit:cover"><source src="{{ $refItem->getUrl() }}"></video>
+                                        <div style="position:absolute;top:6px;left:6px;background:rgba(15,23,42,0.75);color:#fff;font-size:9px;font-weight:700;padding:2px 5px;border-radius:3px;z-index:2">
+                                            <i class="fa-solid fa-video"></i> Video
+                                        </div>
+                                    @elseif($refItem->isPdf())
+                                        <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg-main)">
+                                            <i class="fa-solid fa-file-pdf" style="font-size:24px;color:#DC2626"></i>
+                                        </div>
+                                        <div style="position:absolute;top:6px;left:6px;background:rgba(220,38,38,0.85);color:#fff;font-size:9px;font-weight:700;padding:2px 5px;border-radius:3px;z-index:2">
+                                            <i class="fa-solid fa-file-pdf"></i> PDF
+                                        </div>
+                                    @elseif($refItem->isImage())
+                                        <img src="{{ $refItem->getUrl() }}" class="media-file" loading="lazy" alt="Reference image">
+                                    @else
+                                        <div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg-main)">
+                                            <i class="fa-solid fa-file" style="font-size:24px;color:var(--text-muted)"></i>
+                                        </div>
+                                    @endif
+
+                                    {{-- Reference Badge --}}
+                                    <div style="position:absolute;bottom:6px;left:6px;right:6px;background:rgba(15,23,42,0.82);color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;z-index:2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                                        <i class="fa-solid fa-paperclip" style="color:#60A5FA"></i> {{ $refItem->getVersionBadgeLabel() }}
+                                    </div>
+
+                                    {{-- Hover Actions Overlay --}}
+                                    <div class="media-overlay">
+                                        <a href="{{ $refItem->getUrl() }}" target="_blank" class="media-btn" title="View Fullscreen">
+                                            <i class="fas fa-expand"></i>
+                                        </a>
+                                        <a href="{{ $refItem->getUrl() }}" download="{{ $refItem->name }}" class="media-btn" title="Download">
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                        @if(empty($isReadOnly))
+                                            <button type="button" onclick="deleteMediaAJAX({{ $refItem->id }}, event)" class="media-btn btn-danger" title="Remove">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <div style="padding:10px 14px;background:var(--card2);border:1px dashed var(--border);border-radius:8px;font-size:11.5px;color:var(--text-muted);display:flex;align-items:center;gap:8px">
+                            <i class="fa-regular fa-image" style="opacity:0.5;font-size:14px"></i>
+                            <span>No reference assets attached yet. Reference files provided by strategist/client appear here.</span>
+                        </div>
+                    @endif
+                </div>
             </div>
 
-            {{-- 2 · DELIVERABLES & DESIGN ASSETS STUDIO (HERO) --}}
+            {{-- 2 · DELIVERABLES & DESIGN OUTPUTS STUDIO (HERO) --}}
             <div class="card" id="deliverablesSection" style="margin-bottom:0">
                 <div class="sec-header">
                     <div class="sec-header-left">
-                        <div class="sec-icon"><i class="fa-solid fa-images"></i></div>
-                        <h2 class="sec-title">Deliverables & Attached Files</h2>
-                        <span class="task-tab-count" id="mediaTabCount">{{ $allMedia->count() }}</span>
+                        <div class="sec-icon"><i class="fa-solid fa-paintbrush"></i></div>
+                        <div>
+                            <h2 class="sec-title" style="margin:0">Deliverables & Design Outputs</h2>
+                            <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Upload your completed design files or revisions for review</div>
+                        </div>
+                        <span class="task-tab-count" id="deliverableTabCount" style="margin-left:6px">{{ $deliverableMedia->count() }}</span>
                     </div>
 
-                    @if($allMedia->count() > 0 && empty($isReadOnly))
-                        <button type="button" onclick="document.getElementById('mediaInput').click()" class="btn-sec" style="font-size:11.5px !important;padding:4px 10px !important">
-                            <i class="fa-solid fa-plus"></i> Upload Files
+                    @if($deliverableMedia->count() > 0 && empty($isReadOnly))
+                        <button type="button" onclick="triggerDeliverableUpload()" class="btn-sec" style="font-size:11.5px !important;padding:4px 10px !important">
+                            <i class="fa-solid fa-plus"></i> Upload New Version
                         </button>
                     @endif
                 </div>
 
-                {{-- Upload Dropzone if 0 media --}}
-                @if($allMedia->count() === 0 && empty($isReadOnly))
-                    <div class="upload-zone" id="emptyUploadZone" onclick="document.getElementById('mediaInput').click()">
+                {{-- Upload Dropzone if 0 deliverables --}}
+                @if($deliverableMedia->count() === 0 && empty($isReadOnly))
+                    <div class="upload-zone" id="emptyUploadZone" onclick="triggerDeliverableUpload()">
                         <div class="upload-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
-                        <div style="font-size:13.5px;font-weight:700;color:var(--text-main)">Upload design files</div>
-                        <p style="font-size:11.5px;color:var(--text-muted);margin:0">Click to attach creatives, videos, or PDFs</p>
+                        <div style="font-size:13.5px;font-weight:700;color:var(--text-main)">Upload design deliverable</div>
+                        <p style="font-size:11.5px;color:var(--text-muted);margin:0">Click to attach finished creative (PNG, JPG, MP4, PDF)</p>
                     </div>
                 @endif
 
-                {{-- Uploaded Media Gallery Grid --}}
-                <div class="media-grid" id="mediaPreviewContainer">
-                    @foreach($allMedia as $item)
-                        <div class="media-item">
+                {{-- Uploaded Deliverables Grid --}}
+                <div class="media-grid" id="deliverablesPreviewContainer">
+                    @foreach($deliverableMedia as $item)
+                        <div class="media-item" style="border:2px solid {{ $item->getRevisionCount() > 0 ? '#F59E0B' : 'var(--border)' }};border-radius:10px">
                             @if($item->isVideo())
                                 <video class="media-file" muted preload="metadata" style="background:#0F172A;object-fit:cover"><source src="{{ $item->getUrl() }}"></video>
                                 <div style="position:absolute;top:6px;left:6px;background:rgba(15,23,42,0.75);color:#fff;font-size:9.5px;font-weight:700;padding:2px 5px;border-radius:3px;z-index:2">
@@ -258,6 +332,12 @@
                                     <i class="fa-solid fa-file" style="font-size:26px;color:var(--text-muted)"></i>
                                 </div>
                             @endif
+
+                            {{-- Version Badge (v1 Initial vs Revision #1) --}}
+                            <div style="position:absolute;bottom:6px;left:6px;right:6px;background:{{ $item->getRevisionCount() > 0 ? 'rgba(217,119,6,0.92)' : 'rgba(16,185,129,0.92)' }};color:#fff;font-size:9.5px;font-weight:700;padding:3px 7px;border-radius:4px;z-index:2;display:flex;align-items:center;justify-content:space-between">
+                                <span>{{ $item->getVersionBadgeLabel() }}</span>
+                                <span style="font-size:8.5px;opacity:0.9">{{ $item->created_at->format('d M') }}</span>
+                            </div>
 
                             {{-- Hover Actions Overlay --}}
                             <div class="media-overlay">
@@ -281,11 +361,12 @@
                 @if(empty($isReadOnly))
                 <form method="POST" action="{{ route('designer.tasks.upload-media', $task) }}" enctype="multipart/form-data" id="mediaUploadForm" style="margin-top:12px">
                     @csrf
+                    <input type="hidden" name="collection_name" id="uploadCollectionName" value="task-media">
                     <input type="file" name="media[]" id="mediaInput" accept="image/*,video/*,.pdf,.doc,.docx,.zip,.rar" multiple style="display:none" onchange="handleMediaSelect()">
                     
                     <div id="mediaPreview" style="display:none;margin-top:12px;padding:12px;background:var(--primary-light);border-radius:var(--radius-md);border:1px solid var(--primary-border)">
                         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                            <div style="font-size:10.5px;font-weight:800;color:var(--primary);text-transform:uppercase;letter-spacing:0.06em">Selected for upload:</div>
+                            <div id="uploadTypeHeading" style="font-size:10.5px;font-weight:800;color:var(--primary);text-transform:uppercase;letter-spacing:0.06em">Selected deliverable for upload:</div>
                             <button type="submit" id="mediaUploadBtn" class="btn-action-primary" style="padding:4px 12px !important;font-size:11.5px !important">
                                 <i class="fa-solid fa-cloud-arrow-up"></i> Upload Now
                             </button>
@@ -329,10 +410,10 @@
 
                     <form method="POST" action="{{ route('designer.tasks.submit', $task) }}" id="submitForm">
                         @csrf
-                        <button type="submit" class="wf-submit-btn" id="submitBtn" {{ $allMedia->count() === 0 ? 'disabled' : '' }}>
+                        <button type="submit" class="wf-submit-btn" id="submitBtn" {{ $deliverableMedia->count() === 0 ? 'disabled' : '' }}>
                             <i class="fas fa-paper-plane"></i> Submit for Review
                         </button>
-                        @if($allMedia->count() === 0)
+                        @if($deliverableMedia->count() === 0)
                             <p class="submit-lock-msg" style="font-size:11px;color:#DC2626;text-align:center;margin-top:6px;font-weight:600">
                                 <i class="fas fa-lock"></i> Upload a deliverable first to submit
                             </p>
@@ -480,7 +561,33 @@ function handleMediaSelect() {
         if (uploadBtn) uploadBtn.style.display = 'none';
     }
 }
-window.handleMediaSelect = handleMediaSelect;
+function triggerDeliverableUpload() {
+    const colInput = document.getElementById('uploadCollectionName');
+    if (colInput) colInput.value = 'task-media';
+    const heading = document.getElementById('uploadTypeHeading');
+    if (heading) heading.textContent = 'Selected deliverable for upload:';
+    document.getElementById('mediaInput')?.click();
+}
+window.triggerDeliverableUpload = triggerDeliverableUpload;
+
+function triggerReferenceUpload() {
+    const colInput = document.getElementById('uploadCollectionName');
+    if (colInput) colInput.value = 'task-reference';
+    const heading = document.getElementById('uploadTypeHeading');
+    if (heading) heading.textContent = 'Selected reference asset for upload:';
+    document.getElementById('mediaInput')?.click();
+}
+window.triggerReferenceUpload = triggerReferenceUpload;
+
+function updateSubmitButtonState() {
+    const deliverableContainer = document.getElementById('deliverablesPreviewContainer');
+    const deliverableCount = deliverableContainer ? deliverableContainer.querySelectorAll('.media-item').length : 0;
+    const submitBtn = document.getElementById('submitBtn');
+    if (submitBtn) {
+        submitBtn.disabled = deliverableCount === 0;
+    }
+}
+window.updateSubmitButtonState = updateSubmitButtonState;
 
 document.addEventListener('DOMContentLoaded', function() {
     updateSubmitButtonState();
