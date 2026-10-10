@@ -216,7 +216,9 @@ class TaskService
         abort_if($task->assigned_to !== Auth::id(), 403);
         abort_if($task->status !== 'inprogress' || $task->is_paused, 403, 'Only active in-progress tasks can be submitted.');
 
-        abort_if($task->deliverableMedia()->count() === 0, 422, 'Deliverable design file is required before submission. Please upload your design file.');
+        $hasDeliverable = $task->deliverableMedia()->count() > 0 
+            || $task->media()->where('collection_name', 'task-media')->exists();
+        abort_if(!$hasDeliverable, 422, 'Notice: You must upload at least one design image or deliverable file before submitting this task for review.');
 
         $oldStatus = $task->status;
         $isUrgentTask = (bool) $task->is_urgent_task;
@@ -323,6 +325,18 @@ class TaskService
         }
         if ($oldStatus === 'review' && $newStatus !== 'inprogress') {
             return back()->with('error', 'Task is under review. Wait for feedback.');
+        }
+
+        if (in_array($newStatus, ['review', 'pending_approval', 'completed', 'published'], true)) {
+            $hasDeliverable = $task->deliverableMedia()->count() > 0 
+                || $task->media()->where('collection_name', 'task-media')->exists();
+            if (!$hasDeliverable) {
+                $errorMsg = 'Notice: You must upload at least one design image or deliverable file before submitting this task for review.';
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json(['success' => false, 'message' => $errorMsg], 422);
+                }
+                return back()->with('error', $errorMsg);
+            }
         }
 
         $updateData = ['status' => $newStatus];

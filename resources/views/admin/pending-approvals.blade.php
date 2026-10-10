@@ -45,10 +45,19 @@
                     </div>
                     <div class="dcr-actions task-actions">
                         {{-- Approve --}}
-                        <form method="POST" action="{{ route('admin.tasks.approve-task', $task) }}" style="margin:0">
+                        @php
+                            $missingCopy = empty($task->caption) || empty($task->hashtags);
+                        @endphp
+                        <form method="POST" action="{{ route('admin.tasks.approve-task', $task) }}" style="margin:0"
+                            @if($missingCopy)
+                                onsubmit="return confirmApproveSwal(event, this)"
+                            @else
+                                onsubmit="return confirm('Approve this task?')"
+                            @endif
+                        >
                             @csrf
                             @method('PATCH')
-                            <button type="submit" class="dcr-btn dcr-approve" onclick="return confirm('Approve this task?')"><i class="fas fa-check-circle"></i> Approve</button>
+                            <button type="submit" class="dcr-btn dcr-approve"><i class="fas fa-check-circle"></i> Approve</button>
                         </form>
                         {{-- Reject --}}
                         <button id="toggleRejectBtn-{{ $task->id }}" type="button" class="dcr-btn dcr-reject" onclick="toggleRejectTaskForm({{ $task->id }})" aria-expanded="false" aria-controls="rejectTaskForm-{{ $task->id }}"><i class="fas fa-times-circle"></i> Reject</button>
@@ -323,6 +332,27 @@
 
 @push('scripts')
 <script>
+function confirmApproveSwal(e, form) {
+    e.preventDefault();
+    Swal.fire({
+        title: 'Approve Task?',
+        text: 'Notice: Caption or hashtags have not been added yet for this post. Do you want to approve anyway?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#10B981',
+        cancelButtonColor: '#6B7280',
+        confirmButtonText: 'Yes, Approve',
+        cancelButtonText: 'Cancel',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            form.removeAttribute('onsubmit');
+            form.submit();
+        }
+    });
+    return false;
+}
+
 function toggleRejectTaskForm(id){
     const el = document.getElementById('rejectTaskForm-' + id);
     const btn = document.getElementById('toggleRejectBtn-' + id);

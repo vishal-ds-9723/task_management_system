@@ -410,14 +410,12 @@
 
                     <form method="POST" action="{{ route('designer.tasks.submit', $task) }}" id="submitForm">
                         @csrf
-                        <button type="submit" class="wf-submit-btn" id="submitBtn" {{ $deliverableMedia->count() === 0 ? 'disabled' : '' }}>
+                        <button type="submit" class="wf-submit-btn" id="submitBtn">
                             <i class="fas fa-paper-plane"></i> Submit for Review
                         </button>
-                        @if($deliverableMedia->count() === 0)
-                            <p class="submit-lock-msg" style="font-size:11px;color:#DC2626;text-align:center;margin-top:6px;font-weight:600">
-                                <i class="fas fa-lock"></i> Upload a deliverable first to submit
-                            </p>
-                        @endif
+                        <p class="submit-lock-msg" style="font-size:11px;color:#DC2626;text-align:center;margin-top:6px;font-weight:600;display:{{ $deliverableMedia->count() === 0 ? 'block' : 'none' }}">
+                            <i class="fas fa-lock"></i> Upload a deliverable first to submit
+                        </p>
                     </form>
 
                     {{-- Pause Button --}}
@@ -582,9 +580,12 @@ window.triggerReferenceUpload = triggerReferenceUpload;
 function updateSubmitButtonState() {
     const deliverableContainer = document.getElementById('deliverablesPreviewContainer');
     const deliverableCount = deliverableContainer ? deliverableContainer.querySelectorAll('.media-item').length : 0;
-    const submitBtn = document.getElementById('submitBtn');
-    if (submitBtn) {
-        submitBtn.disabled = deliverableCount === 0;
+    const lockMsg = document.querySelector('.submit-lock-msg');
+    const tabCount = document.getElementById('deliverableTabCount');
+
+    if (tabCount) tabCount.textContent = deliverableCount;
+    if (lockMsg) {
+        lockMsg.style.display = deliverableCount === 0 ? 'block' : 'none';
     }
 }
 window.updateSubmitButtonState = updateSubmitButtonState;
@@ -719,6 +720,41 @@ async function uploadMediaAJAX(form) {
 }
 
 async function submitTaskForReviewAJAX(form) {
+    const deliverableContainer = document.getElementById('deliverablesPreviewContainer');
+    const deliverableCount = deliverableContainer ? deliverableContainer.querySelectorAll('.media-item').length : 0;
+
+    if (deliverableCount === 0) {
+        Swal.fire({
+            title: 'Image Upload Required',
+            text: 'Notice: You must upload at least one design image or deliverable file before submitting this task for review.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#4F6DF0',
+            cancelButtonColor: '#6B7280',
+            confirmButtonText: '<i class="fa-solid fa-cloud-arrow-up"></i> Upload Now',
+            cancelButtonText: 'Cancel',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                triggerDeliverableUpload();
+            }
+        });
+        return;
+    }
+
+    const confirmResult = await Swal.fire({
+        title: 'Submit for Review?',
+        text: 'Are you sure you want to submit your design deliverables for review?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#10B981',
+        cancelButtonColor: '#6B7280',
+        confirmButtonText: 'Yes, Submit for Review',
+        cancelButtonText: 'Cancel',
+        reverseButtons: true
+    });
+    if (!confirmResult.isConfirmed) return;
+
     const btn = form.querySelector('button[type="submit"]');
     const isUrgentTask = @json((bool) $task->is_urgent_task);
 
@@ -731,22 +767,33 @@ async function submitTaskForReviewAJAX(form) {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json',
             },
         });
 
-        if (!response.ok) throw new Error('Submission failed');
+        const data = await response.json().catch(() => ({}));
 
-        if (window.ajax && window.ajax.showSuccess) {
-            window.ajax.showSuccess(isUrgentTask ? 'Urgent task submitted for review!' : 'Task submitted for review!');
+        if (!response.ok) {
+            throw new Error(data.message || 'Submission failed');
         }
-        setTimeout(() => location.reload(), 1000);
+
+        Swal.fire({
+            title: 'Submitted!',
+            text: data.message || (isUrgentTask ? 'Urgent task submitted for review!' : 'Task submitted for review!'),
+            icon: 'success',
+            timer: 1500,
+            showConfirmButton: false
+        });
+
+        setTimeout(() => location.reload(), 1200);
 
     } catch (error) {
-        if (window.ajax && window.ajax.showError) {
-            window.ajax.showError(isUrgentTask ? 'Failed to update urgent task' : 'Failed to submit task');
-        } else {
-            alert(isUrgentTask ? 'Failed to update urgent task' : 'Failed to submit task');
-        }
+        Swal.fire({
+            title: 'Submission Blocked',
+            text: error.message || 'Failed to submit task.',
+            icon: 'error',
+            confirmButtonColor: '#EF4444'
+        });
     } finally {
         if (btn) hideLoadingOverlay(btn);
     }
@@ -834,24 +881,7 @@ function addCommentToList(data) {
     list.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-function updateSubmitButtonState() {
-    const submitBtn = document.getElementById('submitBtn');
-    if (!submitBtn) return;
 
-    const mediaPreviewContainer = document.getElementById('mediaPreviewContainer');
-    const mediaItems = mediaPreviewContainer ? mediaPreviewContainer.querySelectorAll('.media-item') : [];
-    const hasMedia = mediaItems && mediaItems.length > 0;
-
-    const lockMsg = document.querySelector('.submit-lock-msg');
-
-    if (hasMedia) {
-        submitBtn.disabled = false;
-        if (lockMsg) lockMsg.style.display = 'none';
-    } else {
-        submitBtn.disabled = true;
-        if (lockMsg) lockMsg.style.display = 'block';
-    }
-}
 
 function escapeHtml(text) {
     const div = document.createElement('div');

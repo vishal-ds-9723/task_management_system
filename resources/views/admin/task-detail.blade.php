@@ -264,9 +264,18 @@
             </div>
         </div>
         <div style="display:flex;gap:8px;flex-shrink:0">
-            <form method="POST" action="{{ route('admin.tasks.approve-task', $task) }}">
+            @php
+                $missingCopy = empty($task->caption) || empty($task->hashtags);
+            @endphp
+            <form method="POST" action="{{ route('admin.tasks.approve-task', $task) }}"
+                @if($missingCopy)
+                    onsubmit="return confirmApproveDetailSwal(event, this)"
+                @else
+                    onsubmit="return confirm('Approve this task?')"
+                @endif
+            >
                 @csrf @method('PATCH')
-                <button type="submit" class="btn-sec" style="border-color:var(--teal);color:var(--teal);font-weight:700;padding:8px 20px" onclick="return confirm('Approve this task?')"><i class="fas fa-check"></i> Approve</button>
+                <button type="submit" class="btn-sec" style="border-color:var(--teal);color:var(--teal);font-weight:700;padding:8px 20px"><i class="fas fa-check"></i> Approve</button>
             </form>
             <button type="button" class="btn-sec" style="border-color:var(--red);color:var(--red);font-weight:700;padding:8px 20px" onclick="document.getElementById('reject-panel').style.display='block'; this.style.display='none'"><i class="fas fa-times"></i> Reject</button>
         </div>
@@ -1300,6 +1309,25 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.td-vid-thumb').forEach(function(v) {
         v.addEventListener('loadedmetadata', function() { v.currentTime = 0.5; });
     });
-});
+function confirmApproveDetailSwal(e, form) {
+    e.preventDefault();
+    Swal.fire({
+        title: 'Approve Task?',
+        text: 'Notice: Caption or hashtags have not been added yet for this post. Do you want to approve anyway?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#10B981',
+        cancelButtonColor: '#6B7280',
+        confirmButtonText: 'Yes, Approve',
+        cancelButtonText: 'Cancel',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            form.removeAttribute('onsubmit');
+            form.submit();
+        }
+    });
+    return false;
+}
 </script>
 @endsection

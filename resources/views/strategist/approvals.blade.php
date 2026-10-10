@@ -474,7 +474,32 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!form) return;
 
         event.preventDefault();
-        if (!confirm('Approve and send to admin for final approval?')) return;
+
+        if (form.dataset.missingCopy === '1') {
+            const result = await Swal.fire({
+                title: 'Approve Task?',
+                text: 'Notice: Caption or hashtags have not been added yet for this post. Do you want to approve anyway?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#10B981',
+                cancelButtonColor: '#6B7280',
+                confirmButtonText: 'Yes, Approve',
+                cancelButtonText: 'Cancel',
+                reverseButtons: true
+            });
+            if (!result.isConfirmed) return;
+
+            let forceInput = form.querySelector('input[name="force"]');
+            if (!forceInput) {
+                forceInput = document.createElement('input');
+                forceInput.type = 'hidden';
+                forceInput.name = 'force';
+                forceInput.value = '1';
+                form.appendChild(forceInput);
+            }
+        } else {
+            if (!confirm('Approve and send to admin for final approval?')) return;
+        }
 
         try {
             const payload = await postTaskAction(form, 'Failed to approve task.');

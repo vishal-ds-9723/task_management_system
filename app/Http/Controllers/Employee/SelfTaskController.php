@@ -52,6 +52,10 @@ class SelfTaskController extends Controller
         $status = $validated['status'] ?? 'inprogress';
         $priority = $validated['priority'] ?? 'normal';
 
+        if (Auth::user()?->role === 'designer' && in_array($status, ['review', 'pending_approval', 'completed'], true)) {
+            $status = 'inprogress';
+        }
+
         $taskData = [
             'title'       => trim($validated['title']),
             'client_id'   => $clientId,

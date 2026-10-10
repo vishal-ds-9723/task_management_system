@@ -498,11 +498,12 @@ class TaskController extends Controller
 
     public function approve(Request $request, Task $task)
     {
-        // Only social posts need a caption; print/design work and dev projects do not
-        if (Task::needsCaption($task->type) && (empty($task->caption) || empty($task->hashtags))) {
+        $isAdmin = Auth::user()?->role === 'admin';
+        // Only social posts need a caption; print/design work and dev projects do not. Admin can override anytime.
+        if (!$isAdmin && !$request->boolean('force') && Task::needsCaption($task->type) && (empty($task->caption) || empty($task->hashtags))) {
             $errorMsg = 'Please add caption and hashtags before approving.';
             if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['success' => false, 'message' => $errorMsg], 422);
+                return response()->json(['success' => false, 'message' => $errorMsg, 'warning' => true], 422);
             }
             return back()->with('error', $errorMsg);
         }
@@ -1075,9 +1076,10 @@ class TaskController extends Controller
         $showUrl = route('strategist.tasks.show', $task);
         $editUrl = route('strategist.tasks.edit', $task);
         $csrf = csrf_token();
+        $missingCopy = Task::needsCaption($task->type) && (empty($task->caption) || empty($task->hashtags));
 
         return '<div class="apv-actions">'
-            . '<form method="POST" action="' . $approveUrl . '" class="js-approve-form" style="margin:0">'
+            . '<form method="POST" action="' . $approveUrl . '" class="js-approve-form" data-missing-copy="' . ($missingCopy ? '1' : '0') . '" style="margin:0">'
             . '<input type="hidden" name="_token" value="' . $csrf . '">'
             . '<input type="hidden" name="_method" value="PATCH">'
             . '<button type="submit" class="apv-act-btn apv-act-approve" title="Approve"><i class="fa-solid fa-check"></i></button>'

@@ -21,6 +21,7 @@
     <link rel="stylesheet" href="{{ asset('css/ui-enhancements.css') }}?v=3.2">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#4f46e5">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     @stack('styles')
     <script>
         // Read sidebar expansion state synchronously, before first paint (desktop only).

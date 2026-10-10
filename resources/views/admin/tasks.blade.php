@@ -664,10 +664,19 @@
                             </td>
                             <td style="padding: 11px 14px; text-align: center;" onclick="event.stopPropagation()">
                                 <div style="display: flex; gap: 6px; justify-content: center;">
-                                    @if($task->status === 'review' && $task->admin_approval_status !== 'approved')
-                                        <form method="POST" action="{{ route('admin.tasks.approve-task', $task) }}" style="margin:0">
+                                    @if(in_array($task->status, ['review', 'pending_approval']) && $task->admin_approval_status !== 'approved')
+                                        @php
+                                            $missingCopy = empty($task->caption) || empty($task->hashtags);
+                                        @endphp
+                                        <form method="POST" action="{{ route('admin.tasks.approve-task', $task) }}" style="margin:0"
+                                            @if($missingCopy)
+                                                onsubmit="return confirmApproveSwal(event, this)"
+                                            @else
+                                                onsubmit="return confirm('Approve this task?')"
+                                            @endif
+                                        >
                                             @csrf @method('PATCH')
-                                            <button type="submit" title="Approve Task" onclick="return confirm('Approve this task?')"
+                                            <button type="submit" title="Approve Task"
                                                 style="padding: 5px 10px; background: #10B981; color: white; border-radius: 5px; border: none; font-size: 12px; cursor: pointer;">
                                                 <i class="fas fa-check"></i>
                                             </button>
@@ -806,6 +815,27 @@ window.AdminTasksData = {
     hasAdvancedFilters: @json($platform || $type || $assignedTo || $dateFrom || $dateTo || $overdue === 'yes'),
     tasksBaseUrl: '{{ route("admin.tasks") }}'
 };
+
+function confirmApproveSwal(e, form) {
+    e.preventDefault();
+    Swal.fire({
+        title: 'Approve Task?',
+        text: 'Notice: Caption or hashtags have not been added yet for this post. Do you want to approve anyway?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#10B981',
+        cancelButtonColor: '#6B7280',
+        confirmButtonText: 'Yes, Approve',
+        cancelButtonText: 'Cancel',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            form.removeAttribute('onsubmit');
+            form.submit();
+        }
+    });
+    return false;
+}
 </script>
 <script src="{{ asset('js/pages/admin-tasks.js') }}"></script>
 @endpush

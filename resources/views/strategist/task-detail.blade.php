@@ -6,7 +6,7 @@
         crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
         /* ══════════════════════════════════════════════════════════════
-           REFINED & PROPER STRATEGIST TASK DETAIL
+           REFINED & PROPER STRATEGIST TASK DETAIL - TEST EDIT
            ══════════════════════════════════════════════════════════════ */
         .std-wrapper {
             max-width: 1400px;
@@ -1103,14 +1103,25 @@
                             </button>
                         </div>
                     @else
-                        <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:12px;margin-bottom:10px;text-align:center">
-                            <i class="fa-solid fa-lock" style="color:#D97706;font-size:15px;margin-bottom:4px"></i>
-                            <div style="font-size:12px;font-weight:700;color:#D97706">Caption & Hashtags Required</div>
-                            <div style="font-size:11px;color:var(--text3);margin-top:2px">Please write the caption and hashtags on the left to unlock approval.</div>
+                        <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;padding:10px 12px;margin-bottom:10px;display:flex;align-items:center;gap:8px">
+                            <i class="fa-solid fa-triangle-exclamation" style="color:#D97706;font-size:14px;flex-shrink:0"></i>
+                            <div style="font-size:11px;color:#92400e;line-height:1.3">
+                                <strong>Notice:</strong> Caption & hashtags not yet added. You can still approve or request revision.
+                            </div>
                         </div>
-                        <button type="button" class="btn-sec" disabled style="width:100%;opacity:0.5;cursor:not-allowed;padding:10px;font-size:12.5px">
-                            <i class="fa-solid fa-lock"></i> Approval Locked
-                        </button>
+                        <div style="display:grid;gap:8px">
+                            <form method="POST" action="{{ route('strategist.tasks.approve', $task) }}" style="margin:0" onsubmit="return confirmStrategistApproveSwal(event, this)">
+                                @csrf
+                                @method('PATCH')
+                                <input type="hidden" name="force" value="1">
+                                <button type="submit" class="btn-primary" style="width:100%;padding:11px 16px;font-size:13px;font-weight:700;background:linear-gradient(135deg, #10B981 0%, #059669 100%);border:none;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px;box-shadow:0 4px 12px rgba(16,185,129,0.25)">
+                                    <i class="fa-solid fa-check-circle"></i> Approve & Send to Admin
+                                </button>
+                            </form>
+                            <button type="button" class="btn-sec" onclick="document.getElementById('revisionModal').style.display='flex'" style="width:100%;padding:10px 16px;font-size:12.5px;font-weight:600;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;gap:6px;color:#D97706;border-color:rgba(245,158,11,0.35);background:rgba(245,158,11,0.04)">
+                                <i class="fa-solid fa-rotate-left"></i> Request Revision
+                            </button>
+                        </div>
                     @endif
                 @elseif($task->status === 'pending_approval')
                     <div style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.25);border-radius:8px;padding:14px;text-align:center">
@@ -1668,6 +1679,27 @@
             });
         }
     });
+
+function confirmStrategistApproveSwal(e, form) {
+    e.preventDefault();
+    Swal.fire({
+        title: 'Approve Task?',
+        text: 'Notice: Caption or hashtags have not been added yet for this post. Do you want to approve anyway?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#10B981',
+        cancelButtonColor: '#6B7280',
+        confirmButtonText: 'Yes, Approve',
+        cancelButtonText: 'Cancel',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            form.removeAttribute('onsubmit');
+            form.submit();
+        }
+    });
+    return false;
+}
 </script>
 @endpush
 

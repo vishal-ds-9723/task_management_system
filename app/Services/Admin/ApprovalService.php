@@ -43,7 +43,6 @@ class ApprovalService
      */
     public function getTaskForApproval(Task $task)
     {
-        abort_if(!in_array($task->status, ['review', 'pending_approval']), 403);
         $task->load('creator', 'assignee', 'client.socialMediaLinks', 'comments.user', 'socialMediaLink', 'media');
         return $task;
     }
@@ -53,15 +52,10 @@ class ApprovalService
      */
     public function approveTask(Task $task)
     {
-        abort_if(!in_array($task->status, ['review', 'pending_approval']), 403);
+        // Allow Admin to approve from review, pending_approval, or active states
+        abort_if(in_array($task->status, ['completed', 'published'], true), 400, 'Task is already approved.');
 
-        $caption = trim((string) ($task->caption ?? ''));
-        $hashtags = trim((string) ($task->hashtags ?? ''));
-
-        // Only social posts need a caption; print/design work and dev projects do not
-        if (Task::needsCaption($task->type) && ($caption === '' || $hashtags === '')) {
-            abort(422, 'Cannot approve: caption and hashtags are required before approving this task.');
-        }
+        // Soft warning is handled at UI level — Admin override allows approval even if caption/hashtags are not yet set
 
         $task->update([
             'status'                => 'completed',

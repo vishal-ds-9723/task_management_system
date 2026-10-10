@@ -563,25 +563,26 @@
                         <div style="font-size:11px;color:var(--text3);margin-top:2px">{{ $task->media()->count() }} {{ Str::plural('file', $task->media()->count()) }} uploaded</div>
                     </div>
 
-                    @if($hasCaption && $hasHashtags)
-                        <form method="POST" action="{{ route('admin.approvals.approve', $task) }}" id="approveForm" style="margin:0">
-                            @csrf
-                            @method('PATCH')
-                            <button type="submit" class="btn-primary" style="width:100%;padding:14px;font-size:13px;font-weight:600;border-radius:10px;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;transition:all 0.3s;background:linear-gradient(135deg, #22c55e 0%, #16a34a 100%);border:none;cursor:pointer;box-shadow:0 4px 12px rgba(34,197,94,0.3)">
-                                <i class="fas fa-check-circle"></i> Approve & Complete
-                            </button>
-                        </form>
-                    @else
-                        <div style="background:#fff;border:2px dashed rgba(245,158,11,0.35);border-radius:8px;padding:12px;margin-bottom:16px;text-align:center">
-                            <div style="font-size:24px;margin-bottom:4px"><i class="fas fa-pen-to-square" style="color:#F59E0B"></i></div>
-                            <div style="font-size:12px;color:#D97706;font-weight:600">Caption And Hashtags Required</div>
-                            <div style="font-size:11px;color:var(--text3);margin-top:2px">Keep approval locked until both caption and hashtags are added.</div>
+                    @if(!$hasCaption || !$hasHashtags)
+                        <div style="background:#fff;border:1px solid rgba(245,158,11,0.35);border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;gap:10px">
+                            <i class="fas fa-triangle-exclamation" style="color:#F59E0B;font-size:16px;flex-shrink:0"></i>
+                            <div style="font-size:11.5px;color:#92400e;line-height:1.35">
+                                <strong>Notice:</strong> Caption or hashtags are missing. You can still approve as Admin.
+                            </div>
                         </div>
-
-                        <button type="button" disabled class="btn-primary" style="width:100%;padding:14px;font-size:13px;border-radius:10px;opacity:0.4;cursor:not-allowed;display:flex;align-items:center;justify-content:center;gap:8px">
-                            <i class="fas fa-lock"></i> Approval Locked
-                        </button>
                     @endif
+
+                    <form method="POST" action="{{ route('admin.approvals.approve', $task) }}" id="approveForm" style="margin:0"
+                        @if(!$hasCaption || !$hasHashtags)
+                            onsubmit="return handleApprovalSubmit(event, this)"
+                        @endif
+                    >
+                        @csrf
+                        @method('PATCH')
+                        <button type="submit" class="btn-primary" style="width:100%;padding:14px;font-size:13px;font-weight:600;border-radius:10px;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px;transition:all 0.3s;background:linear-gradient(135deg, #22c55e 0%, #16a34a 100%);border:none;cursor:pointer;box-shadow:0 4px 12px rgba(34,197,94,0.3)">
+                            <i class="fas fa-check-circle"></i> Approve & Complete
+                        </button>
+                    </form>
                 @else
                     <div style="background:#fff;border:2px dashed rgba(239,68,68,0.3);border-radius:8px;padding:12px;margin-bottom:16px;text-align:center">
                         <div style="font-size:24px;margin-bottom:4px"><i class="fas fa-exclamation-triangle" style="color:#ef4444"></i></div>
@@ -929,6 +930,27 @@ async function rejectTaskAJAX(form) {
         if (typeof ajax !== 'undefined' && ajax.showError) ajax.showError(error.message || 'Failed to reject task');
         else alert(error.message || 'Failed to reject task');
     }
+}
+
+function handleApprovalSubmit(e, form) {
+    e.preventDefault();
+    Swal.fire({
+        title: 'Approve Task?',
+        text: 'Notice: Caption or hashtags have not been added yet for this post. Do you want to approve anyway?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#16a34a',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Yes, Approve',
+        cancelButtonText: 'Cancel',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            form.removeAttribute('onsubmit');
+            form.submit();
+        }
+    });
+    return false;
 }
 </script>
 @endpush
