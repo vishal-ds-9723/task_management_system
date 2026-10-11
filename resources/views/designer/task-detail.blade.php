@@ -119,7 +119,7 @@
                 </div>
                 <div>
                     <div style="font-weight:800;font-size:14px;color:#1E3A8A">Ready to Design · Task in Queue</div>
-                    <div style="font-size:12px;color:#3B82F6;margin-top:2px">Review the creative brief and content specs below. When ready, click Start Working to begin your studio session.</div>
+                    <div style="font-size:12px;color:#3B82F6;margin-top:2px">Review the creative brief and content specs below. When ready, click Start Working to begin working on this task.</div>
                 </div>
             </div>
             <form method="POST" action="{{ route('designer.tasks.start', $task) }}" style="margin:0">
@@ -516,7 +516,7 @@
                             <i class="fa-solid fa-play"></i> Start Working
                         </button>
                         <p style="font-size:11px;color:var(--dt-text-muted);text-align:center;margin-top:6px;font-weight:600">
-                            Click to begin your active creative session
+                            Click to mark this task as In Progress
                         </p>
                     </form>
                 @elseif($task->status === 'inprogress' && !$task->is_paused && empty($isReadOnly))

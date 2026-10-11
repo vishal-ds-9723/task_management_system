@@ -172,7 +172,7 @@
                     <span>{{ $deadlineText }}</span>
                 </div>
                 <span class="studio-card-cta">
-                    Open Studio <i class="fa-solid fa-arrow-right" style="font-size:10px"></i>
+                    View Task <i class="fa-solid fa-arrow-right" style="font-size:10px"></i>
                 </span>
             </div>
         </div>

@@ -122,8 +122,8 @@
 
         {{-- Action Column --}}
         <td style="text-align:right">
-            <a href="{{ route('designer.tasks.show', $task) }}" class="btn-sec" style="font-size:11.5px !important;padding:4px 10px !important;display:inline-flex;align-items:center;gap:5px">
-                <span>Studio</span>
+            <a href="{{ route('designer.tasks.show', $task) }}" class="btn-sec" style="font-size:11.5px !important;padding:4px 10px !important;display:inline-flex;align-items:center;gap:5px" title="View deliverable details">
+                <span>View</span>
                 <i class="fa-solid fa-arrow-right" style="font-size:9px"></i>
             </a>
         </td>

@@ -67,7 +67,7 @@
                 <span id="studioLiveText">Live</span>
             </div>
         </div>
-        <p class="header-desc">Visual designs, social graphics, and active revision requests in studio</p>
+        <p class="header-desc">Visual designs, social graphics, and active revision requests assigned to you</p>
     </div>
 
     <div class="header-actions">
@@ -87,7 +87,7 @@
     {{-- Proportional Progress Pipeline Bar --}}
     <div class="studio-pipeline-progress" role="img" aria-label="Progress pipeline">
         <span class="seg-queue"  id="segQueueBar"  style="flex-grow:{{ max(1, $queueCount) }}"  title="{{ $queueCount }} in queue"></span>
-        <span class="seg-active" id="segActiveBar" style="flex-grow:{{ max(1, $activeCount) }}" title="{{ $activeCount }} in studio"></span>
+        <span class="seg-active" id="segActiveBar" style="flex-grow:{{ max(1, $activeCount) }}" title="{{ $activeCount }} in progress or review"></span>
         <span class="seg-done"   id="segDoneBar"   style="flex-grow:{{ max(1, $doneCount) }}"   title="{{ $doneCount }} completed"></span>
     </div>
 
@@ -101,21 +101,21 @@
                 </div>
                 <div class="pipeline-tab-text">
                     <span class="pipeline-tab-label">All Deliverables</span>
-                    <span class="pipeline-tab-hint">Full studio scope</span>
+                    <span class="pipeline-tab-hint">All assigned tasks</span>
                 </div>
             </div>
             <div class="pipeline-tab-counter" id="counterAll">{{ $allCount }}</div>
         </button>
 
-        {{-- In Studio (Active) Tab --}}
-        <button type="button" class="pipeline-tab tab-studio {{ $defaultFilterTab === 'active' ? 'active' : '' }}" data-status-filter="active" title="View in-progress deliverables">
+        {{-- In Progress & Review (Active) Tab --}}
+        <button type="button" class="pipeline-tab tab-studio {{ $defaultFilterTab === 'active' ? 'active' : '' }}" data-status-filter="active" title="View tasks in progress or in review">
             <div class="pipeline-tab-main">
                 <div class="pipeline-tab-icon">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <i class="fa-solid fa-spinner"></i>
                 </div>
                 <div class="pipeline-tab-text">
-                    <span class="pipeline-tab-label">In Studio</span>
-                    <span class="pipeline-tab-hint"><span class="ds-pulse-dot" style="display:inline-block;width:5px;height:5px;margin-right:2px"></span> Active & Review</span>
+                    <span class="pipeline-tab-label">In Progress</span>
+                    <span class="pipeline-tab-hint"><span class="ds-pulse-dot" style="display:inline-block;width:5px;height:5px;margin-right:2px"></span> In progress & review</span>
                 </div>
             </div>
             <div class="pipeline-tab-counter" id="counterActive">{{ $activeCount }}</div>
@@ -214,11 +214,11 @@
 
     {{-- Segmented View Mode Toggle (Table vs Cards) --}}
     <div class="studio-view-segmented" role="group" aria-label="View mode">
-        <button type="button" id="listModeBtn" class="seg-btn active" title="Switch to Studio Table View" onclick="setTaskViewMode('list')">
+        <button type="button" id="listModeBtn" class="seg-btn active" title="Switch to Table View" onclick="setTaskViewMode('list')">
             <i class="fa-solid fa-table-list"></i>
             <span>Table</span>
         </button>
-        <button type="button" id="gridModeBtn" class="seg-btn" title="Switch to Artboard Cards View" onclick="setTaskViewMode('grid')">
+        <button type="button" id="gridModeBtn" class="seg-btn" title="Switch to Cards View" onclick="setTaskViewMode('grid')">
             <i class="fa-solid fa-grip"></i>
             <span>Cards</span>
         </button>
@@ -947,7 +947,7 @@ async function checkTaskLiveSync(isManual = false) {
                 }
                 if (aBar) {
                     aBar.style.flexGrow = Math.max(1, data.counts.active);
-                    aBar.title = `${data.counts.active} in studio`;
+                    aBar.title = `${data.counts.active} in progress or review`;
                 }
                 if (dBar) {
                     dBar.style.flexGrow = Math.max(1, data.counts.done);
