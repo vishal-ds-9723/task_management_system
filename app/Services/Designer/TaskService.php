@@ -784,4 +784,81 @@ class TaskService
         return redirect()->route('designer.tasks.show', $urgentTask)
             ->with('success', 'Urgent task created' . ($pausedTask ? ' and "' . $pausedTask->title . '" paused.' : '.'));
     }
+
+    /**
+     * AJAX Live Sync: Fast fingerprint change detection & fragment renderer
+     */
+    public function getLiveSyncData(Request $request)
+    {
+        $userId = Auth::id();
+        $clientFingerprint = (string) $request->get('fingerprint', '');
+
+        // 1. Ultra-fast indexed signature query
+        $stats = Task::assignedTo($userId)
+            ->selectRaw('COUNT(*) as total_count, COALESCE(MAX(id), 0) as max_id, COALESCE(MAX(updated_at), "") as max_updated, SUM(CASE WHEN revision_count > 0 AND status NOT IN ("completed", "published") THEN 1 ELSE 0 END) as revision_count')
+            ->first();
+
+        $totalCount = (int) ($stats->total_count ?? 0);
+        $maxId      = (int) ($stats->max_id ?? 0);
+        $maxUpdated = (string) ($stats->max_updated ?? '');
+        $revCount   = (int) ($stats->revision_count ?? 0);
+
+        $serverFingerprint = md5("{$totalCount}-{$maxId}-{$maxUpdated}-{$revCount}");
+
+        // If client fingerprint matches, return immediately (no changes, < 2ms)
+        if ($clientFingerprint !== '' && $clientFingerprint === $serverFingerprint) {
+            return [
+                'has_changes' => false,
+                'fingerprint' => $serverFingerprint,
+            ];
+        }
+
+        // 2. Changes detected: Fetch full dataset
+        $data = $this->getIndexData($request);
+        $tasks = $data['tasks'];
+
+        // Pipeline groupings & counts
+        $inProgress    = $tasks->where('status', 'inprogress')->where('is_paused', false);
+        $todo          = $tasks->where('status', 'todo');
+        $inReview      = $tasks->whereIn('status', ['review', 'pending_approval']);
+        $completed     = $tasks->where('status', 'completed');
+        $revisionTasks = $tasks->filter(fn($t) => $t->revision_count > 0 && !in_array($t->status, ['completed', 'published']));
+
+        $activeCount   = $inProgress->count() + $inReview->count();
+        $queueCount    = $todo->count();
+        $doneCount     = $completed->count();
+        $revisionCount = $revisionTasks->count();
+        $allCount      = $tasks->count();
+
+        // Medium counts
+        $mediumCounts = [
+            'all'       => $allCount,
+            'post'      => $tasks->filter(fn($t) => in_array(strtolower((string)$t->type), ['post', 'static']))->count(),
+            'video'     => $tasks->filter(fn($t) => in_array(strtolower((string)$t->type), ['reel', 'video']))->count(),
+            'carousel'  => $tasks->filter(fn($t) => strtolower((string)$t->type) === 'carousel')->count(),
+            'branding'  => $tasks->filter(fn($t) => in_array(strtolower((string)$t->type), ['logo', 'branding']))->count(),
+            'story'     => $tasks->filter(fn($t) => strtolower((string)$t->type) === 'story')->count(),
+            'print'     => $tasks->filter(fn($t) => in_array(strtolower((string)$t->type), ['flyer', 'banner', 'brochure']))->count(),
+        ];
+
+        // Render HTML fragments
+        $tableHtml = view('designer.partials.task-rows', ['tasks' => $tasks])->render();
+        $gridHtml  = view('designer.partials.task-cards', ['tasks' => $tasks])->render();
+
+        return [
+            'has_changes' => true,
+            'fingerprint' => $serverFingerprint,
+            'counts'      => [
+                'all'       => $allCount,
+                'active'    => $activeCount,
+                'revisions' => $revisionCount,
+                'queue'     => $queueCount,
+                'done'      => $doneCount,
+                'mediums'   => $mediumCounts,
+            ],
+            'table_html'  => $tableHtml,
+            'grid_html'   => $gridHtml,
+        ];
+    }
 }
+

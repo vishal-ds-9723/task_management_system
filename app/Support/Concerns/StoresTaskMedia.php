@@ -27,6 +27,20 @@ trait StoresTaskMedia
 
         foreach ($files as $file) {
             try {
+                // Deduplication guard: ignore duplicate submissions within a 6-second window
+                $recentDuplicate = Media::where('model_type', Task::class)
+                    ->where('model_id', $task->id)
+                    ->where('collection_name', $collection)
+                    ->where('name', $file->getClientOriginalName())
+                    ->where('size', $file->getSize())
+                    ->where('created_at', '>=', now()->subSeconds(6))
+                    ->first();
+
+                if ($recentDuplicate) {
+                    $uploadedCount++;
+                    continue;
+                }
+
                 $safeName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
                 $filename = time() . '_' . uniqid() . '_' . $safeName;
 

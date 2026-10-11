@@ -893,25 +893,6 @@
                 @endif
             </div>
 
-            {{-- HEADLINE HOOK / VISUAL COPY --}}
-            @if($task->headline_copy)
-                <div class="std-card" style="border-left:4px solid var(--primary);background:rgba(59,130,246,0.03)">
-                    <div class="std-card-header">
-                        <div class="std-card-title">
-                            <i class="fa-solid fa-heading" style="color:var(--primary)"></i>
-                            <span>Visual Hook / Headline Copy</span>
-                            <span style="font-size:10px;font-weight:700;background:rgba(59,130,246,0.15);color:var(--primary);padding:2px 8px;border-radius:99px">Graphic Overlay Text</span>
-                        </div>
-                        <button type="button" class="std-action-link" onclick="navigator.clipboard.writeText(`{{ addslashes($task->headline_copy) }}`); if(typeof ajax!=='undefined') ajax.showSuccess('Headline copied!');">
-                            <i class="fa-regular fa-copy"></i> Copy Headline
-                        </button>
-                    </div>
-                    <div class="std-box" style="font-size:14px;font-weight:600;color:var(--text)">
-                        {{ $task->headline_copy }}
-                    </div>
-                </div>
-            @endif
-
             {{-- 2. CONTENT BRIEF --}}
             <div class="std-card">
                 <div class="std-card-header">

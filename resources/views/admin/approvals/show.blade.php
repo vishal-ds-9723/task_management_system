@@ -334,21 +334,6 @@
             </div>
         </div>
 
-        @if($task->headline_copy)
-            <div class="card premium" style="margin-bottom:16px;border-left:4px solid var(--primary);background:rgba(59,130,246,0.04)">
-                <div class="section-title" style="display:flex;align-items:center;justify-content:space-between">
-                    <div style="display:flex;align-items:center;gap:6px">
-                        <i class="fas fa-heading" style="color:var(--primary)"></i>
-                        <span style="font-weight:700;color:var(--text)">Visual Hook / Headline Copy</span>
-                    </div>
-                    <span style="font-size:10px;font-weight:700;background:rgba(59,130,246,0.15);color:var(--primary);padding:2px 8px;border-radius:99px">Graphic Overlay Text</span>
-                </div>
-                <div class="section-card" style="font-size:13.5px;font-weight:600;color:var(--text);margin-top:6px;line-height:1.4">
-                    {{ $task->headline_copy }}
-                </div>
-            </div>
-        @endif
-
         @if(!$isDevType)
             <div class="card premium" style="margin-bottom:16px">
                 <div class="section-title"><i class="fas {{ $isUrgentTask ? 'fa-bolt' : 'fa-align-left' }}" style="opacity:0.6"></i> {{ $isUrgentTask ? 'Urgent Brief' : 'Content Brief' }}</div>

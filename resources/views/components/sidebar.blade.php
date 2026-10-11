@@ -408,21 +408,15 @@
                     <span class="nav-badge-dot"></span>
                 @endif
             </a>
-            @php
-                $designerLoggedToday = \App\Models\DailyWorkLog::where('user_id', auth()->id())->whereDate('log_date', today())->exists();
-            @endphp
-            <a href="{{ route('developer.daily-log') }}" class="nav-item {{ request()->routeIs('developer.daily-log') || request()->routeIs('designer.daily-log') || request()->routeIs('daily-log') ? 'active' : '' }}" title="Daily Log">
-                <span class="icon"><i class="fas fa-clipboard-list"></i></span>
-                <span class="nav-text">Daily Log</span>
-                <span class="nav-tooltip">{{ $designerLoggedToday ? 'Daily Log' : "Daily Log · today's log pending" }}</span>
-                @unless($designerLoggedToday)
-                    <span class="nav-badge-dot"></span>
-                @endunless
-            </a>
             <a href="{{ route('designer.calendar') }}" class="nav-item {{ request()->routeIs('designer.calendar') ? 'active' : '' }}" title="Calendar">
                 <span class="icon"><i class="fas fa-calendar-alt"></i></span>
                 <span class="nav-text">Calendar</span>
                 <span class="nav-tooltip">Calendar</span>
+            </a>
+            <a href="{{ route('designer.performance') }}" class="nav-item {{ request()->routeIs('designer.performance') ? 'active' : '' }}" title="Performance">
+                <span class="icon"><i class="fas fa-chart-line"></i></span>
+                <span class="nav-text">Performance</span>
+                <span class="nav-tooltip">Performance & Analytics</span>
             </a>
         </div>
     @endif

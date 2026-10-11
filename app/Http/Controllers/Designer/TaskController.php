@@ -107,5 +107,11 @@ class TaskController extends Controller
 
         return $data;
     }
+
+    public function syncCheck(Request $request)
+    {
+        return response()->json($this->service->getLiveSyncData($request));
+    }
 }
+
 

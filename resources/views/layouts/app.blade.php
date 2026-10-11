@@ -1958,7 +1958,6 @@ remindersCheckInterval = setInterval(updateGlobalReminders, 30000); // Check eve
 }
 </style>
 
-@stack('scripts')
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
 <script>
@@ -2025,5 +2024,6 @@ remindersCheckInterval = setInterval(updateGlobalReminders, 30000); // Check eve
         new Notification(notificationTitle, notificationOptions);
     });
 </script>
+@stack('scripts')
 </body>
 </html>

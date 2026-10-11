@@ -410,15 +410,6 @@
         Post Content
     </div>
 
-    @if($task->headline_copy)
-        <div style="margin-bottom:20px;padding:14px 18px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.2);border-radius:14px">
-            <div class="ts-sub-lbl" style="margin-bottom:6px;color:#4F46E5">
-                <i class="fa-solid fa-heading" style="font-size:11px"></i> Headline Hook / Key Message
-            </div>
-            <div style="font-size:15px;font-weight:700;color:#1e293b">{{ $task->headline_copy }}</div>
-        </div>
-    @endif
-
     <!-- Caption Label -->
     <!-- Caption Label -->
 <div class="ts-sub-lbl" style="

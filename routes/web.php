@@ -284,6 +284,7 @@ Route::prefix('strategist')->name('strategist.')->middleware(['auth', 'role:stra
 Route::prefix('designer')->name('designer.')->middleware(['auth', 'role:designer'])->group(function () {
     Route::get('/dashboard', [Designer\DashboardController::class, 'index'])->name('dashboard');
     Route::get('/tasks', [Designer\TaskController::class, 'index'])->name('tasks');
+    Route::get('/tasks/sync-check', [Designer\TaskController::class, 'syncCheck'])->name('tasks.sync-check');
     Route::get('/tasks/{task}', [Designer\TaskController::class, 'show'])->name('tasks.show');
     Route::post('/tasks/{task}/start', [Designer\TaskController::class, 'startTask'])->name('tasks.start');
     Route::patch('/tasks/{task}/status', [Designer\TaskController::class, 'updateStatus'])->name('tasks.status');
@@ -297,7 +298,6 @@ Route::prefix('designer')->name('designer.')->middleware(['auth', 'role:designer
     Route::post('/urgent-task', [Designer\TaskController::class, 'createUrgentTask'])->name('urgent-task.store');
     Route::get('/calendar', [Designer\CalendarController::class, 'index'])->name('calendar');
     Route::get('/performance', [Designer\PerformanceController::class, 'index'])->name('performance');
-    Route::get('/daily-log', fn() => redirect()->route('developer.daily-log'))->name('daily-log');
 });
 
 // ──────────── CLIENT (TEMPORARILY DISABLED) ────────────
