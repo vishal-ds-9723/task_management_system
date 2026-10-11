@@ -36,6 +36,7 @@ class TaskService
             $validated[$field] = isset($validated[$field]) ? (bool) $validated[$field] : null;
         }
         $validated['has_wireframes'] = isset($validated['has_wireframes']) ? (bool) $validated['has_wireframes'] : false;
+        $validated['requires_client_approval'] = isset($validated['requires_client_approval']) ? (bool) $validated['requires_client_approval'] : false;
 
         $type = strtolower((string) ($validated['type'] ?? ''));
         // Designer views and workload sort by `deadline`; give dev projects their dev deadline there too
@@ -257,7 +258,10 @@ class TaskService
             return back()->with('error', $errorMsg);
         }
 
-        $task->update(['status' => 'pending_approval']);
+        $task->update([
+            'status' => 'pending_approval',
+            'revision_target' => null,
+        ]);
 
         $admins = User::where('role', 'admin')->get();
         foreach ($admins as $admin) {

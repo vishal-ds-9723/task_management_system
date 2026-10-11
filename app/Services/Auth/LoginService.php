@@ -13,9 +13,14 @@ class LoginService
     public function authenticate(array $credentials, Request $request)
     {
         if (Auth::attempt($credentials)) {
-            $request->session()->regenerate();
-
             $user = Auth::user();
+
+            if ($user->role === 'client') {
+                Auth::logout();
+                return back()->withErrors(['email' => 'Client portal and login are temporarily disabled.'])->onlyInput('email');
+            }
+
+            $request->session()->regenerate();
 
             $redirect = $this->getRoleRedirect($user);
 
@@ -43,9 +48,23 @@ class LoginService
             return;
         }
 
-        $request->session()->regenerate();
-
         $user = Auth::user();
+
+        if ($user->role === 'client') {
+            Auth::logout();
+            $emit([
+                'pct' => 100,
+                'status' => 'Client login is temporarily disabled.',
+                'eta' => '0.0s',
+                'quote' => $dailyQuote,
+                'done' => true,
+                'success' => false,
+                'message' => 'Client portal and login are temporarily disabled.',
+            ]);
+            return;
+        }
+
+        $request->session()->regenerate();
         $redirectUrl = $this->getRoleRedirectUrl($user);
 
         $emit([
@@ -81,8 +100,24 @@ class LoginService
             return $failedState;
         }
 
-        $request->session()->regenerate();
         $user = Auth::user();
+
+        if ($user->role === 'client') {
+            Auth::logout();
+            $disabledState = [
+                'pct' => 100,
+                'status' => 'Client login is temporarily disabled.',
+                'eta' => '0.0s',
+                'quote' => $dailyQuote,
+                'done' => true,
+                'success' => false,
+                'message' => 'Client portal and login are temporarily disabled.',
+            ];
+            $this->setLoginProgressState($request, $disabledState);
+            return $disabledState;
+        }
+
+        $request->session()->regenerate();
         $redirectUrl = $this->getRoleRedirectUrl($user);
 
         $elapsedMs = (int) ((microtime(true) - $startedAt) * 1000);
@@ -144,7 +179,7 @@ class LoginService
             'admin'      => route('admin.dashboard'),
             'strategist', 'manager', 'editor', 'content_writer' => route('strategist.dashboard'),
             'designer'   => route('designer.dashboard'),
-            'client'     => route('client.dashboard'),
+            'client'     => route('login'),
             'developer'  => route('developer.dashboard'),
             default      => route('strategist.dashboard'),
         };

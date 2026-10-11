@@ -57,18 +57,29 @@
                         >
                             @csrf
                             @method('PATCH')
-                            <button type="submit" class="dcr-btn dcr-approve"><i class="fas fa-check-circle"></i> Approve</button>
+                            <button type="submit" class="dcr-btn dcr-approve">
+                                <i class="fas fa-check-circle"></i>
+                                Approve
+                            </button>
                         </form>
                         {{-- Reject --}}
                         <button id="toggleRejectBtn-{{ $task->id }}" type="button" class="dcr-btn dcr-reject" onclick="toggleRejectTaskForm({{ $task->id }})" aria-expanded="false" aria-controls="rejectTaskForm-{{ $task->id }}"><i class="fas fa-times-circle"></i> Reject</button>
                         {{-- View Task --}}
-                        <a href="{{ route('admin.tasks.show', $task) }}" class="dcr-btn dcr-view" style="text-decoration:none"><i class="fas fa-eye"></i> View</a>
+                        <a href="{{ route('admin.approvals.show', $task) }}" class="dcr-btn dcr-view" style="text-decoration:none"><i class="fas fa-eye"></i> View</a>
                     </div>
                     {{-- Reject reason form (hidden by default) --}}
                     <div id="rejectTaskForm-{{ $task->id }}" class="dcr-reject-form reject-form" style="display:none" data-open="false">
                         <form method="POST" action="{{ route('admin.tasks.reject-task', $task) }}" class="reject-row">
                             @csrf
                             @method('PATCH')
+                            <div style="display:flex;gap:14px;margin-bottom:8px;font-size:11.5px;color:var(--text2)">
+                                <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+                                    <input type="radio" name="revision_target" value="designer" checked style="accent-color:var(--primary)"> Designer (visual changes)
+                                </label>
+                                <label style="display:flex;align-items:center;gap:5px;cursor:pointer">
+                                    <input type="radio" name="revision_target" value="strategist" style="accent-color:var(--primary)"> Strategist (copy changes)
+                                </label>
+                            </div>
                             <div class="reject-field">
                                 <label class="sr-only" for="rejection-reason-{{ $task->id }}">Rejection reason</label>
                                 <textarea id="rejection-reason-{{ $task->id }}" name="rejection_reason" rows="2" maxlength="200" placeholder="Reason for rejection (optional)" class="reject-input"></textarea>

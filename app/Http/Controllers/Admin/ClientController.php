@@ -70,10 +70,8 @@ class ClientController extends Controller
 
     public function createLogin(CreateClientLoginRequest $request, Client $client)
     {
-        $this->service->createClientLogin($client, $request->validated());
-
         return redirect()->route('admin.clients.show', $client)
-            ->with('success', 'Client login created successfully.');
+            ->with('error', 'Client logins and portal are temporarily disabled.');
     }
 
     public function updateLogin(UpdateClientLoginRequest $request, Client $client, User $user)

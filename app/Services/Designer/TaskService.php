@@ -51,12 +51,11 @@ class TaskService
             ->orderByRaw('post_date IS NULL, post_date ASC')
             ->get();
 
-        $firstUnlockedId = $tasks->first(fn ($t) => !in_array($t->status, ['completed', 'review', 'pending_approval', 'published']))?->id;
+        $firstFocusId = $tasks->first(fn ($t) => !in_array($t->status, ['completed', 'review', 'pending_approval', 'published']))?->id;
 
-        $tasks->each(function ($task) use ($firstUnlockedId) {
-            $task->is_locked = !in_array($task->status, ['completed', 'review', 'pending_approval', 'published', 'inprogress'])
-                && !$task->is_paused
-                && $task->id !== $firstUnlockedId;
+        $tasks->each(function ($task) use ($firstFocusId) {
+            $task->is_locked = false;
+            $task->is_focus = ($task->id === $firstFocusId);
         });
 
         $clients = Client::where('is_active', true)->orderBy('name')->get();
@@ -70,10 +69,6 @@ class TaskService
     {
         $isOwner = ($task->assigned_to === Auth::id());
         $isReadOnly = !$isOwner;
-
-        if ($isOwner && $this->isTaskLocked($task)) {
-            abort(403, 'Submit the current task first to unlock this one.');
-        }
 
         $task->load(['client.socialMediaLinks', 'comments.user', 'creator', 'assignee', 'socialMediaLink', 'media']);
 
@@ -193,22 +188,8 @@ class TaskService
 
     private function isTaskLocked(Task $task): bool
     {
-        if (in_array($task->status, ['completed', 'review', 'pending_approval', 'published', 'inprogress'])) {
-            return false;
-        }
-
-        if ($task->is_paused) {
-            return false;
-        }
-
-        $firstIncomplete = Task::where('assigned_to', $task->assigned_to)
-            ->whereNotIn('status', ['completed', 'review', 'pending_approval', 'published'])
-            ->where('is_paused', false)
-            ->orderByRaw("CASE status WHEN 'inprogress' THEN 0 WHEN 'todo' THEN 1 END")
-            ->orderByRaw('post_date IS NULL, post_date ASC')
-            ->first();
-
-        return $firstIncomplete && $firstIncomplete->id !== $task->id;
+        // Tasks are no longer artificially blocked; designers can preview and prepare any assigned task
+        return false;
     }
 
     public function submitForReview(Request $request, Task $task)
@@ -311,7 +292,6 @@ class TaskService
     public function updateStatus(Request $request, Task $task)
     {
         abort_if($task->assigned_to !== Auth::id(), 403);
-        abort_if($this->isTaskLocked($task), 403, 'Complete the previous task first.');
 
         $validated = $request->validate([
             'status' => ['required', 'in:todo,inprogress,review,pending_approval,completed,published'],

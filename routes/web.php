@@ -78,6 +78,11 @@ Route::post('/api/notifications/save-token', [NotificationController::class, 'sa
 // Global reminders API
 Route::get('/api/reminders/active', [Strategist\ActionItemController::class, 'getActiveReminders'])->middleware('auth');
 
+// 1-Click Client Approval Toggle (Yes / No)
+Route::post('/tasks/{task}/toggle-client-approval', [\App\Http\Controllers\TaskClientApprovalController::class, 'toggle'])
+    ->middleware('auth')
+    ->name('tasks.toggle-client-approval');
+
 // ──────────── ADMIN ────────────
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/dashboard', [Admin\DashboardController::class, 'index'])->name('dashboard');
@@ -294,11 +299,20 @@ Route::prefix('designer')->name('designer.')->middleware(['auth', 'role:designer
     Route::get('/daily-log', fn() => redirect()->route('developer.daily-log'))->name('daily-log');
 });
 
-// ──────────── CLIENT ────────────
+// ──────────── CLIENT (TEMPORARILY DISABLED) ────────────
+Route::any('/client/{any?}', function () {
+    if (auth()->check() && auth()->user()->role === 'client') {
+        auth()->logout();
+    }
+    return redirect()->route('login')->withErrors(['email' => 'Client portal is temporarily disabled.']);
+})->where('any', '.*')->name('client.disabled');
+/*
 Route::prefix('client')->name('client.')->middleware(['auth', 'role:client'])->group(function () {
     Route::get('/dashboard', [Client\DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/stat-details/{type}', [Client\DashboardController::class, 'getStatDetails'])->name('dashboard.stat-details');
     Route::get('/tasks/{task}', [Client\DashboardController::class, 'showTask'])->name('tasks.show');
+    Route::post('/tasks/{task}/approve', [Client\DashboardController::class, 'approveTask'])->name('tasks.approve');
+    Route::post('/tasks/{task}/request-changes', [Client\DashboardController::class, 'requestChanges'])->name('tasks.request-changes');
     Route::get('/published-content', [Client\PublishedContentController::class, 'index'])->name('published-content');
     Route::get('/content-schedule', [Client\DashboardController::class, 'contentSchedule'])->name('content-schedule');
     Route::get('/social-analysis', [Client\DashboardController::class, 'socialAnalysis'])->name('social-analysis');
@@ -307,6 +321,7 @@ Route::prefix('client')->name('client.')->middleware(['auth', 'role:client'])->g
     Route::post('/festivals/{festival}/select', [Client\FestivalController::class, 'select'])->name('festivals.select');
     Route::delete('/festivals/{festival}/deselect', [Client\FestivalController::class, 'deselect'])->name('festivals.deselect');
 });
+*/
 
 // legacy google callback alias removed
 

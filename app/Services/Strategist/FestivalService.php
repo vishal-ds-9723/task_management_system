@@ -74,7 +74,7 @@ class FestivalService
                 'icon'     => $festival->emoji ?: '🎉',
                 'title'    => 'New festival: ' . $festival->name,
                 'subtitle' => 'Select it if you want content planned around ' . $festival->date->format('M d'),
-                'link'     => route('client.festivals'),
+                'link'     => \Illuminate\Support\Facades\Route::has('client.festivals') ? route('client.festivals') : '#',
             ]);
         }
     }

@@ -91,6 +91,14 @@
 .pq-badge-awaiting{background:rgba(245,158,11,.1);color:#D97706;border:1px solid rgba(245,158,11,.2)}
 .pq-badge-overdue{background:rgba(239,68,68,.1);color:#EF4444;border:1px solid rgba(239,68,68,.25)}
 .pq-badge-today{background:rgba(79,109,240,.1);color:var(--primary);border:1px solid rgba(79,109,240,.25)}
+.pq-badge-client-yes{background:rgba(16,185,129,.12);color:#059669;border:1px solid rgba(16,185,129,.3)}
+.pq-badge-client-no{background:rgba(239,68,68,.1);color:#EF4444;border:1px solid rgba(239,68,68,.25)}
+.pq-btn-toggle-client{font-size:11px;font-weight:700;padding:5px 10px;border-radius:7px;cursor:pointer;transition:all .18s;border:1px solid var(--border);display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.pq-btn-toggle-client:hover{transform:translateY(-1px)}
+.pq-btn-toggle-client.is-no{background:rgba(16,185,129,.12);color:#059669;border-color:rgba(16,185,129,.3)}
+.pq-btn-toggle-client.is-no:hover{background:#10B981;color:#fff;border-color:#10B981}
+.pq-btn-toggle-client.is-yes{background:var(--card2);color:var(--text3);border-color:var(--border)}
+.pq-btn-toggle-client.is-yes:hover{background:rgba(239,68,68,.1);color:#EF4444;border-color:rgba(239,68,68,.3)}
 
 /* Action buttons */
 .pq-action-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 15px;border-radius:8px;font-size:11.5px;font-weight:700;text-decoration:none;color:#fff;background:var(--primary);transition:all .2s;border:none;cursor:pointer}
@@ -139,7 +147,7 @@
 </div>
 
 {{-- Stats --}}
-<div class="pq-stats">
+<div class="pq-stats" style="grid-template-columns:repeat(auto-fit, minmax(180px, 1fr))">
     <a href="{{ route('strategist.publishing') }}" class="pq-stat {{ !request('filter') ? 'pq-stat-active' : '' }}">
         <div class="pq-stat-icon" style="background:var(--primary-dim);color:var(--primary)"><i class="fa-solid fa-layer-group"></i></div>
         <div>
@@ -152,6 +160,20 @@
         <div>
             <div class="pq-stat-val">{{ $pendingCount ?? $awaitingCount }}</div>
             <div class="pq-stat-label">Ready to Publish</div>
+        </div>
+    </a>
+    <a href="{{ route('strategist.publishing', ['filter' => 'client_yes']) }}" class="pq-stat {{ request('filter') === 'client_yes' ? 'pq-stat-active' : '' }}">
+        <div class="pq-stat-icon" style="background:rgba(16,185,129,.12);color:#059669"><i class="fa-solid fa-check"></i></div>
+        <div>
+            <div class="pq-stat-val" style="color:#059669">{{ $clientApprovedCount ?? 0 }}</div>
+            <div class="pq-stat-label">Client: Yes</div>
+        </div>
+    </a>
+    <a href="{{ route('strategist.publishing', ['filter' => 'client_no']) }}" class="pq-stat {{ request('filter') === 'client_no' ? 'pq-stat-active' : '' }}">
+        <div class="pq-stat-icon" style="background:rgba(239,68,68,.1);color:#EF4444"><i class="fa-solid fa-xmark"></i></div>
+        <div>
+            <div class="pq-stat-val" style="color:#EF4444">{{ $clientPendingCount ?? 0 }}</div>
+            <div class="pq-stat-label">Client: No</div>
         </div>
     </a>
     <a href="{{ route('strategist.publishing', ['filter' => 'published']) }}" class="pq-stat {{ request('filter') === 'published' ? 'pq-stat-active' : '' }}">
@@ -167,6 +189,13 @@
 <form class="pq-filter-bar" method="GET">
     <i class="fa-solid fa-filter"></i>
     <input type="text" name="search" value="{{ request('search') }}" placeholder="Search by task name...">
+    <select name="filter" onchange="this.form.submit()">
+        <option value="" {{ !request('filter') ? 'selected' : '' }}>All Tasks</option>
+        <option value="pending" {{ in_array(request('filter'), ['pending', 'awaiting']) ? 'selected' : '' }}>Ready to Publish</option>
+        <option value="client_yes" {{ request('filter') === 'client_yes' ? 'selected' : '' }}>Client Approved: Yes</option>
+        <option value="client_no" {{ request('filter') === 'client_no' ? 'selected' : '' }}>Client Approved: No</option>
+        <option value="published" {{ request('filter') === 'published' ? 'selected' : '' }}>Published Live</option>
+    </select>
     <div class="pq-filter-sep"></div>
     <select name="client">
         <option value="">All Clients</option>
@@ -174,9 +203,6 @@
             <option value="{{ $client->id }}" {{ request('client') == $client->id ? 'selected' : '' }}>{{ $client->name }}</option>
         @endforeach
     </select>
-    @if(request('filter'))
-        <input type="hidden" name="filter" value="{{ request('filter') }}">
-    @endif
     <button type="submit" class="pq-btn pq-btn-primary"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
     @if(request()->hasAny(['search', 'client']))
         <a href="{{ route('strategist.publishing', request('filter') ? ['filter' => request('filter')] : []) }}" class="pq-btn pq-btn-ghost"><i class="fa-solid fa-xmark"></i> Clear</a>
@@ -314,6 +340,24 @@
             </div>
 
             <div class="pq-card-right">
+                {{-- Client Approved Yes/No Toggle --}}
+                @php $isClientApproved = $task->isClientApproved(); @endphp
+                <div class="pq-client-toggle-wrap" style="display:flex;align-items:center;gap:6px">
+                    <span class="pq-badge {{ $isClientApproved ? 'pq-badge-client-yes' : 'pq-badge-client-no' }}"
+                          id="client-badge-{{ $task->id }}"
+                          title="{{ $isClientApproved ? 'Client Approved: YES' . ($task->clientApprover ? ' (Confirmed by ' . $task->clientApprover->name . ')' : '') : 'Client Approved: NO (Pending client confirmation)' }}">
+                        <i class="fa-solid {{ $isClientApproved ? 'fa-check' : 'fa-xmark' }}"></i>
+                        Client: <strong>{{ $isClientApproved ? 'Yes' : 'No' }}</strong>
+                    </span>
+                    <button type="button"
+                            class="pq-btn-toggle-client {{ $isClientApproved ? 'is-yes' : 'is-no' }}"
+                            id="client-toggle-btn-{{ $task->id }}"
+                            onclick="toggleClientApproval({{ $task->id }}, this)"
+                            title="{{ $isClientApproved ? 'Click to mark as No' : 'Click to mark as Yes' }}">
+                        {{ $isClientApproved ? 'Mark No' : 'Mark Yes' }}
+                    </button>
+                </div>
+
                 @if($task->status === 'published')
                     <span class="pq-badge pq-badge-published"><i class="fa-solid fa-check-double"></i> Published</span>
                     <form method="POST" action="{{ route('strategist.publishing.unpublish', $task) }}" onsubmit="return confirm('Revert publishing status back to Ready to Publish?')" style="margin:0;display:inline">
@@ -334,7 +378,7 @@
                     @else
                         <span class="pq-badge pq-badge-awaiting"><i class="fa-solid fa-hourglass-half"></i> Ready to Publish</span>
                     @endif
-                    <form method="POST" action="{{ route('strategist.publishing.publish', $task) }}" onsubmit="return confirm('Mark this task as Published on social media?')" style="margin:0;display:inline">
+                    <form method="POST" action="{{ route('strategist.publishing.publish', $task) }}" onsubmit="return confirmPublishWithClientCheck(event, this, {{ $isClientApproved ? 'true' : 'false' }})" style="margin:0;display:inline">
                         @csrf
                         <button type="submit" class="pq-action-btn pq-action-btn-publish" title="1-Click Mark as Published"><i class="fa-solid fa-rocket"></i> Mark Published</button>
                     </form>
@@ -370,3 +414,62 @@
 @endif
 
 @endsection
+
+@push('scripts')
+<script>
+async function toggleClientApproval(taskId, btn) {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+    try {
+        const response = await fetch(`/tasks/${taskId}/toggle-client-approval`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            const badge = document.getElementById(`client-badge-${taskId}`);
+            if (badge) {
+                if (data.is_approved) {
+                    badge.className = 'pq-badge pq-badge-client-yes';
+                    badge.innerHTML = '<i class="fa-solid fa-check"></i> Client: <strong>Yes</strong>';
+                    badge.title = `Client Approved: YES (Confirmed by ${data.approved_by || 'You'} on ${data.approved_at || 'Just now'})`;
+                    btn.className = 'pq-btn-toggle-client is-yes';
+                    btn.innerHTML = 'Mark No';
+                    btn.title = 'Click to mark as No';
+                } else {
+                    badge.className = 'pq-badge pq-badge-client-no';
+                    badge.innerHTML = '<i class="fa-solid fa-xmark"></i> Client: <strong>No</strong>';
+                    badge.title = 'Client Approved: NO (Pending client confirmation)';
+                    btn.className = 'pq-btn-toggle-client is-no';
+                    btn.innerHTML = 'Mark Yes';
+                    btn.title = 'Click to mark as Yes';
+                }
+            }
+        } else {
+            alert(data.message || 'Failed to update client approval status');
+            btn.innerHTML = originalText;
+        }
+    } catch (e) {
+        console.error(e);
+        btn.innerHTML = originalText;
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function confirmPublishWithClientCheck(event, form, isApproved) {
+    if (!isApproved) {
+        return confirm('⚠️ Note: Client approval is currently marked as NO.\n\nAre you sure you want to mark this task as Published?');
+    }
+    return confirm('Mark this task as Published on social media?');
+}
+</script>
+@endpush

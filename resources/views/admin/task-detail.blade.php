@@ -358,6 +358,11 @@
                         @endif
 
                         <span class="status {{ $task->status_class }}">{{ $task->status_label }}</span>
+                        @php $isClientApproved = $task->isClientApproved(); @endphp
+                        <span class="tag" id="admin-td-client-tag-{{ $task->id }}" style="background:{{ $isClientApproved ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.1)' }};border-color:{{ $isClientApproved ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.25)' }};color:{{ $isClientApproved ? '#059669' : '#EF4444' }};font-weight:700;display:inline-flex;align-items:center;gap:4px">
+                            <i class="fa-solid {{ $isClientApproved ? 'fa-check' : 'fa-xmark' }}" id="admin-td-client-icon-{{ $task->id }}" style="font-size:10px"></i>
+                            Client: <span id="admin-td-client-status-{{ $task->id }}">{{ $isClientApproved ? 'Yes' : 'No' }}</span>
+                        </span>
                         @if($task->revision_count > 0)
                             <span class="wf-rev-badge"><i class="fa-solid fa-rotate-left"></i> {{ $task->revision_count }} {{ Str::plural('revision', $task->revision_count) }}</span>
                         @endif
@@ -393,6 +398,28 @@
                             {{ $task->creator->name }}
                         @else
                             <span style="color:var(--text3)">System</span>
+                        @endif
+                    </div>
+                </div>
+                <div class="td-info-box">
+                    <div class="td-info-label">Client Approved</div>
+                    <div class="td-info-val" style="justify-content:space-between">
+                        <span id="admin-td-client-badge-{{ $task->id }}" style="padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px;background:{{ $isClientApproved ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.1)' }};color:{{ $isClientApproved ? '#059669' : '#EF4444' }};border:1px solid {{ $isClientApproved ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.25)' }}">
+                            <i class="fa-solid {{ $isClientApproved ? 'fa-check' : 'fa-xmark' }}"></i>
+                            {{ $isClientApproved ? 'Yes' : 'No' }}
+                        </span>
+                        <button type="button"
+                                id="admin-td-client-btn-{{ $task->id }}"
+                                onclick="toggleClientApproval({{ $task->id }}, this)"
+                                style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:6px;cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--text);transition:all .18s">
+                            {{ $isClientApproved ? 'Mark No' : 'Mark Yes' }}
+                        </button>
+                    </div>
+                    <div id="admin-td-client-note-{{ $task->id }}" style="font-size:10px;color:var(--text3);margin-top:4px">
+                        @if($isClientApproved)
+                            Confirmed by {{ $task->clientApprover->name ?? 'Admin/Strategist' }}
+                        @else
+                            Pending client confirmation
                         @endif
                     </div>
                 </div>
@@ -1309,6 +1336,8 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.td-vid-thumb').forEach(function(v) {
         v.addEventListener('loadedmetadata', function() { v.currentTime = 0.5; });
     });
+});
+
 function confirmApproveDetailSwal(e, form) {
     e.preventDefault();
     Swal.fire({
@@ -1328,6 +1357,68 @@ function confirmApproveDetailSwal(e, form) {
         }
     });
     return false;
+}
+
+async function toggleClientApproval(taskId, btn) {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+    try {
+        const response = await fetch(`/tasks/${taskId}/toggle-client-approval`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            // Update Header Tag
+            const headerTag = document.getElementById(`admin-td-client-tag-${taskId}`);
+            const headerIcon = document.getElementById(`admin-td-client-icon-${taskId}`);
+            const headerStatus = document.getElementById(`admin-td-client-status-${taskId}`);
+            if (headerTag && headerStatus) {
+                headerStatus.innerText = data.is_approved ? 'Yes' : 'No';
+                headerTag.style.background = data.is_approved ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.1)';
+                headerTag.style.borderColor = data.is_approved ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.25)';
+                headerTag.style.color = data.is_approved ? '#059669' : '#EF4444';
+                if (headerIcon) {
+                    headerIcon.className = `fa-solid ${data.is_approved ? 'fa-check' : 'fa-xmark'}`;
+                }
+            }
+
+            // Update Info Grid Badge & Button
+            const gridBadge = document.getElementById(`admin-td-client-badge-${taskId}`);
+            const gridBtn = document.getElementById(`admin-td-client-btn-${taskId}`);
+            const gridNote = document.getElementById(`admin-td-client-note-${taskId}`);
+            if (gridBadge) {
+                gridBadge.innerHTML = `<i class="fa-solid ${data.is_approved ? 'fa-check' : 'fa-xmark'}"></i> ${data.is_approved ? 'Yes' : 'No'}`;
+                gridBadge.style.background = data.is_approved ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.1)';
+                gridBadge.style.borderColor = data.is_approved ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.25)';
+                gridBadge.style.color = data.is_approved ? '#059669' : '#EF4444';
+            }
+            if (gridBtn) {
+                gridBtn.innerText = data.is_approved ? 'Mark No' : 'Mark Yes';
+            }
+            if (gridNote) {
+                gridNote.innerText = data.is_approved
+                    ? `Confirmed by ${data.approved_by || 'You'} (${data.approved_at || 'Just now'})`
+                    : 'Pending client confirmation';
+            }
+        } else {
+            alert(data.message || 'Failed to update client approval');
+            btn.innerHTML = originalText;
+        }
+    } catch (e) {
+        console.error(e);
+        btn.innerHTML = originalText;
+    } finally {
+        btn.disabled = false;
+    }
 }
 </script>
 @endsection

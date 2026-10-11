@@ -542,6 +542,7 @@
             'inprogress' => '#3B82F6',
             'review' => '#8B5CF6',
             'pending_approval' => '#EC4899',
+            'client_review' => '#0D9488',
             'completed' => '#10B981',
             'published' => '#059669',
             'on_hold' => '#EF4444',
@@ -553,6 +554,7 @@
         $isInProgress = $task->status === 'inprogress';
         $isReview = $task->status === 'review';
         $isPendingApproval = $task->status === 'pending_approval';
+        $isClientReview = $task->status === 'client_review';
         $isCompleted = in_array($task->status, ['completed', 'published']);
 
         $steps = [
@@ -573,24 +575,25 @@
             [
                 'label' => 'Design Submitted',
                 'sub' => $task->submitted_at ? $task->submitted_at->format('d M, h:i A') : ($isReview ? 'Under Review' : 'Awaiting Output'),
-                'done' => $isReview || $isPendingApproval || $isCompleted,
+                'done' => $isReview || $isPendingApproval || $isClientReview || $isCompleted,
                 'current' => $isReview,
                 'icon' => '<i class="fa-solid fa-cloud-arrow-up"></i>'
             ],
             [
-                'label' => 'Strategist Approved',
-                'sub' => $isPendingApproval ? 'Sent to Admin' : ($isCompleted ? 'Approved' : 'Pending Approval'),
-                'done' => $isPendingApproval || $isCompleted,
-                'current' => $isPendingApproval,
-                'icon' => '<i class="fa-solid fa-circle-check"></i>'
-            ],
-            [
-                'label' => 'Admin Published',
-                'sub' => $task->completed_at ? $task->completed_at->format('d M, h:i A') : 'Final Step',
+                'label' => 'Internal Double-Check',
+                'sub' => $isPendingApproval ? 'Admin Reviewing' : ($task->admin_approved_at ? 'Admin Approved' : ($isCompleted ? 'Approved' : 'Pending')),
                 'done' => $isCompleted,
-                'current' => $isCompleted,
-                'icon' => '<i class="fa-solid fa-paper-plane"></i>'
+                'current' => $isPendingApproval,
+                'icon' => '<i class="fa-solid fa-check-double"></i>'
             ],
+        ];
+
+        $steps[] = [
+            'label' => 'Published / Complete',
+            'sub' => $task->completed_at ? $task->completed_at->format('d M, h:i A') : 'Final Step',
+            'done' => $isCompleted,
+            'current' => $isCompleted,
+            'icon' => '<i class="fa-solid fa-paper-plane"></i>'
         ];
     @endphp
 
@@ -629,6 +632,11 @@
                         <i class="fa-solid fa-rotate-left" style="font-size:10px"></i> Rev #{{ $task->revision_count }}
                     </span>
                 @endif
+                @php $isClientApproved = $task->isClientApproved(); @endphp
+                <span class="std-pill" id="std-header-client-pill-{{ $task->id }}" style="background:{{ $isClientApproved ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.1)' }};border-color:{{ $isClientApproved ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.25)' }};color:{{ $isClientApproved ? '#059669' : '#EF4444' }};font-weight:700">
+                    <i class="fa-solid {{ $isClientApproved ? 'fa-check' : 'fa-xmark' }}" style="font-size:10px" id="std-header-client-icon-{{ $task->id }}"></i>
+                    Client: <span id="std-header-client-status-{{ $task->id }}">{{ $isClientApproved ? 'Yes' : 'No' }}</span>
+                </span>
             </div>
         </div>
 
@@ -670,6 +678,29 @@
             @endif
         @endforeach
     </div>
+
+    {{-- COPY REVISION ACTION BANNER --}}
+    @if($task->revision_target === 'strategist' && $task->status === 'review')
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 18px;background:linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(239,68,68,0.08) 100%);border:1.5px solid rgba(139,92,246,0.35);border-radius:12px;margin-bottom:20px">
+            <div style="display:flex;align-items:center;gap:12px">
+                <div style="width:36px;height:36px;border-radius:50%;background:#8B5CF6;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;box-shadow:0 3px 8px rgba(139,92,246,0.35)">
+                    <i class="fa-solid fa-pen-nib"></i>
+                </div>
+                <div>
+                    <div style="font-size:13.5px;font-weight:700;color:#5B21B6;display:flex;align-items:center;gap:8px">
+                        <span>Action Required: Copy / Strategy Revision</span>
+                        <span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:99px;background:#8B5CF6;color:#fff">TARGET: STRATEGIST</span>
+                    </div>
+                    <div style="font-size:12px;color:#6D28D9;margin-top:2px">
+                        Admin requested changes to the caption, hashtags, or strategic messaging. Please adjust the copy below and re-submit for Admin approval.
+                    </div>
+                </div>
+            </div>
+            <button type="button" onclick="toggleCaptionEdit(true)" class="btn-primary" style="font-size:12px;padding:8px 16px;border-radius:8px;background:#8B5CF6;text-decoration:none;white-space:nowrap;border:none;cursor:pointer">
+                <i class="fa-solid fa-pen"></i> Edit Copy Now
+            </button>
+        </div>
+    @endif
 
     {{-- MAIN 2-COLUMN GRID --}}
     <div class="std-main-grid">
@@ -861,6 +892,25 @@
                     </div>
                 @endif
             </div>
+
+            {{-- HEADLINE HOOK / VISUAL COPY --}}
+            @if($task->headline_copy)
+                <div class="std-card" style="border-left:4px solid var(--primary);background:rgba(59,130,246,0.03)">
+                    <div class="std-card-header">
+                        <div class="std-card-title">
+                            <i class="fa-solid fa-heading" style="color:var(--primary)"></i>
+                            <span>Visual Hook / Headline Copy</span>
+                            <span style="font-size:10px;font-weight:700;background:rgba(59,130,246,0.15);color:var(--primary);padding:2px 8px;border-radius:99px">Graphic Overlay Text</span>
+                        </div>
+                        <button type="button" class="std-action-link" onclick="navigator.clipboard.writeText(`{{ addslashes($task->headline_copy) }}`); if(typeof ajax!=='undefined') ajax.showSuccess('Headline copied!');">
+                            <i class="fa-regular fa-copy"></i> Copy Headline
+                        </button>
+                    </div>
+                    <div class="std-box" style="font-size:14px;font-weight:600;color:var(--text)">
+                        {{ $task->headline_copy }}
+                    </div>
+                </div>
+            @endif
 
             {{-- 2. CONTENT BRIEF --}}
             <div class="std-card">
@@ -1203,6 +1253,30 @@
                             <span class="std-meta-v">{{ $task->post_date->format('d M Y') }}</span>
                         </div>
                     @endif
+                    <div class="std-meta-row" style="align-items:flex-start">
+                        <span class="std-meta-k" style="margin-top:2px"><i class="fa-solid fa-user-check"></i> Client Approved</span>
+                        <div style="text-align:right">
+                            <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px">
+                                <span id="std-meta-client-badge-{{ $task->id }}" style="padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px;background:{{ $isClientApproved ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.1)' }};color:{{ $isClientApproved ? '#059669' : '#EF4444' }};border:1px solid {{ $isClientApproved ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.25)' }}">
+                                    <i class="fa-solid {{ $isClientApproved ? 'fa-check' : 'fa-xmark' }}"></i>
+                                    {{ $isClientApproved ? 'Yes' : 'No' }}
+                                </span>
+                                <button type="button"
+                                        id="std-meta-client-btn-{{ $task->id }}"
+                                        onclick="toggleClientApproval({{ $task->id }}, this)"
+                                        style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:6px;cursor:pointer;border:1px solid var(--border);background:var(--card2);color:var(--text);transition:all .18s">
+                                    {{ $isClientApproved ? 'Mark No' : 'Mark Yes' }}
+                                </button>
+                            </div>
+                            <div id="std-meta-client-note-{{ $task->id }}" style="font-size:10px;color:var(--text3);margin-top:3px">
+                                @if($isClientApproved)
+                                    Confirmed by {{ $task->clientApprover->name ?? 'Strategist' }}
+                                @else
+                                    Pending client confirmation
+                                @endif
+                            </div>
+                        </div>
+                    </div>
                     <div class="std-meta-row">
                         <span class="std-meta-k"><i class="fa-solid fa-user-pen"></i> Created By</span>
                         <span class="std-meta-v" style="color:var(--text2)">{{ $task->creator?->name ?? 'Team' }}</span>
@@ -1699,6 +1773,68 @@ function confirmStrategistApproveSwal(e, form) {
         }
     });
     return false;
+}
+
+async function toggleClientApproval(taskId, btn) {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+    try {
+        const response = await fetch(`/tasks/${taskId}/toggle-client-approval`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            // Update Header Pill
+            const headerPill = document.getElementById(`std-header-client-pill-${taskId}`);
+            const headerIcon = document.getElementById(`std-header-client-icon-${taskId}`);
+            const headerStatus = document.getElementById(`std-header-client-status-${taskId}`);
+            if (headerPill && headerStatus) {
+                headerStatus.innerText = data.is_approved ? 'Yes' : 'No';
+                headerPill.style.background = data.is_approved ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.1)';
+                headerPill.style.borderColor = data.is_approved ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.25)';
+                headerPill.style.color = data.is_approved ? '#059669' : '#EF4444';
+                if (headerIcon) {
+                    headerIcon.className = `fa-solid ${data.is_approved ? 'fa-check' : 'fa-xmark'}`;
+                }
+            }
+
+            // Update Meta Badge & Button
+            const metaBadge = document.getElementById(`std-meta-client-badge-${taskId}`);
+            const metaBtn = document.getElementById(`std-meta-client-btn-${taskId}`);
+            const metaNote = document.getElementById(`std-meta-client-note-${taskId}`);
+            if (metaBadge) {
+                metaBadge.innerHTML = `<i class="fa-solid ${data.is_approved ? 'fa-check' : 'fa-xmark'}"></i> ${data.is_approved ? 'Yes' : 'No'}`;
+                metaBadge.style.background = data.is_approved ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.1)';
+                metaBadge.style.borderColor = data.is_approved ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.25)';
+                metaBadge.style.color = data.is_approved ? '#059669' : '#EF4444';
+            }
+            if (metaBtn) {
+                metaBtn.innerText = data.is_approved ? 'Mark No' : 'Mark Yes';
+            }
+            if (metaNote) {
+                metaNote.innerText = data.is_approved
+                    ? `Confirmed by ${data.approved_by || 'You'} (${data.approved_at || 'Just now'})`
+                    : 'Pending client confirmation';
+            }
+        } else {
+            alert(data.message || 'Failed to update client approval');
+            btn.innerHTML = originalText;
+        }
+    } catch (e) {
+        console.error(e);
+        btn.innerHTML = originalText;
+    } finally {
+        btn.disabled = false;
+    }
 }
 </script>
 @endpush

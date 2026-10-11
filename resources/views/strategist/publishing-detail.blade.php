@@ -85,6 +85,14 @@
 .pd-detail-key{color:var(--text3);font-weight:500}
 .pd-detail-val{font-weight:700;color:var(--text);text-align:right}
 
+.pd-badge-client-yes{background:rgba(16,185,129,.12);color:#059669;border:1px solid rgba(16,185,129,.3);padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px}
+.pd-badge-client-no{background:rgba(239,68,68,.1);color:#EF4444;border:1px solid rgba(239,68,68,.25);padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px}
+.pd-btn-toggle-client{font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;cursor:pointer;transition:all .18s;border:1px solid var(--border);display:inline-flex;align-items:center;gap:3px;white-space:nowrap}
+.pd-btn-toggle-client.is-no{background:rgba(16,185,129,.1);color:#059669;border-color:rgba(16,185,129,.3)}
+.pd-btn-toggle-client.is-no:hover{background:#10B981;color:#fff}
+.pd-btn-toggle-client.is-yes{background:var(--card2);color:var(--text3);border-color:var(--border)}
+.pd-btn-toggle-client.is-yes:hover{background:rgba(239,68,68,.1);color:#EF4444;border-color:rgba(239,68,68,.3)}
+
 .pd-view-task{display:flex;align-items:center;justify-content:center;gap:6px;padding:11px;border-radius:10px;background:var(--card2);color:var(--text2);font-size:12px;font-weight:700;text-decoration:none;transition:all .2s;border:1px solid var(--border)}
 .pd-view-task:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-dim)}
 
@@ -148,7 +156,7 @@
             </div>
         </div>
         <div class="pd-banner-actions">
-            <form method="POST" action="{{ route('strategist.publishing.publish', $task) }}" onsubmit="return confirm('Mark this task as Published on social media?')" style="margin:0">
+            <form method="POST" action="{{ route('strategist.publishing.publish', $task) }}" onsubmit="return confirmPublishWithClientCheck(event, this, {{ $task->isClientApproved() ? 'true' : 'false' }})" style="margin:0">
                 @csrf
                 <button type="submit" class="pd-banner-btn pd-banner-btn-white"><i class="fa-solid fa-rocket"></i> Mark as Published</button>
             </form>
@@ -164,7 +172,7 @@
             </div>
         </div>
         <div class="pd-banner-actions">
-            <form method="POST" action="{{ route('strategist.publishing.publish', $task) }}" onsubmit="return confirm('Mark this task as Published on social media?')" style="margin:0">
+            <form method="POST" action="{{ route('strategist.publishing.publish', $task) }}" onsubmit="return confirmPublishWithClientCheck(event, this, {{ $task->isClientApproved() ? 'true' : 'false' }})" style="margin:0">
                 @csrf
                 <button type="submit" class="pd-banner-btn pd-banner-btn-white"><i class="fa-solid fa-rocket"></i> Mark as Published</button>
             </form>
@@ -330,6 +338,36 @@
                 </span>
             </div>
 
+            @php $isClientApproved = $task->isClientApproved(); @endphp
+            <div class="pd-detail-row" style="align-items:flex-start">
+                <span class="pd-detail-key" style="margin-top:3px">Client Approved</span>
+                <div style="text-align:right">
+                    <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px">
+                        <span class="pd-badge {{ $isClientApproved ? 'pd-badge-client-yes' : 'pd-badge-client-no' }}"
+                              id="client-badge-{{ $task->id }}">
+                            <i class="fa-solid {{ $isClientApproved ? 'fa-check' : 'fa-xmark' }}"></i>
+                            {{ $isClientApproved ? 'Yes' : 'No' }}
+                        </span>
+                        <button type="button"
+                                class="pd-btn-toggle-client {{ $isClientApproved ? 'is-yes' : 'is-no' }}"
+                                id="client-toggle-btn-{{ $task->id }}"
+                                onclick="toggleClientApproval({{ $task->id }}, this)">
+                            {{ $isClientApproved ? 'Mark No' : 'Mark Yes' }}
+                        </button>
+                    </div>
+                    <div id="client-approver-note-{{ $task->id }}" style="font-size:10.5px;color:var(--text3);margin-top:4px">
+                        @if($isClientApproved)
+                            Confirmed by {{ $task->clientApprover->name ?? 'Strategist' }}
+                            @if($task->client_approved_at)
+                                ({{ \Carbon\Carbon::parse($task->client_approved_at)->format('M d, g:i A') }})
+                            @endif
+                        @else
+                            Pending client confirmation
+                        @endif
+                    </div>
+                </div>
+            </div>
+
             @if($task->post_date)
                 <div class="pd-detail-row">
                     <span class="pd-detail-key">Scheduled Post Date</span>
@@ -369,7 +407,7 @@
                     </button>
                 </form>
             @else
-                <form method="POST" action="{{ route('strategist.publishing.publish', $task) }}" onsubmit="return confirm('Mark this task as Published on social media?')" style="margin:0">
+                <form method="POST" action="{{ route('strategist.publishing.publish', $task) }}" onsubmit="return confirmPublishWithClientCheck(event, this, {{ $isClientApproved ? 'true' : 'false' }})" style="margin:0">
                     @csrf
                     <button type="submit" class="pd-banner-btn" style="width:100%;justify-content:center;background:linear-gradient(135deg,#10B981,#059669);color:#fff">
                         <i class="fa-solid fa-rocket"></i> Mark as Published
@@ -400,6 +438,62 @@ function copyText(text, btn) {
     }).catch(() => {
         alert('Failed to copy to clipboard.');
     });
+}
+
+async function toggleClientApproval(taskId, btn) {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+    try {
+        const response = await fetch(`/tasks/${taskId}/toggle-client-approval`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            window.isClientApprovedState = data.is_approved;
+            const badge = document.getElementById(`client-badge-${taskId}`);
+            const note = document.getElementById(`client-approver-note-${taskId}`);
+            if (badge) {
+                if (data.is_approved) {
+                    badge.className = 'pd-badge pd-badge-client-yes';
+                    badge.innerHTML = '<i class="fa-solid fa-check"></i> Yes';
+                    btn.className = 'pd-btn-toggle-client is-yes';
+                    btn.innerHTML = 'Mark No';
+                    if (note) note.innerHTML = `Confirmed by ${data.approved_by || 'You'} (${data.approved_at || 'Just now'})`;
+                } else {
+                    badge.className = 'pd-badge pd-badge-client-no';
+                    badge.innerHTML = '<i class="fa-solid fa-xmark"></i> No';
+                    btn.className = 'pd-btn-toggle-client is-no';
+                    btn.innerHTML = 'Mark Yes';
+                    if (note) note.innerHTML = 'Pending client confirmation';
+                }
+            }
+        } else {
+            alert(data.message || 'Failed to update client approval status');
+            btn.innerHTML = originalText;
+        }
+    } catch (e) {
+        console.error(e);
+        btn.innerHTML = originalText;
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function confirmPublishWithClientCheck(event, form, isApproved) {
+    const approved = (typeof window.isClientApprovedState !== 'undefined') ? window.isClientApprovedState : isApproved;
+    if (!approved) {
+        return confirm('⚠️ Note: Client approval is currently marked as NO.\n\nAre you sure you want to mark this task as Published?');
+    }
+    return confirm('Mark this task as Published on social media?');
 }
 </script>
 @endpush

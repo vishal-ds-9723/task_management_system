@@ -150,8 +150,10 @@ class TaskController extends Controller
             'priority'       => ['required', 'in:normal,high,urgent'],
             'status'         => ['required', 'in:todo,inprogress,review,pending_approval,completed,published,on_hold'],
             'brief'          => ['nullable', 'string'],
+            'headline_copy'  => ['nullable', 'string', 'max:1000'],
             'caption'        => ['nullable', 'string', 'max:5000'],
             'hashtags'       => ['nullable', 'string', 'max:1000'],
+            'requires_client_approval' => ['nullable', 'boolean'],
             'reference_links'   => ['nullable', 'array', 'max:15'],
             'reference_links.*' => ['nullable', 'url', 'max:2048'],
             'deadline'       => ['nullable', 'date'],
@@ -508,7 +510,10 @@ class TaskController extends Controller
             return back()->with('error', $errorMsg);
         }
 
-        $task->update(['status' => 'pending_approval']);
+        $task->update([
+            'status' => 'pending_approval',
+            'revision_target' => null,
+        ]);
 
         $admins = User::where('role', 'admin')->get();
         foreach ($admins as $admin) {

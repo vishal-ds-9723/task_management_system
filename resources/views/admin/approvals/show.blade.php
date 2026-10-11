@@ -108,6 +108,17 @@
                             <i class="fas fa-bolt" style="font-size:10px"></i> Urgent Task
                         </div>
                     @endif
+                    @php $isClientApproved = $task->isClientApproved(); @endphp
+                    <div class="badge-pill" id="admin-appr-client-badge-{{ $task->id }}" style="background:{{ $isClientApproved ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.12)' }};color:{{ $isClientApproved ? '#16a34a' : '#dc2626' }};border:1px solid {{ $isClientApproved ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.25)' }};display:inline-flex;align-items:center;gap:6px">
+                        <i class="fas {{ $isClientApproved ? 'fa-check' : 'fa-times' }}" id="admin-appr-client-icon-{{ $task->id }}"></i>
+                        <span>Client: <strong id="admin-appr-client-text-{{ $task->id }}">{{ $isClientApproved ? 'Yes' : 'No' }}</strong></span>
+                        <button type="button"
+                                onclick="toggleClientApproval({{ $task->id }}, this)"
+                                id="admin-appr-client-btn-{{ $task->id }}"
+                                style="background:transparent;border:none;color:inherit;cursor:pointer;font-size:10px;font-weight:700;text-decoration:underline;padding:0;margin-left:2px">
+                            ({{ $isClientApproved ? 'Mark No' : 'Mark Yes' }})
+                        </button>
+                    </div>
                     <div class="badge-pill" style="background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid rgba(34,197,94,0.3)">
                         <i class="fas fa-check" style="font-size:10px"></i> Ready for Approval
                     </div>
@@ -129,6 +140,24 @@
                 </div>
             </div>
         @endif
+
+        {{-- TIER 1 DOUBLE-CHECK AUDIT STAMP --}}
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;background:linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(59,130,246,0.06) 100%);border:1px solid rgba(16,185,129,0.3);border-radius:10px;margin-bottom:16px">
+            <div style="display:flex;align-items:center;gap:10px">
+                <div style="width:32px;height:32px;border-radius:50%;background:#10B981;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;box-shadow:0 2px 6px rgba(16,185,129,0.3)">
+                    <i class="fa-solid fa-check-double"></i>
+                </div>
+                <div>
+                    <div style="font-size:12.5px;font-weight:700;color:#065F46;display:flex;align-items:center;gap:6px">
+                        <span>Tier 1 Verification Complete</span>
+                        <span style="font-size:10px;font-weight:800;padding:1px 7px;border-radius:99px;background:#10B981;color:#fff">VERIFIED</span>
+                    </div>
+                    <div style="font-size:11px;color:#047857;margin-top:1px">
+                        Verified & approved by Strategist <strong>{{ $task->creator?->name ?? 'Strategist' }}</strong> · Ready for Admin Tier 2 Final Sign-Off
+                    </div>
+                </div>
+            </div>
+        </div>
 
         {{-- MEDIA VIEWER --}}
         @php
@@ -304,6 +333,21 @@
                 <span class="meta-value">{{ $task->submitted_at?->diffForHumans() ?? 'N/A' }}</span>
             </div>
         </div>
+
+        @if($task->headline_copy)
+            <div class="card premium" style="margin-bottom:16px;border-left:4px solid var(--primary);background:rgba(59,130,246,0.04)">
+                <div class="section-title" style="display:flex;align-items:center;justify-content:space-between">
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <i class="fas fa-heading" style="color:var(--primary)"></i>
+                        <span style="font-weight:700;color:var(--text)">Visual Hook / Headline Copy</span>
+                    </div>
+                    <span style="font-size:10px;font-weight:700;background:rgba(59,130,246,0.15);color:var(--primary);padding:2px 8px;border-radius:99px">Graphic Overlay Text</span>
+                </div>
+                <div class="section-card" style="font-size:13.5px;font-weight:600;color:var(--text);margin-top:6px;line-height:1.4">
+                    {{ $task->headline_copy }}
+                </div>
+            </div>
+        @endif
 
         @if(!$isDevType)
             <div class="card premium" style="margin-bottom:16px">
@@ -556,6 +600,24 @@
                     </div>
                 </div>
 
+                <div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between">
+                    <div style="display:flex;align-items:center;gap:8px">
+                        <i class="fa-solid fa-user-check" style="color:var(--primary);font-size:13px"></i>
+                        <span style="font-size:12px;font-weight:600;color:var(--text)">Client Approved:</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span class="badge" id="admin-appr-card-badge-{{ $task->id }}" style="font-size:11px;font-weight:700;padding:2px 7px;border-radius:5px;background:{{ $isClientApproved ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.12)' }};color:{{ $isClientApproved ? '#16a34a' : '#dc2626' }}">
+                            {{ $isClientApproved ? 'Yes' : 'No' }}
+                        </span>
+                        <button type="button"
+                                id="admin-appr-card-btn-{{ $task->id }}"
+                                onclick="toggleClientApproval({{ $task->id }}, this)"
+                                style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;border:1px solid var(--border);background:var(--card2);color:var(--text);cursor:pointer">
+                            {{ $isClientApproved ? 'Mark No' : 'Mark Yes' }}
+                        </button>
+                    </div>
+                </div>
+
                 @if($hasMedia)
                     <div style="background:#fff;border:1px solid rgba(34,197,94,0.2);border-radius:8px;padding:12px;margin-bottom:16px;text-align:center">
                         <div style="font-size:28px;margin-bottom:4px"><i class="fas fa-image" style="color:#22c55e"></i></div>
@@ -622,6 +684,27 @@
                 <form method="POST" action="{{ route('admin.approvals.reject', $task) }}" id="rejectForm" enctype="multipart/form-data">
                     @csrf
                     @method('PATCH')
+
+                    {{-- Targeted Revision Selector --}}
+                    <div style="margin-bottom:12px;padding:10px 12px;background:var(--card2);border:1px solid var(--border);border-radius:8px">
+                        <label style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:8px">Target Revision At:</label>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                            <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border-radius:6px;border:1px solid var(--border);background:#fff;cursor:pointer">
+                                <input type="radio" name="revision_target" value="designer" checked style="margin-top:2px;accent-color:var(--primary)">
+                                <div>
+                                    <div style="font-size:12px;font-weight:700;color:var(--text)"><i class="fa-solid fa-paintbrush" style="margin-right:4px;color:var(--primary)"></i> Designer</div>
+                                    <div style="font-size:10.5px;color:var(--text3)">Visual/graphic fixes (sets to in-progress)</div>
+                                </div>
+                            </label>
+                            <label style="display:flex;align-items:flex-start;gap:8px;padding:8px 10px;border-radius:6px;border:1px solid var(--border);background:#fff;cursor:pointer">
+                                <input type="radio" name="revision_target" value="strategist" style="margin-top:2px;accent-color:var(--primary)">
+                                <div>
+                                    <div style="font-size:12px;font-weight:700;color:var(--text)"><i class="fa-solid fa-pen-nib" style="margin-right:4px;color:#8B5CF6"></i> Strategist</div>
+                                    <div style="font-size:10.5px;color:var(--text3)">Caption & copy changes (keeps deliverable)</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
                     <div style="margin-bottom:10px">
                         <label style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:6px">What needs to change?</label>
                         <textarea name="rejection_reason" rows="4" required placeholder="Be specific — e.g. 'Logo placement needs to be top-right, font should be bolder, wrong brand color used...'" style="width:100%;padding:12px;border:1.5px solid var(--border);border-radius:8px;font-size:12.5px;font-family:inherit;resize:vertical;background:var(--card2);color:var(--text);line-height:1.5;box-sizing:border-box"></textarea>
@@ -951,6 +1034,67 @@ function handleApprovalSubmit(e, form) {
         }
     });
     return false;
+}
+
+async function toggleClientApproval(taskId, btn) {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+    try {
+        const response = await fetch(`/tasks/${taskId}/toggle-client-approval`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            // Update Top Badge
+            const topBadge = document.getElementById(`admin-appr-client-badge-${taskId}`);
+            const topIcon = document.getElementById(`admin-appr-client-icon-${taskId}`);
+            const topText = document.getElementById(`admin-appr-client-text-${taskId}`);
+            const topBtn = document.getElementById(`admin-appr-client-btn-${taskId}`);
+            if (topBadge) {
+                topBadge.style.background = data.is_approved ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.12)';
+                topBadge.style.color = data.is_approved ? '#16a34a' : '#dc2626';
+                topBadge.style.borderColor = data.is_approved ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.25)';
+            }
+            if (topIcon) {
+                topIcon.className = `fas ${data.is_approved ? 'fa-check' : 'fa-times'}`;
+            }
+            if (topText) {
+                topText.innerText = data.is_approved ? 'Yes' : 'No';
+            }
+            if (topBtn) {
+                topBtn.innerText = data.is_approved ? '(Mark No)' : '(Mark Yes)';
+            }
+
+            // Update Card Badge & Button
+            const cardBadge = document.getElementById(`admin-appr-card-badge-${taskId}`);
+            const cardBtn = document.getElementById(`admin-appr-card-btn-${taskId}`);
+            if (cardBadge) {
+                cardBadge.innerText = data.is_approved ? 'Yes' : 'No';
+                cardBadge.style.background = data.is_approved ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.12)';
+                cardBadge.style.color = data.is_approved ? '#16a34a' : '#dc2626';
+            }
+            if (cardBtn) {
+                cardBtn.innerText = data.is_approved ? 'Mark No' : 'Mark Yes';
+            }
+        } else {
+            alert(data.message || 'Failed to update client approval');
+            btn.innerHTML = originalText;
+        }
+    } catch (e) {
+        console.error(e);
+        btn.innerHTML = originalText;
+    } finally {
+        btn.disabled = false;
+    }
 }
 </script>
 @endpush

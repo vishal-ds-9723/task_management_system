@@ -213,16 +213,16 @@ class DashboardService
                     ]);
                 break;
             case 'completed':
-                $title = 'Completed Content';
+                $title = 'Completed & Sign-Off Content';
                 $data = Task::where('client_id', $clientId)
-                    ->where('status', 'completed')
-                    ->latest('completed_at')
+                    ->whereIn('status', ['completed', 'client_review'])
+                    ->latest('updated_at')
                     ->get()
                     ->map(fn($t) => [
                         'title' => $t->title ?: 'Untitled Post',
                         'type' => ucfirst($t->type),
-                        'date' => $t->completed_at ? $t->completed_at->format('M d, Y') : 'N/A',
-                        'meta' => 'Awaiting Review',
+                        'date' => $t->completed_at ? $t->completed_at->format('M d, Y') : ($t->deadline ? $t->deadline->format('M d, Y') : 'N/A'),
+                        'meta' => $t->status === 'client_review' ? 'Needs Your Sign-Off' : 'Approved',
                         'url' => route('client.tasks.show', $t->id)
                     ]);
                 break;

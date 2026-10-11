@@ -8,8 +8,8 @@
 @php
     $inProgress    = $tasks->where('status', 'inprogress')->where('is_paused', false);
     $paused        = $tasks->where('is_paused', true);
-    $todo          = $tasks->filter(fn($t) => $t->status === 'todo' && !$t->is_locked);
-    $locked        = $tasks->filter(fn($t) => $t->status === 'todo' && $t->is_locked);
+    $todo          = $tasks->where('status', 'todo');
+    $locked        = collect();
     $inReview      = $tasks->whereIn('status', ['review', 'pending_approval']);
     $completed     = $tasks->where('status', 'completed');
     

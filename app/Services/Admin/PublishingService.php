@@ -11,7 +11,7 @@ class PublishingService
 {
     public function getPublishingIndexData(Request $request)
     {
-        $query = Task::with(['client', 'assignee', 'creator', 'socialMediaPosts', 'media'])
+        $query = Task::with(['client', 'assignee', 'creator', 'socialMediaPosts', 'media', 'clientApprover'])
             ->publishable()
             ->whereIn('status', ['completed', 'published']);
 
@@ -19,6 +19,8 @@ class PublishingService
             match ($request->filter) {
                 'pending', 'awaiting' => $query->where('status', 'completed'),
                 'published'           => $query->where('status', 'published'),
+                'client_yes'          => $query->where('status', 'completed')->whereNotNull('client_approved_at'),
+                'client_no'           => $query->where('status', 'completed')->whereNull('client_approved_at'),
                 default               => null,
             };
         }
@@ -45,6 +47,8 @@ class PublishingService
         $pendingCount = Task::publishable()->where('status', 'completed')->count();
         $publishedCount = Task::publishable()->where('status', 'published')->count();
         $totalCount = $pendingCount + $publishedCount;
+        $clientApprovedCount = Task::publishable()->where('status', 'completed')->whereNotNull('client_approved_at')->count();
+        $clientPendingCount = Task::publishable()->where('status', 'completed')->whereNull('client_approved_at')->count();
         $awaitingCount = $pendingCount;
         $partialCount = 0;
 
@@ -53,6 +57,7 @@ class PublishingService
 
         return compact(
             'tasks', 'pendingCount', 'publishedCount', 'totalCount',
+            'clientApprovedCount', 'clientPendingCount',
             'awaitingCount', 'partialCount', 'clients', 'strategists'
         );
     }

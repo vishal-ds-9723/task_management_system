@@ -11,8 +11,8 @@ class Task extends Model
 {
     use HasFactory;
 
-    public const STATUSES = ['todo', 'inprogress', 'review', 'pending_approval', 'completed', 'published', 'on_hold'];
-    public const ACTIVE_STATUSES = ['todo', 'inprogress', 'review', 'pending_approval'];
+    public const STATUSES = ['todo', 'inprogress', 'review', 'pending_approval', 'client_review', 'completed', 'published', 'on_hold'];
+    public const ACTIVE_STATUSES = ['todo', 'inprogress', 'review', 'pending_approval', 'client_review'];
     public const PLATFORMS = SocialRegistry::TASK_PLATFORMS;
     public const SOCIAL_TYPES = ['reel', 'post', 'story', 'video', 'carousel'];
     public const DESIGN_TYPES = ['brochure', 'banner', 'flyer', 'logo', 'product_design', 'branding'];
@@ -93,6 +93,11 @@ class Task extends Model
         'parent_task_id',
         // Without this, revision requests silently never increased the counter
         'revision_count',
+        'headline_copy',
+        'revision_target',
+        'requires_client_approval',
+        'client_approved_at',
+        'client_approved_by',
     ];
 
     protected function casts(): array
@@ -123,7 +128,20 @@ class Task extends Model
             'is_urgent_task'      => 'boolean',
             'total_paused_seconds' => 'integer',
             'revision_count'      => 'integer',
+            'requires_client_approval' => 'boolean',
+            'client_approved_at'  => 'datetime',
+            'client_approved_by'  => 'integer',
         ];
+    }
+
+    public function clientApprover()
+    {
+        return $this->belongsTo(User::class, 'client_approved_by');
+    }
+
+    public function isClientApproved(): bool
+    {
+        return !is_null($this->client_approved_at);
     }
 
     public function client()
@@ -319,6 +337,16 @@ class Task extends Model
         $total = count($this->normalizedPlatforms());
         $posted = $this->socialMediaPosts()->count();
         return ['posted' => $posted, 'total' => $total];
+    }
+
+    public function isCopyRevision(): bool
+    {
+        return $this->revision_target === 'strategist';
+    }
+
+    public function isDesignRevision(): bool
+    {
+        return $this->revision_target === 'designer' || empty($this->revision_target);
     }
 
     public static function isSocialType(?string $type): bool

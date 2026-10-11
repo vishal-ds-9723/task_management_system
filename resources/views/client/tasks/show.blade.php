@@ -292,23 +292,64 @@
                         $statusColors = [
                             'published' => ['#059669', '#ecfdf5'],
                             'completed' => ['#d97706', '#fffbeb'],
+                            'client_review' => ['#0d9488', '#f0fdfa'],
                             'default' => ['#2563eb', '#eff6ff']
                         ];
                         $sColor = $statusColors[$task->status] ?? $statusColors['default'];
                     @endphp
                     <span class="ts-badge" style="background:{{ $sColor[1] }}; color:{{ $sColor[0] }}">
                         <i class="fa-solid fa-circle-check"></i>
-                        {{ $task->status === 'published' ? 'Live' : ($task->status === 'completed' ? 'Awaiting Review' : 'In Progress') }}
+                        {{ $task->status === 'published' ? 'Live' : ($task->status === 'completed' ? 'Approved & Ready' : ($task->status === 'client_review' ? 'Needs Your Sign-Off' : 'In Progress')) }}
                     </span>
                 </div>
             </div>
         </div>
-        <div class="ts-actions">
-            @if($task->status === 'published')
+        <div class="ts-actions" style="display:flex;align-items:center;gap:10px">
+            @if($task->status === 'client_review')
+                <button type="button" onclick="document.getElementById('clientChangesModal').style.display='flex'" class="btn-sec" style="padding:10px 18px;border-radius:10px;font-weight:700;font-size:13px;border:1px solid var(--border);background:var(--card2);cursor:pointer">
+                    <i class="fa-solid fa-pen-to-square"></i> Request Changes
+                </button>
+                <form method="POST" action="{{ route('client.tasks.approve', $task) }}" style="margin:0" onsubmit="return confirm('Approve this creative for publishing?')">
+                    @csrf
+                    <button type="submit" class="btn-primary" style="padding:10px 20px;border-radius:10px;font-weight:700;font-size:13px;background:linear-gradient(135deg, #0D9488 0%, #059669 100%);border:none;cursor:pointer;color:#fff;display:flex;align-items:center;gap:8px;box-shadow:0 4px 12px rgba(13,148,136,0.3)">
+                        <i class="fa-solid fa-check-circle"></i> Approve Creative
+                    </button>
+                </form>
+            @elseif($task->status === 'published')
                 <div style="text-align:right; color:var(--text3); font-size:12px; font-weight:700;">
                     Published on {{ $task->completed_at?->format('M d, Y') }}
                 </div>
             @endif
+        </div>
+    </div>
+
+    @if($task->status === 'client_review')
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 20px;background:linear-gradient(135deg, rgba(13,148,136,0.1) 0%, rgba(16,185,129,0.08) 100%);border:1.5px solid rgba(13,148,136,0.35);border-radius:14px;margin-bottom:24px">
+            <div style="display:flex;align-items:center;gap:14px">
+                <div style="width:40px;height:40px;border-radius:50%;background:#0D9488;color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 3px 10px rgba(13,148,136,0.35)">
+                    <i class="fa-solid fa-user-check"></i>
+                </div>
+                <div>
+                    <div style="font-size:14px;font-weight:800;color:#115E59">Ready for Your Sign-Off</div>
+                    <div style="font-size:12.5px;color:#0F766E;margin-top:2px">Our creative team has verified this deliverable and prepared the marketing copy. Review the visual below and approve when ready!</div>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Request Changes Modal --}}
+    <div id="clientChangesModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);z-index:9999;align-items:center;justify-content:center;padding:20px">
+        <div style="background:#fff;border-radius:16px;max-width:500px;width:100%;padding:24px;box-shadow:0 20px 40px rgba(0,0,0,0.2)">
+            <h3 style="margin:0 0 10px;font-size:18px;font-weight:800;color:var(--text)">Request Changes</h3>
+            <p style="font-size:13px;color:var(--text3);margin:0 0 16px">Describe what you would like changed on this creative or caption:</p>
+            <form method="POST" action="{{ route('client.tasks.request-changes', $task) }}">
+                @csrf
+                <textarea name="notes" rows="4" required placeholder="e.g. Please update the offer text to 20% off instead of 15%..." style="width:100%;padding:12px;border:1px solid var(--border);border-radius:10px;font-size:13px;font-family:inherit;resize:vertical;box-sizing:border-box;margin-bottom:16px"></textarea>
+                <div style="display:flex;justify-content:flex-end;gap:10px">
+                    <button type="button" onclick="document.getElementById('clientChangesModal').style.display='none'" class="btn-sec" style="padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer">Cancel</button>
+                    <button type="submit" class="btn-primary" style="padding:8px 20px;border-radius:8px;background:#EF4444;border:none;color:#fff;font-weight:700;cursor:pointer">Send Changes</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -368,6 +409,15 @@
         <i class="fa-solid fa-message-lines" style="color:#6366f1;"></i>
         Post Content
     </div>
+
+    @if($task->headline_copy)
+        <div style="margin-bottom:20px;padding:14px 18px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.2);border-radius:14px">
+            <div class="ts-sub-lbl" style="margin-bottom:6px;color:#4F46E5">
+                <i class="fa-solid fa-heading" style="font-size:11px"></i> Headline Hook / Key Message
+            </div>
+            <div style="font-size:15px;font-weight:700;color:#1e293b">{{ $task->headline_copy }}</div>
+        </div>
+    @endif
 
     <!-- Caption Label -->
     <!-- Caption Label -->

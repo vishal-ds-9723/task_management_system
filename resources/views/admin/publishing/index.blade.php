@@ -14,7 +14,7 @@
 .apt-result-count strong{color:var(--text);font-weight:700}
 
 /* Stats */
-.apt-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
+.apt-stats{display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:14px;margin-bottom:24px}
 .apt-stat{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 16px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all .25s ease;text-decoration:none;position:relative;overflow:hidden}
 .apt-stat:hover{border-color:var(--primary);transform:translateY(-2px);box-shadow:var(--shadow)}
 .apt-stat-active{border-color:var(--primary) !important;box-shadow:0 0 0 3px rgba(79,109,240,.08),var(--shadow-sm)}
@@ -36,6 +36,13 @@
 .apt-btn-primary:hover{background:var(--primary-hover);box-shadow:0 2px 8px rgba(79,109,240,.2)}
 .apt-btn-ghost{background:transparent;color:var(--text3);font-weight:500}
 .apt-btn-ghost:hover{color:var(--primary);background:var(--primary-dim)}
+.apt-badge-client-yes{background:rgba(16,185,129,.12);color:#059669;border:1px solid rgba(16,185,129,.3);padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px}
+.apt-badge-client-no{background:rgba(239,68,68,.1);color:#EF4444;border:1px solid rgba(239,68,68,.25);padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px}
+.apt-btn-toggle-client{font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;cursor:pointer;transition:all .18s;border:1px solid var(--border);display:inline-flex;align-items:center;gap:3px;white-space:nowrap}
+.apt-btn-toggle-client.is-no{background:rgba(16,185,129,.1);color:#059669;border-color:rgba(16,185,129,.3)}
+.apt-btn-toggle-client.is-no:hover{background:#10B981;color:#fff}
+.apt-btn-toggle-client.is-yes{background:var(--card2);color:var(--text3);border-color:var(--border)}
+.apt-btn-toggle-client.is-yes:hover{background:rgba(239,68,68,.1);color:#EF4444;border-color:rgba(239,68,68,.3)}
 
 /* Table Container */
 .apt-table-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
@@ -177,6 +184,20 @@
             <div class="apt-stat-label">Ready to Publish</div>
         </div>
     </a>
+    <a href="{{ route('admin.publishing', ['filter' => 'client_yes']) }}" class="apt-stat {{ request('filter') === 'client_yes' ? 'apt-stat-active' : '' }}">
+        <div class="apt-stat-icon" style="background:rgba(16,185,129,.12);color:#059669"><i class="fa-solid fa-check"></i></div>
+        <div>
+            <div class="apt-stat-val" style="color:#059669">{{ $clientApprovedCount ?? 0 }}</div>
+            <div class="apt-stat-label">Client: Yes</div>
+        </div>
+    </a>
+    <a href="{{ route('admin.publishing', ['filter' => 'client_no']) }}" class="apt-stat {{ request('filter') === 'client_no' ? 'apt-stat-active' : '' }}">
+        <div class="apt-stat-icon" style="background:rgba(239,68,68,.1);color:#EF4444"><i class="fa-solid fa-xmark"></i></div>
+        <div>
+            <div class="apt-stat-val" style="color:#EF4444">{{ $clientPendingCount ?? 0 }}</div>
+            <div class="apt-stat-label">Client: No</div>
+        </div>
+    </a>
     <a href="{{ route('admin.publishing', ['filter' => 'published']) }}" class="apt-stat {{ request('filter') === 'published' ? 'apt-stat-active' : '' }}">
         <div class="apt-stat-icon" style="background:var(--teal-dim);color:var(--teal)"><i class="fa-solid fa-circle-check"></i></div>
         <div>
@@ -190,6 +211,13 @@
 <form class="apt-filter-bar" method="GET" action="{{ route('admin.publishing') }}" id="publishingFilterForm">
     <i class="fa-solid fa-filter"></i>
     <input type="text" name="search" id="publishingSearchInput" value="{{ request('search') }}" placeholder="Search by task or client..." autocomplete="off">
+    <select name="filter" onchange="this.form.submit()">
+        <option value="" {{ !request('filter') ? 'selected' : '' }}>All Status</option>
+        <option value="pending" {{ in_array(request('filter'), ['pending', 'awaiting']) ? 'selected' : '' }}>Ready to Publish</option>
+        <option value="client_yes" {{ request('filter') === 'client_yes' ? 'selected' : '' }}>Client Approved: Yes</option>
+        <option value="client_no" {{ request('filter') === 'client_no' ? 'selected' : '' }}>Client Approved: No</option>
+        <option value="published" {{ request('filter') === 'published' ? 'selected' : '' }}>Published Live</option>
+    </select>
     <div class="apt-filter-sep"></div>
     <select name="client">
         <option value="">All Clients</option>
@@ -247,6 +275,7 @@
             <th>Strategist</th>
             <th>Platforms</th>
             <th>Schedule</th>
+            <th>Client Approved</th>
             <th>Status</th>
             <th>Approved</th>
             <th style="text-align:right">Action</th>
@@ -357,6 +386,24 @@
                         <span style="color:var(--text3);font-size:11.5px">Flexible</span>
                     @endif
                 </td>
+                @php $isClientApproved = $task->isClientApproved(); @endphp
+                <td>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <span class="apt-badge {{ $isClientApproved ? 'apt-badge-client-yes' : 'apt-badge-client-no' }}"
+                              id="admin-client-badge-{{ $task->id }}"
+                              title="{{ $isClientApproved ? 'Client Approved: YES' . ($task->clientApprover ? ' (Confirmed by ' . $task->clientApprover->name . ')' : '') : 'Client Approved: NO (Pending client confirmation)' }}">
+                            <i class="fa-solid {{ $isClientApproved ? 'fa-check' : 'fa-xmark' }}"></i>
+                            {{ $isClientApproved ? 'Yes' : 'No' }}
+                        </span>
+                        <button type="button"
+                                class="apt-btn-toggle-client {{ $isClientApproved ? 'is-yes' : 'is-no' }}"
+                                id="admin-client-toggle-btn-{{ $task->id }}"
+                                onclick="toggleClientApproval({{ $task->id }}, this)"
+                                title="{{ $isClientApproved ? 'Click to mark as No' : 'Click to mark as Yes' }}">
+                            {{ $isClientApproved ? 'Mark No' : 'Mark Yes' }}
+                        </button>
+                    </div>
+                </td>
                 <td>
                     <span class="apt-status-tag {{ $statusClass }}">
                         <i class="fa-solid {{ $statusIcon }} apt-status-icon"></i> {{ $statusLabel }}
@@ -378,7 +425,7 @@
                                 <button type="submit" class="apt-btn-revert" title="Revert to pending"><i class="fa-solid fa-rotate-left"></i> Revert</button>
                             </form>
                         @else
-                            <form method="POST" action="{{ route('admin.publishing.publish', $task) }}" onsubmit="return confirm('Mark this task as Published on social media?')" style="margin:0;display:inline">
+                            <form method="POST" action="{{ route('admin.publishing.publish', $task) }}" onsubmit="return confirmPublishWithClientCheck(event, this, {{ $isClientApproved ? 'true' : 'false' }})" style="margin:0;display:inline">
                                 @csrf
                                 <button type="submit" class="apt-btn-publish" title="1-Click Mark as Published"><i class="fa-solid fa-rocket"></i> Publish</button>
                             </form>
@@ -461,5 +508,60 @@
         }
     });
 })();
+
+async function toggleClientApproval(taskId, btn) {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+    try {
+        const response = await fetch(`/tasks/${taskId}/toggle-client-approval`, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            const badge = document.getElementById(`admin-client-badge-${taskId}`);
+            if (badge) {
+                if (data.is_approved) {
+                    badge.className = 'apt-badge apt-badge-client-yes';
+                    badge.innerHTML = '<i class="fa-solid fa-check"></i> Yes';
+                    badge.title = `Client Approved: YES (Confirmed by ${data.approved_by || 'You'} on ${data.approved_at || 'Just now'})`;
+                    btn.className = 'apt-btn-toggle-client is-yes';
+                    btn.innerHTML = 'Mark No';
+                    btn.title = 'Click to mark as No';
+                } else {
+                    badge.className = 'apt-badge apt-badge-client-no';
+                    badge.innerHTML = '<i class="fa-solid fa-xmark"></i> No';
+                    badge.title = 'Client Approved: NO (Pending client confirmation)';
+                    btn.className = 'apt-btn-toggle-client is-no';
+                    btn.innerHTML = 'Mark Yes';
+                    btn.title = 'Click to mark as Yes';
+                }
+            }
+        } else {
+            alert(data.message || 'Failed to update client approval status');
+            btn.innerHTML = originalText;
+        }
+    } catch (e) {
+        console.error(e);
+        btn.innerHTML = originalText;
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function confirmPublishWithClientCheck(event, form, isApproved) {
+    if (!isApproved) {
+        return confirm('⚠️ Note: Client approval is currently marked as NO.\n\nAre you sure you want to mark this task as Published?');
+    }
+    return confirm('Mark this task as Published on social media?');
+}
 </script>
 @endpush

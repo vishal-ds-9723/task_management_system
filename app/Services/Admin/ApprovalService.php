@@ -57,8 +57,11 @@ class ApprovalService
 
         // Soft warning is handled at UI level — Admin override allows approval even if caption/hashtags are not yet set
 
+        // Client portal is removed for now — Admin approval completes the task directly
+        $targetStatus = 'completed';
+
         $task->update([
-            'status'                => 'completed',
+            'status'                => $targetStatus,
             'completed_at'          => now(),
             'admin_approval_status' => 'approved',
             'admin_approved_by'     => Auth::id(),
@@ -68,9 +71,34 @@ class ApprovalService
         AuditLog::create([
             'user_id' => Auth::id(),
             'task_id' => $task->id,
-            'action'  => 'Approved task for completion',
-            'details' => 'Admin final approval completed',
+            'action'  => $targetStatus === 'client_review' ? 'Approved by Admin — sent to Client Review' : 'Approved task for completion',
+            'details' => $targetStatus === 'client_review' ? 'Awaiting client portal sign-off' : 'Admin final approval completed',
         ]);
+
+        // If sent to client review, notify strategist and designer
+        if ($targetStatus === 'client_review') {
+            if ($task->assignee) {
+                Notification::create([
+                    'user_id'  => $task->assignee->id,
+                    'task_id'  => $task->id,
+                    'icon'     => '👀',
+                    'title'    => 'Approved internally — Sent to Client',
+                    'subtitle' => '"' . $task->title . '" passed internal double-check and is now in client review.',
+                    'link'     => '/designer/tasks/' . $task->id,
+                ]);
+            }
+            if ($task->created_by && $task->created_by !== Auth::id()) {
+                Notification::create([
+                    'user_id'  => $task->created_by,
+                    'task_id'  => $task->id,
+                    'icon'     => '👔',
+                    'title'    => 'Sent to Client Review',
+                    'subtitle' => 'Admin approved "' . $task->title . '" — now awaiting client sign-off.',
+                    'link'     => route('strategist.tasks.show', $task),
+                ]);
+            }
+            return $task;
+        }
 
         // Notify designer
         if ($task->assignee) {
@@ -125,69 +153,102 @@ class ApprovalService
     }
 
     /**
-     * Reject task for revision.
+     * Reject task for revision (targeted to either Designer or Strategist).
      */
     public function rejectTask(array $data, Task $task, ?array $files = null)
     {
         abort_if(!in_array($task->status, ['review', 'pending_approval']), 403);
 
         $awayMode = Setting::isStrategistAway();
-
-        // Atomic DB-level increment prevents double-count on concurrent requests
-        $task->increment('revision_count');
-        $task->update([
-            'status'                => 'inprogress',
-            'admin_approval_status' => 'rejected',
-            'admin_approved_by'     => Auth::id(),
-            'admin_approved_at'     => now(),
-        ]);
-
-        if (!empty($files)) {
-            $this->storeUploadedTaskMedia($task, $files, 'task-reference', [
-                'is_reference'     => true,
-                'revision_count'   => (int) $task->revision_count,
-                'rejection_reason' => $data['rejection_reason'],
-            ]);
-        }
-
-        // Add comment
-        Comment::create([
-            'task_id' => $task->id,
-            'user_id' => Auth::id(),
-            'body'    => '❌ Revision requested by admin: ' . $data['rejection_reason'],
-        ]);
-
-        AuditLog::create([
-            'user_id'  => Auth::id(),
-            'task_id'  => $task->id,
-            'action'   => 'Rejected task — sent back for revision',
-            'details'  => $data['rejection_reason'],
-        ]);
-
+        $target = $data['revision_target'] ?? 'designer';
         $reason = $data['rejection_reason'];
 
-        // Notify assignee
-        if ($task->assigned_to) {
-            Notification::create([
-                'user_id'  => $task->assigned_to,
-                'task_id'  => $task->id,
-                'icon'     => '🔄',
-                'title'    => 'Revision requested',
-                'subtitle' => 'Admin needs changes on "' . $task->title . '": ' . Str::limit($reason, 80),
-                'link'     => '/designer/tasks/' . $task->id,
+        if ($target === 'strategist') {
+            // Copy / Strategy Revision: Stays in review, assigned strategist updates caption/strategy
+            $task->update([
+                'status'                => 'review',
+                'revision_target'       => 'strategist',
+                'admin_approval_status' => 'rejected',
+                'admin_approved_by'     => Auth::id(),
+                'admin_approved_at'     => now(),
             ]);
-        }
 
-        // Notify creator
-        if (!$awayMode && $task->created_by && $task->created_by !== Auth::id()) {
-            Notification::create([
-                'user_id'  => $task->created_by,
-                'task_id'  => $task->id,
-                'icon'     => '❌',
-                'title'    => 'Task rejected by admin',
-                'subtitle' => Auth::user()->name . ' rejected "' . $task->title . '": ' . Str::limit($reason, 80),
-                'link'     => '/strategist/tasks/' . $task->id,
+            Comment::create([
+                'task_id' => $task->id,
+                'user_id' => Auth::id(),
+                'body'    => '✍️ Copy/Strategy Revision requested by Admin: ' . $reason,
             ]);
+
+            AuditLog::create([
+                'user_id'  => Auth::id(),
+                'task_id'  => $task->id,
+                'action'   => 'Requested copy revision from Strategist',
+                'details'  => $reason,
+            ]);
+
+            if ($task->created_by && $task->created_by !== Auth::id()) {
+                Notification::create([
+                    'user_id'  => $task->created_by,
+                    'task_id'  => $task->id,
+                    'icon'     => '✍️',
+                    'title'    => 'Copy revision needed',
+                    'subtitle' => 'Admin requested copy adjustments on "' . $task->title . '": ' . Str::limit($reason, 80),
+                    'link'     => route('strategist.tasks.show', $task),
+                ]);
+            }
+        } else {
+            // Visual / Graphic Revision: Atomic increment and back to Designer
+            $task->increment('revision_count');
+            $task->update([
+                'status'                => 'inprogress',
+                'revision_target'       => 'designer',
+                'admin_approval_status' => 'rejected',
+                'admin_approved_by'     => Auth::id(),
+                'admin_approved_at'     => now(),
+            ]);
+
+            if (!empty($files)) {
+                $this->storeUploadedTaskMedia($task, $files, 'task-reference', [
+                    'is_reference'     => true,
+                    'revision_count'   => (int) $task->revision_count,
+                    'rejection_reason' => $reason,
+                ]);
+            }
+
+            Comment::create([
+                'task_id' => $task->id,
+                'user_id' => Auth::id(),
+                'body'    => '❌ Visual Revision requested by admin: ' . $reason,
+            ]);
+
+            AuditLog::create([
+                'user_id'  => Auth::id(),
+                'task_id'  => $task->id,
+                'action'   => 'Rejected task — sent back for visual revision',
+                'details'  => $reason,
+            ]);
+
+            if ($task->assigned_to) {
+                Notification::create([
+                    'user_id'  => $task->assigned_to,
+                    'task_id'  => $task->id,
+                    'icon'     => '🔄',
+                    'title'    => 'Visual revision requested',
+                    'subtitle' => 'Admin needs changes on "' . $task->title . '": ' . Str::limit($reason, 80),
+                    'link'     => '/designer/tasks/' . $task->id,
+                ]);
+            }
+
+            if (!$awayMode && $task->created_by && $task->created_by !== Auth::id()) {
+                Notification::create([
+                    'user_id'  => $task->created_by,
+                    'task_id'  => $task->id,
+                    'icon'     => '❌',
+                    'title'    => 'Task sent to designer for revision',
+                    'subtitle' => Auth::user()->name . ' requested visual changes on "' . $task->title . '": ' . Str::limit($reason, 80),
+                    'link'     => '/strategist/tasks/' . $task->id,
+                ]);
+            }
         }
 
         return $task;

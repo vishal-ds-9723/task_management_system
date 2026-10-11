@@ -425,35 +425,6 @@
                 <span class="nav-tooltip">Calendar</span>
             </a>
         </div>
-    @elseif($role === 'client')
-        <div class="nav-section">
-            <a href="{{ route('client.dashboard') }}" class="nav-item {{ request()->routeIs('client.dashboard') ? 'active' : '' }}" title="Dashboard">
-                <span class="icon"><i class="fas fa-th-large"></i></span>
-                <span class="nav-text">Dashboard</span>
-                <span class="nav-tooltip">Dashboard</span>
-            </a>
-            <a href="{{ route('client.published-content') }}" class="nav-item {{ request()->routeIs('client.published-content') ? 'active' : '' }}" title="Published Content">
-                <span class="icon"><i class="fas fa-bullhorn"></i></span>
-                <span class="nav-text">Published</span>
-                <span class="nav-tooltip">Published Content</span>
-            </a>
-            <a href="{{ route('client.content-schedule') }}" class="nav-item {{ request()->routeIs('client.content-schedule') ? 'active' : '' }}" title="Content Schedule">
-                <span class="icon"><i class="fas fa-chart-bar"></i></span>
-                <span class="nav-text">Content Schedule</span>
-                <span class="nav-tooltip">Monthly Content Schedule</span>
-            </a>
-            <a href="{{ route('client.festivals') }}" class="nav-item {{ request()->routeIs('client.festivals') ? 'active' : '' }}" title="Festival Calendar">
-                <span class="icon"><i class="fas fa-calendar-alt"></i></span>
-
-                <span class="nav-text">Festivals</span>
-                <span class="nav-tooltip">Festival Calendar</span>
-            </a>
-            <a href="{{ route('client.social-analysis') }}" class="nav-item {{ request()->routeIs('client.social-analysis') ? 'active' : '' }}" title="Social Analysis">
-                <span class="icon"><i class="fas fa-chart-pie"></i></span>
-                <span class="nav-text">Social Analysis</span>
-                <span class="nav-tooltip">Social Analysis</span>
-            </a>
-        </div>
     @endif
 
     @if(auth()->user()->isStrategist() || auth()->user()->canManageSocialMetrics())

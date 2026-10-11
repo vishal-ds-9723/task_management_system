@@ -69,6 +69,8 @@ class DummyUserSeeder extends Seeder
             ]
         );
 
+        // Client portal and login are temporarily disabled
+        /*
         User::updateOrCreate(
             ['email' => 'client@thelayout.co.in'],
             [
@@ -80,5 +82,6 @@ class DummyUserSeeder extends Seeder
                 'can_manage_social_metrics' => false,
             ]
         );
+        */
     }
 }

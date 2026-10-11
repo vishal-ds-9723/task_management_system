@@ -163,6 +163,21 @@
                     </div>
                 </div>
 
+                {{-- Headline Hook / Visual Text (Core Graphic Overlay) --}}
+                @if($task->headline_copy)
+                    <div class="task-brief" style="border-left:3px solid var(--primary);background:rgba(59,130,246,0.06);padding:12px 14px;border-radius:6px;margin-bottom:10px">
+                        <div class="task-brief-label" style="display:flex;align-items:center;justify-content:space-between;color:var(--primary);font-weight:700">
+                            <span style="display:flex;align-items:center;gap:6px">
+                                <i class="fa-solid fa-heading"></i>
+                                <span>Visual Hook / Headline Copy</span>
+                                <span style="font-size:10px;padding:1px 6px;border-radius:10px;background:rgba(59,130,246,0.15);color:var(--primary)">Put on graphic</span>
+                            </span>
+                            <button type="button" onclick="navigator.clipboard.writeText('{{ addslashes($task->headline_copy) }}'); this.innerText='Copied!'; setTimeout(() => this.innerText='Copy', 1500)" class="btn-sec" style="font-size:10.5px;padding:2px 8px;border-radius:4px;height:auto">Copy</button>
+                        </div>
+                        <div class="task-brief-body" style="font-size:13.5px;font-weight:600;color:var(--text);margin-top:4px">{{ $task->headline_copy }}</div>
+                    </div>
+                @endif
+
                 {{-- Brief / Content Copy (Capped Height to Prevent Vertical Bloat) --}}
                 @if($task->is_urgent_task && $urgentBrief !== '')
                     <div class="task-brief" style="border-left:3px solid #DC2626;background:#FEF2F2">
@@ -175,12 +190,28 @@
                 @endif
 
                 @if($task->caption && (!$task->is_urgent_task || $showUrgentCaption))
-                    <div class="task-brief">
-                        <div class="task-brief-label">
-                            <i class="fa-solid fa-align-left"></i>
-                            <span>Post Caption & Copy</span>
+                    <div class="task-brief" style="margin-bottom:10px">
+                        <div class="task-brief-label" style="display:flex;align-items:center;justify-content:space-between">
+                            <span style="display:flex;align-items:center;gap:6px">
+                                <i class="fa-solid fa-align-left"></i>
+                                <span>Post Caption & Copy</span>
+                            </span>
+                            <button type="button" onclick="navigator.clipboard.writeText('{{ addslashes($task->caption) }}'); this.innerText='Copied!'; setTimeout(() => this.innerText='Copy', 1500)" class="btn-sec" style="font-size:10.5px;padding:2px 8px;border-radius:4px;height:auto">Copy</button>
                         </div>
-                        <div class="task-brief-body">{{ $task->caption }}</div>
+                        <div class="task-brief-body" style="white-space:pre-wrap">{{ $task->caption }}</div>
+                    </div>
+                @endif
+
+                @if($task->hashtags)
+                    <div class="task-brief" style="margin-bottom:10px;background:rgba(0,0,0,0.02)">
+                        <div class="task-brief-label" style="display:flex;align-items:center;justify-content:space-between">
+                            <span style="display:flex;align-items:center;gap:6px">
+                                <i class="fa-solid fa-hashtag"></i>
+                                <span>Hashtags</span>
+                            </span>
+                            <button type="button" onclick="navigator.clipboard.writeText('{{ addslashes($task->hashtags) }}'); this.innerText='Copied!'; setTimeout(() => this.innerText='Copy', 1500)" class="btn-sec" style="font-size:10.5px;padding:2px 8px;border-radius:4px;height:auto">Copy</button>
+                        </div>
+                        <div class="task-brief-body" style="color:var(--primary);font-size:12px">{{ $task->hashtags }}</div>
                     </div>
                 @endif
 

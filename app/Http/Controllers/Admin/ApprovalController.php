@@ -76,14 +76,19 @@ class ApprovalController extends Controller
     {
         $task = $this->service->rejectTask($request->validated(), $task, $request->file('reference_files'));
 
+        $isCopyRevision = $task->revision_target === 'strategist';
+        $message = $isCopyRevision
+            ? 'Copy revision requested — sent to Strategist for copy adjustments.'
+            : 'Task sent back to designer for visual revision (Revision #' . $task->revision_count . ')';
+
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Task sent back for revision (Revision #' . $task->revision_count . ')',
+                'message' => $message,
             ]);
         }
 
-        return redirect()->route('admin.approvals')->with('success', 'Task sent back for revision (Revision #' . $task->revision_count . ')');
+        return redirect()->route('admin.approvals')->with('success', $message);
     }
 }
 

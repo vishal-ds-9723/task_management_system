@@ -831,6 +831,37 @@
                 <div id="briefOkMsg" class="field-ok-msg" style="display:none"><i class="fas fa-check-circle"></i> Okay</div>
             </div>
 
+            <div id="headlineCopyGroup" class="form-group full">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                    <label style="margin-bottom:0;display:flex;align-items:center;gap:6px">
+                        <i class="fas fa-heading" style="color:var(--primary);font-size:12px"></i>
+                        <span>Visual Hook / Headline Copy</span>
+                    </label>
+                    <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;background:var(--primary-dim);color:var(--primary)">Shown directly to Designer</span>
+                </div>
+                <input type="text" name="headline_copy" id="headlineCopyInput" value="{{ old('headline_copy') }}" placeholder="e.g. '5 Secrets to 10x Your Reach' (The exact title/text for the graphic)" style="width:100%;background:var(--card2);border:1px solid var(--border)">
+                <div style="font-size:11px;color:var(--text3);margin-top:5px">Provide the exact hook or main text overlay so the designer creates visuals matching the message.</div>
+            </div>
+
+            <div id="captionGroup" class="form-group full">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                    <label style="margin-bottom:0;display:flex;align-items:center;gap:6px">
+                        <i class="fas fa-align-left" style="color:var(--primary);font-size:12px"></i>
+                        <span>Draft Caption & Body Copy</span>
+                    </label>
+                    <span style="font-size:11px;color:var(--text3);font-weight:500">Optional Upfront · Speeds up 2-tier approval</span>
+                </div>
+                <textarea name="caption" id="captionInput" placeholder="Write initial caption, CTA, or post story..." style="min-height:80px;width:100%;display:block;background:var(--card2);border:1px solid var(--border)">{{ old('caption') }}</textarea>
+            </div>
+
+            <div id="hashtagsGroup" class="form-group full">
+                <label style="display:flex;align-items:center;gap:6px">
+                    <i class="fas fa-hashtag" style="color:var(--primary);font-size:12px"></i>
+                    <span>Target Hashtags</span>
+                </label>
+                <input type="text" name="hashtags" id="hashtagsInput" value="{{ old('hashtags') }}" placeholder="#branding #socialmediamarketing #growth" style="width:100%;background:var(--card2);border:1px solid var(--border)">
+            </div>
+
             <div id="referenceGroup" class="form-group full">
                 <label><i class="fas fa-link" style="margin-right:3px"></i> Reference Links</label>
                 <div id="referenceLinksWrap" style="display:flex;flex-direction:column;gap:8px">

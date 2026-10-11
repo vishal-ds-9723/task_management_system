@@ -10,6 +10,11 @@ class RoleMiddleware
 {
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
+        if ($request->user() && $request->user()->role === 'client') {
+            auth()->logout();
+            return redirect()->route('login')->withErrors(['email' => 'Client portal is temporarily disabled.']);
+        }
+
         $allowedRoles = [];
         foreach ($roles as $r) {
             foreach (explode(',', $r) as $subRole) {
