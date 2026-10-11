@@ -13,6 +13,10 @@
     $inReview      = $tasks->whereIn('status', ['review', 'pending_approval']);
     $completed     = $tasks->where('status', 'completed');
     
+    // Revision Tasks
+    $revisionTasks = $tasks->filter(fn($t) => $t->revision_count > 0 && !in_array($t->status, ['completed', 'published']));
+    $revisionCount = $revisionTasks->count();
+
     // Streamlined 3-Status Grouping
     $activeCount   = $inProgress->count() + $inReview->count();
     $queueCount    = $todo->count();
@@ -21,7 +25,9 @@
 
     $requestedStatus = request('status', '');
     $defaultFilterTab = 'all';
-    if (in_array($requestedStatus, ['inprogress', 'review'])) {
+    if ($requestedStatus === 'revisions') {
+        $defaultFilterTab = 'revisions';
+    } elseif (in_array($requestedStatus, ['inprogress', 'review'])) {
         $defaultFilterTab = 'active';
     } elseif ($requestedStatus === 'todo') {
         $defaultFilterTab = 'queue';
@@ -67,6 +73,12 @@
         <button type="button" class="task-tab-btn {{ $defaultFilterTab === 'all' ? 'active' : '' }}" data-status-filter="all">
             All <span class="task-tab-count">{{ $allCount }}</span>
         </button>
+        @if($revisionCount > 0)
+        <button type="button" class="task-tab-btn {{ $defaultFilterTab === 'revisions' ? 'active' : '' }}" data-status-filter="revisions" style="color:var(--dz-red,#DC2626)">
+            <span class="ds-pulse-dot" style="width:6px;height:6px;background:var(--dz-red,#DC2626)"></span>
+            Revisions <span class="task-tab-count tag-red" style="font-weight:800">{{ $revisionCount }}</span>
+        </button>
+        @endif
         <button type="button" class="task-tab-btn {{ $defaultFilterTab === 'active' ? 'active' : '' }}" data-status-filter="active">
             <span class="ds-pulse-dot" style="width:6px;height:6px"></span>
             Active <span class="task-tab-count">{{ $activeCount }}</span>
@@ -125,7 +137,8 @@
             <a href="{{ route('designer.tasks.show', $task) }}" 
                class="task-card task-item-container" 
                data-status="{{ $statusSlug }}"
-               data-status-group="{{ $statusGroup }}">
+               data-status-group="{{ $statusGroup }}"
+               data-revision="{{ $task->revision_count > 0 && !in_array($task->status, ['completed', 'published']) ? '1' : '0' }}">
                 
                 {{-- Card Header: Client & Status --}}
                 <div class="task-card-header">
@@ -197,7 +210,8 @@
             <a href="{{ route('designer.tasks.show', $task) }}" 
                class="task-list-row task-item-container" 
                data-status="{{ $statusSlug }}"
-               data-status-group="{{ $statusGroup }}">
+               data-status-group="{{ $statusGroup }}"
+               data-revision="{{ $task->revision_count > 0 && !in_array($task->status, ['completed', 'published']) ? '1' : '0' }}">
                 
                 <x-client-branding :client="$task->client" size="26px" radius="5px" fit="contain" />
                 
@@ -265,7 +279,7 @@ function setTaskViewMode(mode) {
     if (saved === 'list') setTaskViewMode('list');
 })();
 
-// Streamlined 3-Status Tab Instant DOM filtering (Active / Queue / Done / All)
+// Streamlined Status Tab Instant DOM filtering (All / Revisions / Active / Queue / Done)
 document.querySelectorAll('#statusFilterTabs button').forEach(btn => {
     btn.addEventListener('click', function() {
         document.querySelectorAll('#statusFilterTabs button').forEach(b => b.classList.remove('active'));
@@ -274,7 +288,12 @@ document.querySelectorAll('#statusFilterTabs button').forEach(btn => {
         const filter = this.getAttribute('data-status-filter');
         document.querySelectorAll('.task-item-container').forEach(card => {
             const group = card.getAttribute('data-status-group');
-            if (filter === 'all' || group === filter) {
+            const hasRevision = card.getAttribute('data-revision') === '1';
+            if (filter === 'all') {
+                card.style.display = '';
+            } else if (filter === 'revisions') {
+                card.style.display = hasRevision ? '' : 'none';
+            } else if (group === filter) {
                 card.style.display = '';
             } else {
                 card.style.display = 'none';

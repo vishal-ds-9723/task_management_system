@@ -40,7 +40,12 @@ class TaskService
         }
 
         if ($request->filled('status')) {
-            $query->where('status', $request->get('status'));
+            $status = $request->get('status');
+            if ($status === 'revisions') {
+                $query->where('revision_count', '>', 0)->whereNotIn('status', ['completed', 'published']);
+            } else {
+                $query->where('status', $status);
+            }
         }
 
         if ($request->filled('creator_id')) {
@@ -95,38 +100,50 @@ class TaskService
             $selectedSocialMediaLinks = collect([$task->socialMediaLink]);
         }
 
-        if ($isOwner && $task->status === 'todo') {
-            $task->update([
-                'status'     => 'inprogress',
-                'started_at' => now(),
-            ]);
+        // Extracted prominent revision data (if task has revisions)
+        $latestRevisionComment = null;
+        $latestRevisionNotes   = null;
+        $latestRevisionMedia   = collect();
 
-            AuditLog::create([
-                'user_id'    => Auth::id(),
-                'task_id'    => $task->id,
-                'action'     => 'Auto-started task',
-                'old_values' => ['status' => 'todo'],
-                'new_values' => ['status' => 'inprogress'],
-                'ip_address' => request()->ip(),
-            ]);
+        if ($task->revision_count > 0) {
+            $revisionCommentModel = $task->comments
+                ->filter(function ($c) {
+                    $body = strtolower($c->body ?? '');
+                    return str_contains($body, 'revision requested')
+                        || str_contains($body, 'revision')
+                        || str_contains($body, 'changes requested');
+                })
+                ->last();
 
-            if ($task->created_by && $task->created_by !== Auth::id()) {
-                Notification::create([
-                    'user_id'  => $task->created_by,
-                    'task_id'  => $task->id,
-                    'icon'     => '🚀',
-                    'title'    => 'Work started on task',
-                    'subtitle' => Auth::user()->name . ' started working on "' . $task->title . '"',
-                    'link'     => route('strategist.tasks.show', $task),
-                ]);
+            if (!$revisionCommentModel) {
+                $revisionCommentModel = $task->comments
+                    ->filter(fn($c) => in_array($c->user?->role, ['admin', 'strategist']))
+                    ->last();
             }
 
-            $task->refresh();
+            if ($revisionCommentModel) {
+                $latestRevisionComment = $revisionCommentModel;
+                $clean = preg_replace('/^(?:🔄|✍️|🔁)?\s*(?:Visual\s+)?Revision requested(?:\s+by\s+[A-Za-z]+)?:\s*/iu', '', $revisionCommentModel->body);
+                $latestRevisionNotes = trim($clean);
+            }
+
+            $allMedia = $task->relationLoaded('media') ? $task->media : $task->media()->get();
+            $latestRevisionMedia = $allMedia->filter(function ($m) use ($task) {
+                return $m->isReference() && $m->getRevisionCount() === (int) $task->revision_count;
+            })->values();
         }
 
         $workflowSteps = $this->getWorkflowSteps($task);
 
-        return compact('task', 'workflowSteps', 'selectedSocialMediaLinks', 'isReadOnly');
+        return compact(
+            'task',
+            'workflowSteps',
+            'selectedSocialMediaLinks',
+            'isReadOnly',
+            'latestRevisionComment',
+            'latestRevisionNotes',
+            'latestRevisionMedia'
+        );
     }
 
     protected function getWorkflowSteps(Task $task): array
@@ -190,6 +207,49 @@ class TaskService
     {
         // Tasks are no longer artificially blocked; designers can preview and prepare any assigned task
         return false;
+    }
+
+    public function startTask(Request $request, Task $task)
+    {
+        abort_if($task->assigned_to !== Auth::id(), 403);
+        abort_if($task->status !== 'todo', 400, 'Task is not in queue/to-do status.');
+
+        $task->update([
+            'status'     => 'inprogress',
+            'started_at' => $task->started_at ?? now(),
+        ]);
+
+        AuditLog::create([
+            'user_id'    => Auth::id(),
+            'task_id'    => $task->id,
+            'action'     => 'Started work on task',
+            'old_values' => ['status' => 'todo'],
+            'new_values' => ['status' => 'inprogress'],
+            'ip_address' => $request->ip(),
+        ]);
+
+        if ($task->created_by && $task->created_by !== Auth::id()) {
+            Notification::create([
+                'user_id'  => $task->created_by,
+                'task_id'  => $task->id,
+                'icon'     => '🚀',
+                'title'    => 'Work started on task',
+                'subtitle' => Auth::user()->name . ' started working on "' . $task->title . '"',
+                'link'     => route('strategist.tasks.show', $task),
+            ]);
+        }
+
+        $msg = 'Task started! You are now actively working on this deliverable.';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $msg,
+                'task'    => $task,
+            ]);
+        }
+
+        return back()->with('success', $msg);
     }
 
     public function submitForReview(Request $request, Task $task)
@@ -436,6 +496,21 @@ class TaskService
         $successMessage = $uploadedCount . ' file(s) uploaded successfully';
         if (!empty($failedFiles)) {
             $successMessage .= '. Failed: ' . implode(', ', $failedFiles);
+        }
+
+        if (!$isReference && $task->status === 'todo') {
+            $task->update([
+                'status'     => 'inprogress',
+                'started_at' => $task->started_at ?? now(),
+            ]);
+            AuditLog::create([
+                'user_id'    => Auth::id(),
+                'task_id'    => $task->id,
+                'action'     => 'Started work on task via deliverable upload',
+                'old_values' => ['status' => 'todo'],
+                'new_values' => ['status' => 'inprogress'],
+                'ip_address' => $request->ip(),
+            ]);
         }
 
         if ($request->ajax() || $request->wantsJson()) {

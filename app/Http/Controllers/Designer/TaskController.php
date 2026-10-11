@@ -34,6 +34,13 @@ class TaskController extends Controller
         return view('designer.task-detail', $data);
     }
 
+    public function startTask(Request $request, Task $task)
+    {
+        $data = $this->service->startTask($request, $task);
+
+        return $data;
+    }
+
     public function submitForReview(Task $task)
     {
         $data = $this->service->submitForReview(request(), $task);

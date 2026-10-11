@@ -285,6 +285,7 @@ Route::prefix('designer')->name('designer.')->middleware(['auth', 'role:designer
     Route::get('/dashboard', [Designer\DashboardController::class, 'index'])->name('dashboard');
     Route::get('/tasks', [Designer\TaskController::class, 'index'])->name('tasks');
     Route::get('/tasks/{task}', [Designer\TaskController::class, 'show'])->name('tasks.show');
+    Route::post('/tasks/{task}/start', [Designer\TaskController::class, 'startTask'])->name('tasks.start');
     Route::patch('/tasks/{task}/status', [Designer\TaskController::class, 'updateStatus'])->name('tasks.status');
     Route::post('/tasks/{task}/submit', [Designer\TaskController::class, 'submitForReview'])->name('tasks.submit');
     Route::post('/tasks/{task}/upload-media', [Designer\TaskController::class, 'uploadMedia'])->name('tasks.upload-media');

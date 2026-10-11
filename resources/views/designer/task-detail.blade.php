@@ -93,8 +93,96 @@
     </div>
     @endif
 
-    {{-- ═══ SLIM ALERT BANNERS ═══ --}}
-    @if($task->is_paused)
+    {{-- ═══ SLIM ALERT BANNERS & REVISION CALLOUT ═══ --}}
+    @if($task->status === 'todo' && empty($isReadOnly))
+        <div class="wf-status-bar" style="background:#EFF6FF;border-left:3.5px solid #2563EB;color:#1E40AF;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;border-radius:10px;margin-bottom:16px;box-shadow:0 1px 4px rgba(37,99,235,0.08)">
+            <div style="display:flex;align-items:center;gap:12px">
+                <div style="width:36px;height:36px;border-radius:8px;background:rgba(37,99,235,0.12);display:flex;align-items:center;justify-content:center;color:#2563EB;font-size:16px">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                </div>
+                <div>
+                    <div style="font-weight:800;font-size:13.5px;color:#1E3A8A">Task is in Queue (To Do)</div>
+                    <div style="font-size:12px;color:#3B82F6;margin-top:2px">Review the creative brief and reference materials below. Click Start Working when ready to begin designing.</div>
+                </div>
+            </div>
+            <form method="POST" action="{{ route('designer.tasks.start', $task) }}" style="margin:0">
+                @csrf
+                <button type="submit" class="btn-action-primary" style="background:#2563EB !important;border-color:#2563EB !important;padding:7px 18px !important;font-size:12.5px !important;box-shadow:0 2px 6px rgba(37,99,235,0.3);display:inline-flex;align-items:center;gap:6px">
+                    <i class="fa-solid fa-play"></i> Start Working
+                </button>
+            </form>
+        </div>
+    @elseif($task->revision_count > 0 && $task->status === 'inprogress')
+        <div class="wf-revision-callout" style="background:#FEF2F2;border:1.5px solid #FCA5A5;border-radius:12px;padding:16px 20px;margin-bottom:18px;box-shadow:0 2px 8px rgba(220,38,38,0.06)">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+                <div style="display:flex;align-items:center;gap:10px">
+                    <div style="width:34px;height:34px;border-radius:8px;background:#FEE2E2;border:1px solid #FCA5A5;display:flex;align-items:center;justify-content:center;color:#DC2626;font-size:15px">
+                        <i class="fa-solid fa-rotate-left"></i>
+                    </div>
+                    <div>
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <span style="font-size:14px;font-weight:800;color:#991B1B">
+                                Revision #{{ $task->revision_count }} Requested
+                            </span>
+                            <span class="tag tag-red" style="font-size:10px;font-weight:700;padding:1px 7px">Changes Required</span>
+                        </div>
+                        <div style="font-size:11.5px;color:#B91C1C;margin-top:2px">
+                            Requested by <strong>{{ $latestRevisionComment?->user?->name ?? 'Strategist / Admin' }}</strong>
+                            @if($latestRevisionComment?->created_at)
+                                · {{ $latestRevisionComment->created_at->diffForHumans() }}
+                            @endif
+                        </div>
+                    </div>
+                </div>
+
+                <a href="#commentsList" class="btn-sec" style="font-size:11px;padding:4px 10px;border-color:#FCA5A5;color:#991B1B;background:#fff">
+                    <i class="fa-solid fa-comments"></i> Comment Thread
+                </a>
+            </div>
+
+            {{-- Exact Revision Note Block --}}
+            <div style="background:#FFFFFF;border-left:4px solid #DC2626;border-radius:0 8px 8px 0;padding:12px 16px;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
+                <div style="font-size:11px;font-weight:800;color:#991B1B;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:4px;display:flex;align-items:center;gap:5px">
+                    <i class="fa-solid fa-quote-left"></i> Feedback & Changes Requested:
+                </div>
+                <div style="font-size:13.5px;font-weight:600;line-height:1.55;color:#1F2937;white-space:pre-wrap">{{ $latestRevisionNotes ?: ($latestRevisionComment?->body ?: 'Please review the comments below and upload revised creative files.') }}</div>
+            </div>
+
+            {{-- Attached Markup/Screenshots for this Revision --}}
+            @if(isset($latestRevisionMedia) && $latestRevisionMedia->isNotEmpty())
+                <div style="margin-top:12px;padding-top:12px;border-top:1px dashed #FCA5A5">
+                    <div style="font-size:11.5px;font-weight:700;color:#991B1B;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+                        <i class="fa-solid fa-paperclip"></i>
+                        <span>Attached Revision Reference / Markup ({{ $latestRevisionMedia->count() }}):</span>
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:10px">
+                        @foreach($latestRevisionMedia as $revMedia)
+                            <div style="display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #FCA5A5;border-radius:8px;padding:6px 10px;max-width:280px">
+                                @if($revMedia->isImage())
+                                    <a href="{{ $revMedia->getUrl() }}" target="_blank">
+                                        <img src="{{ $revMedia->getUrl() }}" style="width:38px;height:38px;object-fit:cover;border-radius:4px;border:1px solid #E5E7EB" alt="Markup preview">
+                                    </a>
+                                @elseif($revMedia->isPdf())
+                                    <i class="fa-solid fa-file-pdf" style="font-size:24px;color:#DC2626"></i>
+                                @else
+                                    <i class="fa-solid fa-file" style="font-size:24px;color:#6B7280"></i>
+                                @endif
+                                <div style="flex:1;min-width:0">
+                                    <div style="font-size:11.5px;font-weight:700;color:#1F2937;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                                        {{ $revMedia->name ?: $revMedia->file_name }}
+                                    </div>
+                                    <div style="font-size:10px;color:#6B7280">{{ $revMedia->getFormattedSize() }}</div>
+                                </div>
+                                <a href="{{ $revMedia->getUrl() }}" target="_blank" class="btn-sec" style="padding:4px 7px;font-size:10.5px;border-color:#E5E7EB" title="View Fullscreen">
+                                    <i class="fa-solid fa-up-right-from-square"></i>
+                                </a>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+        </div>
+    @elseif($task->is_paused)
         <div class="wf-status-bar" style="background:#FFFBEB;border-left:3px solid #D97706;color:#92400E">
             <div style="display:flex;align-items:center;gap:10px">
                 <span>⏸️</span>
@@ -428,13 +516,25 @@
                     </span>
                 </div>
 
-                @if($task->status === 'inprogress' && !$task->is_paused && empty($isReadOnly))
+                @if($task->status === 'todo' && empty($isReadOnly))
+                    <form method="POST" action="{{ route('designer.tasks.start', $task) }}" id="startTaskColumnForm">
+                        @csrf
+                        <button type="submit" class="wf-submit-btn" style="background:#2563EB;color:#fff;border-color:#2563EB;box-shadow:0 2px 8px rgba(37,99,235,0.3)">
+                            <i class="fa-solid fa-play"></i> Start Working
+                        </button>
+                        <p style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:6px;font-weight:500">
+                            Click to start session & begin timer
+                        </p>
+                    </form>
+                @elseif($task->status === 'inprogress' && !$task->is_paused && empty($isReadOnly))
                     @if($task->revision_count > 0)
-                        <div class="rev-card">
-                            <div class="rev-icon"><i class="fa-solid fa-rotate-left"></i></div>
-                            <div>
-                                <div class="rev-title">Revision #{{ $task->revision_count }}</div>
-                                <div class="rev-meta">Review notes before submitting</div>
+                        <div class="rev-card" style="background:#FEF2F2;border:1px solid #FCA5A5;margin-bottom:12px">
+                            <div class="rev-icon" style="color:#DC2626"><i class="fa-solid fa-rotate-left"></i></div>
+                            <div style="flex:1;min-width:0">
+                                <div class="rev-title" style="color:#991B1B">Revision #{{ $task->revision_count }}</div>
+                                <div class="rev-meta" style="color:#B91C1C;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                                    {{ $latestRevisionNotes ? Str::limit($latestRevisionNotes, 38) : 'Review notes before submitting' }}
+                                </div>
                             </div>
                         </div>
                     @endif

@@ -192,6 +192,7 @@
                     Revisions Requested
                     <span style="font-size:12px;color:#DC2626;font-weight:700">({{ $revisionInbox->count() }})</span>
                 </div>
+                <a href="{{ route('designer.tasks') }}?status=revisions" class="sec-link" style="color:#DC2626">View all →</a>
             </div>
 
             @foreach($revisionInbox as $task)
