@@ -497,6 +497,11 @@ class Task extends Model
         return $this->hasMany(Comment::class)->latest();
     }
 
+    public function auditLogs()
+    {
+        return $this->hasMany(AuditLog::class)->latest();
+    }
+
     public function pauses()
     {
         return $this->hasMany(TaskPause::class)->latest();

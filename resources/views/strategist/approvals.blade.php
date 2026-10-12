@@ -202,17 +202,42 @@ div.dt-processing {
 </div>
 
 <div id="revisionModal" class="appr-modal-overlay">
-    <div class="appr-modal-box">
+    <div class="appr-modal-box" style="max-width:520px">
         <span class="appr-modal-close" onclick="closeRevisionModal()">&times;</span>
-        <div style="font-weight:700;font-size:15px;margin-bottom:4px"><i class="fas fa-sync-alt" style="color:var(--primary);margin-right:4px"></i> Request Revision</div>
+        <div style="font-weight:800;font-size:16px;margin-bottom:4px;display:flex;align-items:center;gap:8px">
+            <i class="fa-solid fa-rotate-left" style="color:#F97316"></i> Request Revision
+        </div>
         <div id="revisionTaskTitle" style="font-size:12px;color:var(--text3);margin-bottom:14px"></div>
-        <form id="revisionForm" method="POST" data-no-loader>
+        <form id="revisionForm" method="POST" enctype="multipart/form-data" data-no-loader>
             @csrf
             @method('PATCH')
-            <textarea name="revision_note" placeholder="Describe what needs to be changed..." required style="width:100%;min-height:80px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card2);font-size:13px;margin-bottom:12px;resize:vertical;font-family:inherit;color:var(--text1)"></textarea>
+
+            <label style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:4px;display:block">
+                Reason / Revision Category
+            </label>
+            <select name="revision_reason" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card2);font-size:12.5px;margin-bottom:12px;color:var(--text);font-family:inherit">
+                <option value="Creative Brief Mismatch">Creative Brief Mismatch</option>
+                <option value="Visual / Aesthetic Polish">Visual / Aesthetic Polish (Colors, Layout, Font)</option>
+                <option value="Typo / Copy Error">Typo / Copy Error</option>
+                <option value="Client Requested Changes">Client Requested Changes</option>
+                <option value="Video Pacing / Music Edit">Video Pacing / Music / Transition Edit</option>
+                <option value="Format / Dimensions Incorrect">Format / Dimensions Incorrect</option>
+                <option value="Other Specific Adjustments">Other Specific Adjustments</option>
+            </select>
+
+            <label style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:4px;display:block">
+                Detailed Change Instructions
+            </label>
+            <textarea name="revision_note" placeholder="Describe the exact changes required so the designer can execute without ambiguity..." required style="width:100%;min-height:90px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card2);font-size:12.5px;margin-bottom:12px;resize:vertical;font-family:inherit;color:var(--text)"></textarea>
+
+            <label style="font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:4px;display:block">
+                Markup Screenshots / Reference Files (Optional)
+            </label>
+            <input type="file" name="reference_files[]" multiple accept="image/*,video/*,.pdf,.zip,.doc,.docx" style="width:100%;padding:6px;border:1px dashed var(--border);border-radius:8px;background:var(--card2);font-size:12px;margin-bottom:16px;color:var(--text2)">
+
             <div style="display:flex;gap:8px;justify-content:flex-end">
                 <button type="button" class="btn-sec" onclick="closeRevisionModal()">Cancel</button>
-                <button type="submit" class="btn-primary">Send Revision Request</button>
+                <button type="submit" class="btn-primary" style="background:#F97316;border-color:#F97316;color:#fff"><i class="fa-solid fa-paper-plane"></i> Send Revision Request</button>
             </div>
         </form>
     </div>

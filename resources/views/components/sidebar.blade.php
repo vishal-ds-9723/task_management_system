@@ -396,12 +396,12 @@
     @elseif($role === 'designer')
         <div class="nav-section">
             <a href="{{ route('designer.dashboard') }}" class="nav-item {{ request()->routeIs('designer.dashboard') ? 'active' : '' }}" title="Dashboard">
-                <span class="icon"><i class="fas fa-th-large"></i></span>
+                <span class="icon"><i class="fa-solid fa-table-cells-large"></i></span>
                 <span class="nav-text">Dashboard</span>
                 <span class="nav-tooltip">Dashboard</span>
             </a>
             <a href="{{ route('designer.tasks') }}" class="nav-item {{ request()->routeIs('designer.tasks') ? 'active' : '' }}" title="My Tasks">
-                <span class="icon"><i class="fas fa-paint-brush"></i></span>
+                <span class="icon"><i class="fa-solid fa-paintbrush"></i></span>
                 <span class="nav-text">My Tasks</span>
                 <span class="nav-tooltip">My Tasks</span>
                 @if($pendingAssignedCount > 0)
@@ -409,12 +409,12 @@
                 @endif
             </a>
             <a href="{{ route('designer.calendar') }}" class="nav-item {{ request()->routeIs('designer.calendar') ? 'active' : '' }}" title="Calendar">
-                <span class="icon"><i class="fas fa-calendar-alt"></i></span>
+                <span class="icon"><i class="fa-solid fa-calendar-days"></i></span>
                 <span class="nav-text">Calendar</span>
                 <span class="nav-tooltip">Calendar</span>
             </a>
             <a href="{{ route('designer.performance') }}" class="nav-item {{ request()->routeIs('designer.performance') ? 'active' : '' }}" title="Performance">
-                <span class="icon"><i class="fas fa-chart-line"></i></span>
+                <span class="icon"><i class="fa-solid fa-chart-line"></i></span>
                 <span class="nav-text">Performance</span>
                 <span class="nav-tooltip">Performance & Analytics</span>
             </a>

@@ -292,10 +292,11 @@ class TaskService
             ]);
         }
 
+        $reasonPrefix = !empty($validated['revision_reason']) ? ' [' . $validated['revision_reason'] . ']' : '';
         Comment::create([
             'task_id' => $task->id,
             'user_id' => Auth::id(),
-            'body'    => '🔄 Revision requested: ' . $validated['revision_note'],
+            'body'    => '🔄 Revision requested' . $reasonPrefix . ': ' . $validated['revision_note'],
         ]);
 
         AuditLog::create([
@@ -303,7 +304,12 @@ class TaskService
             'task_id'    => $task->id,
             'action'     => 'revision_requested',
             'old_values' => ['status' => $oldStatus, 'revision_count' => $task->revision_count - 1],
-            'new_values' => ['status' => 'inprogress', 'revision_count' => $task->revision_count, 'note' => $validated['revision_note']],
+            'new_values' => [
+                'status'         => 'inprogress',
+                'revision_count' => $task->revision_count,
+                'note'           => $validated['revision_note'],
+                'reason'         => $validated['revision_reason'] ?? 'General Revision',
+            ],
         ]);
 
         if ($task->assigned_to) {

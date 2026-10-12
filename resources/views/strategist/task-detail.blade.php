@@ -502,8 +502,137 @@
             transition: color 0.15s;
         }
 
+        /* ─── Studio Revision History & Comparison Engine ─── */
+        .std-rev-card {
+            background: var(--card);
+            border: 1.5px solid rgba(245, 158, 11, 0.35);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 14px rgba(245, 158, 11, 0.06);
+        }
+        .std-rev-entry {
+            position: relative;
+            padding-left: 28px;
+            margin-bottom: 18px;
+            border-left: 2px solid rgba(245, 158, 11, 0.28);
+        }
+        .std-rev-entry:last-child {
+            margin-bottom: 0;
+            border-left-color: transparent;
+        }
+        .std-rev-dot {
+            position: absolute;
+            left: -7px;
+            top: 2px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #F59E0B;
+            border: 2px solid var(--card);
+            box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.35);
+        }
+        .std-rev-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+        .std-rev-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+            color: #fff;
+        }
+        .std-rev-box {
+            background: var(--card2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 12.5px;
+            color: var(--text);
+            line-height: 1.55;
+            white-space: pre-wrap;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+        }
+
+        /* Version Switcher Tabs */
+        .std-ver-tabs {
+            display: inline-flex;
+            align-items: center;
+            background: var(--card2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 3px;
+            gap: 3px;
+        }
+        .std-ver-tab {
+            padding: 4px 11px;
+            font-size: 11px;
+            font-weight: 700;
+            border-radius: 6px;
+            border: none;
+            background: transparent;
+            color: var(--text3);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-family: inherit;
+        }
+        .std-ver-tab:hover {
+            color: var(--text);
+            background: rgba(255,255,255,0.06);
+        }
+        .std-ver-tab.active {
+            background: var(--card);
+            color: var(--primary);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            border: 1px solid var(--border);
+        }
+
+        /* Side-by-Side Comparison Container */
+        .std-comparison-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 14px;
+        }
+        .std-comp-col {
+            background: var(--card2);
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .std-comp-col.is-latest {
+            border-color: rgba(16, 185, 129, 0.45);
+            background: linear-gradient(180deg, rgba(16, 185, 129, 0.04) 0%, var(--card2) 100%);
+        }
+        .std-comp-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
         /* Responsive */
         @media (max-width: 1024px) {
+            .std-comparison-container {
+                grid-template-columns: 1fr;
+            }
             .std-main-grid {
                 grid-template-columns: 1fr;
             }
@@ -536,6 +665,73 @@
         $deliverableMedia = $taskMedia->filter(fn($m) => $m->isDeliverable())->values();
         $referenceMedia = $taskMedia->filter(fn($m) => $m->isReference())->values();
         $hasMedia = $deliverableMedia->isNotEmpty();
+
+        // ─── Revision History Trail Extraction ───
+        $revisionAuditLogs = $task->relationLoaded('auditLogs')
+            ? $task->auditLogs->where('action', 'revision_requested')->values()
+            : $task->auditLogs()->where('action', 'revision_requested')->with('user')->get();
+
+        $revisionEntries = collect();
+
+        if ($revisionAuditLogs->isNotEmpty()) {
+            foreach ($revisionAuditLogs as $log) {
+                $newVals = is_array($log->new_values) ? $log->new_values : (json_decode($log->new_values, true) ?: []);
+                $revNum = (int) ($newVals['revision_count'] ?? 1);
+                $revRefs = $referenceMedia->filter(function($m) use ($revNum) {
+                    return (int) $m->getRevisionCount() === $revNum;
+                })->values();
+
+                $revisionEntries->push([
+                    'revision_number' => $revNum,
+                    'requester_name'  => $log->user?->name ?? 'Strategist',
+                    'requester_role'  => $log->user?->role ?? 'strategist',
+                    'created_at'      => $log->created_at,
+                    'reason'          => $newVals['reason'] ?? 'Revision Requested',
+                    'note'            => $newVals['note'] ?? '',
+                    'references'      => $revRefs,
+                ]);
+            }
+        }
+
+        // Fallback: If task has revision_count > 0 but no audit logs, extract from comments
+        if ($revisionEntries->isEmpty() && (int) $task->revision_count > 0) {
+            $revComments = $task->comments->filter(fn($c) => str_contains($c->body, 'Revision requested') || str_starts_with(trim($c->body), '🔄'))->values();
+            foreach ($revComments as $idx => $comment) {
+                $revNum = $revComments->count() - $idx;
+                $reason = 'Revision Requested';
+                $note = $comment->body;
+                if (preg_match('/\[(.*?)\]:\s*(.*)/s', $comment->body, $matches)) {
+                    $reason = $matches[1];
+                    $note = $matches[2];
+                } else {
+                    $note = preg_replace('/^🔄\s*Revision requested:\s*/', '', $note);
+                }
+
+                $revRefs = $referenceMedia->filter(function($m) use ($revNum) {
+                    return (int) $m->getRevisionCount() === $revNum;
+                })->values();
+
+                $revisionEntries->push([
+                    'revision_number' => $revNum,
+                    'requester_name'  => $comment->user?->name ?? 'Strategist',
+                    'requester_role'  => $comment->user?->role ?? 'strategist',
+                    'created_at'      => $comment->created_at,
+                    'reason'          => $reason,
+                    'note'            => $note,
+                    'references'      => $revRefs,
+                ]);
+            }
+        }
+
+        // Sort revision entries newest first for display
+        $revisionEntries = $revisionEntries->sortByDesc('revision_number')->values();
+
+        // Deliverables Version Analysis
+        $distinctVersions = $deliverableMedia->map(fn($m) => (int)$m->getRevisionCount())->unique()->sort()->values();
+        $hasMultipleVersions = $distinctVersions->count() > 1;
+        $maxDeliverableRev = $distinctVersions->max() ?? 0;
+        $initialDeliverables = $deliverableMedia->filter(fn($m) => (int)$m->getRevisionCount() === 0)->values();
+        $latestDeliverables = $deliverableMedia->filter(fn($m) => (int)$m->getRevisionCount() === $maxDeliverableRev)->values();
 
         $statusColors = [
             'todo' => '#F59E0B',
@@ -708,23 +904,127 @@
         {{-- LEFT COLUMN: PRIMARY WORKSPACE --}}
         <main class="std-main-col">
 
+            {{-- 0. DEDICATED REVISION & CHANGE HISTORY TIMELINE --}}
+            @if((int)$task->revision_count > 0 || $revisionEntries->isNotEmpty())
+                <div class="std-rev-card">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid rgba(245,158,11,0.2)">
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <i class="fa-solid fa-clock-rotate-left" style="color:#D97706;font-size:16px"></i>
+                            <span style="font-size:14px;font-weight:800;color:var(--text)">Revision & Change History</span>
+                            <span class="std-rev-badge">{{ $task->revision_count }} {{ Str::plural('Round', $task->revision_count) }}</span>
+                        </div>
+                        <div>
+                            @if($task->status === 'inprogress')
+                                <span class="std-pill" style="background:rgba(59,130,246,0.1);color:#2563EB;border-color:rgba(59,130,246,0.25);font-size:11px;font-weight:700">
+                                    <span style="width:6px;height:6px;border-radius:50%;background:#3B82F6;display:inline-block"></span> Designer Revising Now
+                                </span>
+                            @elseif($task->status === 'review')
+                                <span class="std-pill" style="background:rgba(16,185,129,0.1);color:#059669;border-color:rgba(16,185,129,0.25);font-size:11px;font-weight:700">
+                                    <i class="fa-solid fa-check"></i> Revised Output Ready for Review
+                                </span>
+                            @endif
+                        </div>
+                    </div>
+
+                    @forelse($revisionEntries as $entry)
+                        <div class="std-rev-entry">
+                            <span class="std-rev-dot"></span>
+                            <div class="std-rev-header">
+                                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                                    <span style="font-size:12px;font-weight:800;color:#D97706">Revision #{{ $entry['revision_number'] }}</span>
+                                    <span class="std-pill" style="background:rgba(245,158,11,0.14);border-color:rgba(245,158,11,0.3);color:#B45309;font-weight:700;font-size:11px">
+                                        {{ $entry['reason'] }}
+                                    </span>
+                                </div>
+                                <div style="font-size:11px;color:var(--text3)">
+                                    Requested by <strong style="color:var(--text2)">{{ $entry['requester_name'] }}</strong>
+                                    ({{ ucfirst($entry['requester_role']) }})
+                                    @if($entry['created_at'])
+                                        · {{ $entry['created_at']->diffForHumans() }}
+                                    @endif
+                                </div>
+                            </div>
+
+                            <div class="std-rev-box">
+                                {!! nl2br(e($entry['note'])) !!}
+                            </div>
+
+                            @if($entry['references']->isNotEmpty())
+                                <div style="margin-top:10px;padding:8px 12px;background:rgba(59,130,246,0.05);border:1px solid rgba(59,130,246,0.2);border-radius:8px">
+                                    <div style="font-size:11px;font-weight:700;color:#2563EB;margin-bottom:6px;display:flex;align-items:center;gap:6px">
+                                        <i class="fa-solid fa-paperclip"></i> Attached Reference / Markup Files ({{ $entry['references']->count() }}):
+                                    </div>
+                                    <div style="display:flex;flex-wrap:wrap;gap:8px">
+                                        @foreach($entry['references'] as $ref)
+                                            @php
+                                                $overallIndex = $taskMedia->search(fn($item) => $item->id === $ref->id);
+                                                if ($overallIndex === false) $overallIndex = 0;
+                                            @endphp
+                                            <div style="display:inline-flex;align-items:center;gap:6px;padding:4px 8px;background:var(--card);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px" onclick="strategistOpenLightbox({{ $overallIndex }})" title="View Reference File">
+                                                <i class="fa-solid {{ $ref->isImage() ? 'fa-image' : ($ref->isVideo() ? 'fa-video' : 'fa-file') }}" style="color:#2563EB"></i>
+                                                <span style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)">{{ $ref->name ?: $ref->file_name }}</span>
+                                                <a href="{{ $ref->getUrl() }}" download onclick="event.stopPropagation()" style="color:var(--text3);margin-left:2px" title="Download"><i class="fa-solid fa-download"></i></a>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                    @empty
+                        <div style="font-size:12px;color:var(--text3);padding:8px 0">
+                            {{ $task->revision_count }} revision rounds recorded. Designer is working on requested updates.
+                        </div>
+                    @endforelse
+                </div>
+            @endif
+
             {{-- 1. SUBMITTED CREATIVE DELIVERABLES --}}
             <div class="std-card">
-                <div class="std-card-header">
-                    <div class="std-card-title">
-                        <i class="fa-solid fa-paintbrush" style="color:var(--primary)"></i>
-                        <span>Submitted Design Deliverables</span>
-                        <span style="font-size:10px;font-weight:800;background:rgba(79,109,240,0.12);color:var(--primary);padding:1px 6px;border-radius:99px">{{ $deliverableMedia->count() }}</span>
+                <div class="std-card-header" style="flex-wrap:wrap;gap:12px">
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                        <div class="std-card-title" style="margin-bottom:0">
+                            <i class="fa-solid fa-paintbrush" style="color:var(--primary)"></i>
+                            <span>Submitted Design Deliverables</span>
+                            <span style="font-size:10px;font-weight:800;background:rgba(79,109,240,0.12);color:var(--primary);padding:1px 6px;border-radius:99px">{{ $deliverableMedia->count() }}</span>
+                        </div>
+
+                        {{-- Version Switcher Tabs --}}
+                        @if($distinctVersions->count() > 1)
+                            <div class="std-ver-tabs" id="stdVersionTabs">
+                                <button type="button" class="std-ver-tab active" data-version="all" onclick="filterDeliverableVersion('all')">
+                                    All ({{ $deliverableMedia->count() }})
+                                </button>
+                                @foreach($distinctVersions as $ver)
+                                    @php
+                                        $verItems = $deliverableMedia->filter(fn($m) => (int)$m->getRevisionCount() === $ver);
+                                    @endphp
+                                    <button type="button" class="std-ver-tab" data-version="{{ $ver }}" onclick="filterDeliverableVersion({{ $ver }})">
+                                        V{{ $ver + 1 }} {{ $ver === 0 ? '(Initial)' : ($ver === $maxDeliverableRev ? '(Latest)' : '') }}
+                                        <span style="font-size:9.5px;opacity:0.75">({{ $verItems->count() }})</span>
+                                    </button>
+                                @endforeach
+                            </div>
+                        @endif
                     </div>
-                    @if($deliverableMedia->count() > 1)
-                        <button type="button" class="btn-sec" onclick="strategistDownloadAllMedia()" style="font-size:11px;font-weight:600;padding:5px 12px;display:inline-flex;align-items:center;gap:6px;border-radius:6px;cursor:pointer">
-                            <i class="fa-solid fa-cloud-arrow-down" style="color:#10B981"></i> Download All
-                        </button>
-                    @endif
+
+                    <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
+                        @if($hasMultipleVersions)
+                            <button type="button" class="btn-sec" id="stdToggleCompareBtn" onclick="toggleDeliverableComparison()" style="font-size:11px;font-weight:700;padding:5px 12px;display:inline-flex;align-items:center;gap:6px;border-radius:6px;cursor:pointer">
+                                <i class="fa-solid fa-columns" style="color:#8B5CF6"></i> <span>Compare Versions</span>
+                            </button>
+                        @endif
+
+                        @if($deliverableMedia->count() > 1)
+                            <button type="button" class="btn-sec" onclick="strategistDownloadAllMedia()" style="font-size:11px;font-weight:600;padding:5px 12px;display:inline-flex;align-items:center;gap:6px;border-radius:6px;cursor:pointer">
+                                <i class="fa-solid fa-cloud-arrow-down" style="color:#10B981"></i> Download All
+                            </button>
+                        @endif
+                    </div>
                 </div>
 
                 @if($deliverableMedia->isNotEmpty())
-                    <div class="std-media-grid">
+                    {{-- Standard Media Grid --}}
+                    <div class="std-media-grid" id="stdNormalMediaGrid">
                         @foreach($deliverableMedia as $index => $m)
                             @php
                                 $isVid = $m->isVideo();
@@ -734,7 +1034,7 @@
                                 $overallIndex = $taskMedia->search(fn($item) => $item->id === $m->id);
                                 if ($overallIndex === false) $overallIndex = $index;
                             @endphp
-                            <div class="std-media-item" style="border:1.5px solid {{ $m->getRevisionCount() > 0 ? '#F59E0B' : 'var(--border)' }};border-radius:10px">
+                            <div class="std-media-item std-deliverable-item" data-revision-count="{{ (int)$m->getRevisionCount() }}" style="border:1.5px solid {{ $m->getRevisionCount() > 0 ? '#F59E0B' : 'var(--border)' }};border-radius:10px">
                                 <div class="std-thumb-wrap" onclick="strategistOpenLightbox({{ $overallIndex }})" title="Click to view full preview">
                                     @if($isVid)
                                         <video src="{{ $mUrl }}" muted preload="metadata"></video>
@@ -789,6 +1089,151 @@
                             </div>
                         @endforeach
                     </div>
+
+                    {{-- Side-by-Side Comparison Container --}}
+                    @if($hasMultipleVersions)
+                        <div id="stdComparisonView" style="display:none;margin-top:10px">
+                            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.25);border-radius:8px;margin-bottom:14px;font-size:12px">
+                                <div style="display:flex;align-items:center;gap:8px">
+                                    <i class="fa-solid fa-columns" style="color:#8B5CF6"></i>
+                                    <span style="color:var(--text)"><strong>Side-by-Side Review Mode:</strong> Compare <strong>Version 1 (Initial Draft)</strong> directly alongside <strong>Version {{ $maxDeliverableRev + 1 }} (Latest Revision)</strong>.</span>
+                                </div>
+                                <button type="button" class="btn-sec" onclick="toggleDeliverableComparison()" style="font-size:11px;padding:4px 10px;border-radius:6px;cursor:pointer">Exit Comparison</button>
+                            </div>
+
+                            <div class="std-comparison-container">
+                                {{-- Column 1: Initial Draft --}}
+                                <div class="std-comp-col">
+                                    <div class="std-comp-header">
+                                        <div style="font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px">
+                                            <span style="width:8px;height:8px;border-radius:50%;background:#64748B"></span>
+                                            Version 1 (Initial Draft)
+                                        </div>
+                                        <span class="std-count-pill" style="background:rgba(100,116,139,0.15);color:#475569">{{ $initialDeliverables->count() }} file(s)</span>
+                                    </div>
+
+                                    @if($initialDeliverables->isNotEmpty())
+                                        <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(170px, 1fr));gap:12px">
+                                            @foreach($initialDeliverables as $index => $m)
+                                                @php
+                                                    $isVid = $m->isVideo();
+                                                    $isPdf = $m->isPdf();
+                                                    $mUrl = $m->getUrl();
+                                                    $mName = $m->name ?: $m->file_name ?: ('Deliverable #' . ($index + 1));
+                                                    $overallIndex = $taskMedia->search(fn($item) => $item->id === $m->id);
+                                                    if ($overallIndex === false) $overallIndex = $index;
+                                                @endphp
+                                                <div class="std-media-item" style="border:1.5px solid var(--border);border-radius:10px">
+                                                    <div class="std-thumb-wrap" onclick="strategistOpenLightbox({{ $overallIndex }})" title="Click to view full preview">
+                                                        @if($isVid)
+                                                            <video src="{{ $mUrl }}" muted preload="metadata"></video>
+                                                            <span class="std-thumb-badge"><i class="fa-solid fa-video"></i> Video</span>
+                                                        @elseif($isPdf)
+                                                            <div style="height:100%;width:100%;display:flex;align-items:center;justify-content:center;background:var(--card2)">
+                                                                <i class="fa-solid fa-file-pdf" style="font-size:32px;color:#EF4444"></i>
+                                                            </div>
+                                                            <span class="std-thumb-badge" style="background:rgba(239,68,68,0.85)">PDF</span>
+                                                        @elseif($m->isImage())
+                                                            <img src="{{ $mUrl }}" alt="{{ $mName }}" loading="lazy">
+                                                            <span class="std-thumb-badge"><i class="fa-solid fa-image"></i> Image</span>
+                                                        @else
+                                                            <div style="height:100%;width:100%;display:flex;align-items:center;justify-content:center;background:var(--card2)">
+                                                                <i class="fa-solid fa-file" style="font-size:32px;color:var(--text3)"></i>
+                                                            </div>
+                                                        @endif
+                                                        <div class="std-thumb-overlay">
+                                                            <button type="button" class="std-icon-btn std-icon-btn-view" onclick="event.stopPropagation(); strategistOpenLightbox({{ $overallIndex }})" title="Review File">
+                                                                <i class="fa-solid fa-expand"></i>
+                                                            </button>
+                                                            <a href="{{ $mUrl }}" download="{{ $mName }}" class="std-icon-btn std-icon-btn-dl" title="Download" onclick="event.stopPropagation()">
+                                                                <i class="fa-solid fa-download"></i>
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                    <div class="std-media-meta">
+                                                        <div style="min-width:0;flex:1">
+                                                            <span class="std-media-filename" title="{{ $mName }}">{{ $mName }}</span>
+                                                            <div style="font-size:9.5px;color:var(--text3)">{{ $m->getFormattedSize() }}</div>
+                                                        </div>
+                                                        <a href="{{ $mUrl }}" download="{{ $mName }}" class="std-dl-chip" title="Download" onclick="event.stopPropagation()">
+                                                            <i class="fa-solid fa-download"></i>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <div style="font-size:12px;color:var(--text3);text-align:center;padding:24px 0">No initial draft files found.</div>
+                                    @endif
+                                </div>
+
+                                {{-- Column 2: Latest Revision --}}
+                                <div class="std-comp-col is-latest">
+                                    <div class="std-comp-header">
+                                        <div style="font-size:12px;font-weight:700;color:#059669;display:flex;align-items:center;gap:6px">
+                                            <span style="width:8px;height:8px;border-radius:50%;background:#10B981"></span>
+                                            Version {{ $maxDeliverableRev + 1 }} (Latest Revised)
+                                        </div>
+                                        <span class="std-count-pill" style="background:rgba(16,185,129,0.15);color:#059669">{{ $latestDeliverables->count() }} file(s)</span>
+                                    </div>
+
+                                    @if($latestDeliverables->isNotEmpty())
+                                        <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(170px, 1fr));gap:12px">
+                                            @foreach($latestDeliverables as $index => $m)
+                                                @php
+                                                    $isVid = $m->isVideo();
+                                                    $isPdf = $m->isPdf();
+                                                    $mUrl = $m->getUrl();
+                                                    $mName = $m->name ?: $m->file_name ?: ('Deliverable #' . ($index + 1));
+                                                    $overallIndex = $taskMedia->search(fn($item) => $item->id === $m->id);
+                                                    if ($overallIndex === false) $overallIndex = $index;
+                                                @endphp
+                                                <div class="std-media-item" style="border:1.5px solid #10B981;border-radius:10px">
+                                                    <div class="std-thumb-wrap" onclick="strategistOpenLightbox({{ $overallIndex }})" title="Click to view full preview">
+                                                        @if($isVid)
+                                                            <video src="{{ $mUrl }}" muted preload="metadata"></video>
+                                                            <span class="std-thumb-badge"><i class="fa-solid fa-video"></i> Video</span>
+                                                        @elseif($isPdf)
+                                                            <div style="height:100%;width:100%;display:flex;align-items:center;justify-content:center;background:var(--card2)">
+                                                                <i class="fa-solid fa-file-pdf" style="font-size:32px;color:#EF4444"></i>
+                                                            </div>
+                                                            <span class="std-thumb-badge" style="background:rgba(239,68,68,0.85)">PDF</span>
+                                                        @elseif($m->isImage())
+                                                            <img src="{{ $mUrl }}" alt="{{ $mName }}" loading="lazy">
+                                                            <span class="std-thumb-badge"><i class="fa-solid fa-image"></i> Image</span>
+                                                        @else
+                                                            <div style="height:100%;width:100%;display:flex;align-items:center;justify-content:center;background:var(--card2)">
+                                                                <i class="fa-solid fa-file" style="font-size:32px;color:var(--text3)"></i>
+                                                            </div>
+                                                        @endif
+                                                        <div class="std-thumb-overlay">
+                                                            <button type="button" class="std-icon-btn std-icon-btn-view" onclick="event.stopPropagation(); strategistOpenLightbox({{ $overallIndex }})" title="Review File">
+                                                                <i class="fa-solid fa-expand"></i>
+                                                            </button>
+                                                            <a href="{{ $mUrl }}" download="{{ $mName }}" class="std-icon-btn std-icon-btn-dl" title="Download" onclick="event.stopPropagation()">
+                                                                <i class="fa-solid fa-download"></i>
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                    <div class="std-media-meta">
+                                                        <div style="min-width:0;flex:1">
+                                                            <span class="std-media-filename" title="{{ $mName }}">{{ $mName }}</span>
+                                                            <div style="font-size:9.5px;color:var(--text3)">{{ $m->getFormattedSize() }}</div>
+                                                        </div>
+                                                        <a href="{{ $mUrl }}" download="{{ $mName }}" class="std-dl-chip" title="Download" onclick="event.stopPropagation()">
+                                                            <i class="fa-solid fa-download"></i>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <div style="font-size:12px;color:var(--text3);text-align:center;padding:24px 0">No latest revision files found.</div>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    @endif
                 @else
                     <div style="text-align:center;padding:36px 16px;color:var(--text3);background:var(--card2);border-radius:8px;border:1px dashed var(--border)">
                         <i class="fa-regular fa-image" style="font-size:32px;opacity:0.4;margin-bottom:8px"></i>
@@ -1498,26 +1943,53 @@
 </style>
 
 {{-- REVISION MODAL --}}
-<div id="revisionModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
-    <div style="background:var(--card);border-radius:12px;padding:24px;width:90%;max-width:480px;border:1px solid var(--border);box-shadow:0 20px 40px rgba(0,0,0,0.2)">
-        <h3 style="margin:0 0 14px 0;font-size:16px;font-weight:700;color:var(--text)"><i class="fa-solid fa-rotate-left" style="color:#F59E0B;margin-right:8px"></i> Request Revision</h3>
+<div id="revisionModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:9999;align-items:center;justify-content:center;backdrop-filter:blur(5px);">
+    <div style="background:var(--card);border-radius:14px;padding:24px;width:90%;max-width:500px;border:1px solid var(--border);box-shadow:0 24px 48px rgba(0,0,0,0.25)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <h3 style="margin:0;font-size:16px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:8px">
+                <i class="fa-solid fa-rotate-left" style="color:#F59E0B"></i> Request Revision
+            </h3>
+            <button type="button" onclick="document.getElementById('revisionModal').style.display='none'" style="background:none;border:none;font-size:18px;color:var(--text3);cursor:pointer;padding:0;line-height:1">&times;</button>
+        </div>
         <form id="revisionForm" method="POST" action="{{ route('strategist.tasks.request-revision', $task) }}" enctype="multipart/form-data">
             @csrf
             @method('PATCH')
-            <div style="margin-bottom:14px">
-                <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text2)">What needs to be revised?</label>
-                <textarea name="revision_note" required rows="4" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card2);font-size:12.5px;font-family:inherit;resize:vertical;color:var(--text);box-sizing:border-box" placeholder="Describe the changes needed..."></textarea>
-            </div>
-            <div style="margin-bottom:14px">
-                <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px;color:var(--text2)">
-                    <i class="fa-solid fa-paperclip" style="color:#F59E0B;margin-right:4px"></i> Attach Reference / Markup Images (Optional)
+
+            <div style="margin-bottom:12px">
+                <label style="display:block;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:5px">
+                    Reason / Revision Category
                 </label>
-                <input type="file" name="reference_files[]" multiple accept="image/*,video/*,.pdf,.zip" style="width:100%;padding:8px;border:1px dashed var(--border);border-radius:8px;background:var(--card2);font-size:12px;color:var(--text);box-sizing:border-box">
+                <select name="revision_reason" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card2);font-size:12.5px;color:var(--text);font-family:inherit;box-sizing:border-box">
+                    <option value="Creative Brief Mismatch">Creative Brief Mismatch</option>
+                    <option value="Visual / Aesthetic Polish" selected>Visual / Aesthetic Polish (Colors, Layout, Font)</option>
+                    <option value="Typo / Copy Error">Typo / Copy Error</option>
+                    <option value="Client Requested Changes">Client Requested Changes</option>
+                    <option value="Video Pacing / Music Edit">Video Pacing / Music / Transition Edit</option>
+                    <option value="Format / Dimensions Incorrect">Format / Dimensions Incorrect</option>
+                    <option value="Other Specific Adjustments">Other Specific Adjustments</option>
+                </select>
+            </div>
+
+            <div style="margin-bottom:12px">
+                <label style="display:block;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:5px">
+                    Detailed Change Instructions
+                </label>
+                <textarea name="revision_note" required rows="4" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--card2);font-size:12.5px;font-family:inherit;resize:vertical;color:var(--text);box-sizing:border-box;line-height:1.5" placeholder="Describe the exact changes required so the designer can execute without ambiguity..."></textarea>
+            </div>
+
+            <div style="margin-bottom:16px">
+                <label style="display:block;font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:5px">
+                    <i class="fa-solid fa-paperclip" style="color:#F59E0B;margin-right:4px"></i> Markup Screenshots / Reference Files (Optional)
+                </label>
+                <input type="file" name="reference_files[]" multiple accept="image/*,video/*,.pdf,.zip,.doc,.docx" style="width:100%;padding:8px;border:1px dashed var(--border);border-radius:8px;background:var(--card2);font-size:12px;color:var(--text);box-sizing:border-box">
                 <div style="font-size:10.5px;color:var(--text3);margin-top:4px">Attach screenshots with markup or new reference assets for the designer.</div>
             </div>
+
             <div style="display:flex;justify-content:flex-end;gap:10px">
-                <button type="button" class="btn-sec" onclick="document.getElementById('revisionModal').style.display='none'" style="font-size:12px;padding:7px 14px">Cancel</button>
-                <button type="submit" class="btn-primary" style="background:#F59E0B;border-color:#F59E0B;color:#fff;font-size:12px;padding:7px 16px">Send Revision</button>
+                <button type="button" class="btn-sec" onclick="document.getElementById('revisionModal').style.display='none'" style="font-size:12px;padding:7px 14px;border-radius:8px">Cancel</button>
+                <button type="submit" class="btn-primary" style="background:#F59E0B;border-color:#F59E0B;color:#fff;font-size:12px;padding:7px 16px;border-radius:8px;font-weight:700">
+                    <i class="fa-solid fa-paper-plane" style="margin-right:4px"></i> Send Revision
+                </button>
             </div>
         </form>
     </div>
@@ -1634,6 +2106,67 @@
                 document.body.removeChild(link);
             }, idx * 350);
         });
+    }
+
+    let currentDeliverableVersionFilter = 'all';
+
+    function filterDeliverableVersion(version) {
+        currentDeliverableVersionFilter = version;
+
+        // Update tab buttons active state
+        document.querySelectorAll('.std-ver-tab').forEach(btn => {
+            const isMatch = (btn.dataset.version === String(version));
+            btn.classList.toggle('active', isMatch);
+        });
+
+        // If currently in comparison mode, exit comparison mode first
+        const compView = document.getElementById('stdComparisonView');
+        const normalGrid = document.getElementById('stdNormalMediaGrid');
+        const compBtn = document.getElementById('stdToggleCompareBtn');
+        if (compView && compView.style.display !== 'none') {
+            compView.style.display = 'none';
+            if (normalGrid) normalGrid.style.display = 'grid';
+            if (compBtn) {
+                compBtn.innerHTML = '<i class="fa-solid fa-columns" style="color:#8B5CF6"></i> <span>Compare Versions</span>';
+            }
+        }
+
+        // Filter deliverable items
+        const items = document.querySelectorAll('.std-deliverable-item');
+        items.forEach(el => {
+            if (version === 'all') {
+                el.style.display = '';
+            } else {
+                const itemRev = el.getAttribute('data-revision-count');
+                el.style.display = (itemRev === String(version)) ? '' : 'none';
+            }
+        });
+    }
+
+    function toggleDeliverableComparison() {
+        const normalGrid = document.getElementById('stdNormalMediaGrid');
+        const compView = document.getElementById('stdComparisonView');
+        const compBtn = document.getElementById('stdToggleCompareBtn');
+
+        if (!compView) return;
+
+        const isCurrentlyComparing = (compView.style.display !== 'none');
+
+        if (isCurrentlyComparing) {
+            // Revert back to normal grid
+            compView.style.display = 'none';
+            if (normalGrid) normalGrid.style.display = 'grid';
+            if (compBtn) {
+                compBtn.innerHTML = '<i class="fa-solid fa-columns" style="color:#8B5CF6"></i> <span>Compare Versions</span>';
+            }
+        } else {
+            // Switch to side-by-side comparison
+            compView.style.display = 'block';
+            if (normalGrid) normalGrid.style.display = 'none';
+            if (compBtn) {
+                compBtn.innerHTML = '<i class="fa-solid fa-table-cells-large" style="color:#10B981"></i> <span>Standard Grid View</span>';
+            }
+        }
     }
 
     document.addEventListener('keydown', (e) => {

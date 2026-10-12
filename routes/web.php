@@ -215,6 +215,7 @@ Route::prefix('strategist')->name('strategist.')->middleware(['auth', 'role:stra
     Route::get('/create-task', [Strategist\TaskController::class, 'create'])->name('create-task');
     Route::post('/tasks', [Strategist\TaskController::class, 'store'])->name('tasks.store');
     Route::get('/tasks/{task}', [Strategist\TaskController::class, 'show'])->name('tasks.show');
+    Route::get('/tasks/{task}/quick-inspect', [Strategist\TaskController::class, 'quickInspect'])->name('tasks.quick-inspect');
     Route::get('/tasks/{task}/edit', [Strategist\TaskController::class, 'edit'])->name('tasks.edit');
     Route::patch('/tasks/{task}', [Strategist\TaskController::class, 'update'])->name('tasks.update');
     Route::delete('/tasks/{task}', [Strategist\TaskController::class, 'destroy'])->name('tasks.destroy');

@@ -113,8 +113,149 @@ class TaskController extends Controller
     public function show(Task $task)
     {
         $task->loadMissing('creator');
-        $task->load(['client.socialMediaLinks', 'assignee', 'comments.user', 'socialMediaLink', 'media']);
+        $task->load(['client.socialMediaLinks', 'assignee', 'comments.user', 'socialMediaLink', 'media', 'auditLogs.user']);
         return view('strategist.task-detail', compact('task'));
+    }
+
+    public function quickInspect(Task $task)
+    {
+        $task->loadMissing('creator');
+        $task->load([
+            'client:id,name,logo,emoji',
+            'assignee:id,name,avatar_color,role',
+            'creator:id,name,role',
+            'comments' => fn ($q) => $q->with('user:id,name,avatar_color')->latest()->take(10),
+            'media',
+        ]);
+
+        $deliverables = $task->getDeliverableMediaList()->map(function ($m) {
+            return [
+                'id'            => $m->id,
+                'name'          => $m->name ?: $m->file_name ?: 'Deliverable',
+                'url'           => $m->getUrl(),
+                'is_video'      => (bool) $m->isVideo(),
+                'is_pdf'        => (bool) $m->isPdf(),
+                'is_image'      => (bool) $m->isImage(),
+                'size'          => $m->getFormattedSize(),
+                'version_label' => $m->getVersionBadgeLabel(),
+                'revision_count'=> (int) $m->getRevisionCount(),
+            ];
+        })->values();
+
+        $references = $task->getReferenceMediaList()->map(function ($m) {
+            return [
+                'id'            => $m->id,
+                'name'          => $m->name ?: $m->file_name ?: 'Reference',
+                'url'           => $m->getUrl(),
+                'is_video'      => (bool) $m->isVideo(),
+                'is_pdf'        => (bool) $m->isPdf(),
+                'is_image'      => (bool) $m->isImage(),
+                'size'          => $m->getFormattedSize(),
+                'version_label' => $m->getVersionBadgeLabel(),
+            ];
+        })->values();
+
+        $isTimerRunning = ($task->status === 'inprogress' && !$task->is_paused && !empty($task->started_at));
+
+        $totalMinutes = 0;
+        if ($task->started_at) {
+            $now = now();
+            $diff = $task->started_at->diffInMinutes($now);
+            $pausedMinutes = round(($task->total_paused_seconds ?? 0) / 60);
+            $totalMinutes = max(0, $diff - $pausedMinutes);
+        }
+        $hours = floor($totalMinutes / 60);
+        $mins = $totalMinutes % 60;
+        $timerFormatted = $hours > 0 ? "{$hours}h {$mins}m" : "{$mins}m";
+
+        $latestRevisionNote = null;
+        $latestRevisionRequestedBy = null;
+        $latestRevisionDate = null;
+        if ($task->revision_count > 0) {
+            $revComment = $task->comments
+                ->filter(fn ($c) => str_contains(strtolower($c->body ?? ''), 'revision'))
+                ->first();
+
+            if ($revComment) {
+                $latestRevisionNote = trim(preg_replace('/^(?:🔄|✍️|🔁)?\s*(?:Visual\s+)?Revision requested(?:\s+by\s+[A-Za-z]+)?:\s*/iu', '', $revComment->body));
+                $latestRevisionRequestedBy = $revComment->user?->name ?? 'Strategist';
+                $latestRevisionDate = $revComment->created_at?->diffForHumans();
+            }
+        }
+
+        $commentsData = $task->comments->map(function ($c) {
+            return [
+                'id'           => $c->id,
+                'user_name'    => $c->user?->name ?? 'User',
+                'user_avatar'  => $c->user?->avatar_color ?? '#6366f1',
+                'user_initial' => strtoupper(substr($c->user?->name ?? 'U', 0, 1)),
+                'body'         => $c->body,
+                'created_at'   => $c->created_at?->diffForHumans() ?? 'recently',
+            ];
+        })->values();
+
+        return response()->json([
+            'success' => true,
+            'task' => [
+                'id'                       => $task->id,
+                'title'                    => $task->title,
+                'type'                     => ucfirst((string)$task->type),
+                'type_class'               => $task->type_tag_class,
+                'platform'                 => is_array($task->platform) ? $task->platform : ($task->platform ? [$task->platform] : []),
+                'priority'                 => $task->priority,
+                'status'                   => $task->status,
+                'status_label'             => $task->status_label,
+                'status_class'             => $task->status_class,
+                'deadline'                 => $task->deadline ? $task->deadline->format('d M Y') : null,
+                'deadline_overdue'         => $task->isOverdue(),
+                'post_date'                => $task->post_date ? Carbon::parse($task->post_date)->format('d M Y') : null,
+                'is_client_approved'       => $task->isClientApproved(),
+                'requires_client_approval' => (bool) $task->requires_client_approval,
+                'revision_count'           => (int) $task->revision_count,
+                'is_timer_running'         => $isTimerRunning,
+                'timer_formatted'          => $timerFormatted,
+                'is_paused'                => (bool) $task->is_paused,
+                'client' => [
+                    'id'    => $task->client?->id,
+                    'name'  => $task->client?->name,
+                    'emoji' => $task->client?->emoji ?? '🏢',
+                    'logo'  => $task->client?->logo,
+                ],
+                'assignee' => $task->assignee ? [
+                    'id'           => $task->assignee->id,
+                    'name'         => $task->assignee->name,
+                    'avatar_color' => $task->assignee->avatar_color ?? '#6366f1',
+                    'initial'      => strtoupper(substr($task->assignee->name, 0, 1)),
+                    'role'         => ucfirst($task->assignee->role ?? 'Designer'),
+                ] : null,
+                'creator' => $task->creator ? [
+                    'id'   => $task->creator->id,
+                    'name' => $task->creator->name,
+                ] : null,
+                'brief'           => $task->brief,
+                'headline_copy'   => $task->headline_copy,
+                'caption'         => $task->caption,
+                'hashtags'        => $task->hashtags,
+                'reference_links' => (array) ($task->reference_links ?? []),
+                'revision_info'   => [
+                    'count'        => (int) $task->revision_count,
+                    'latest_note'  => $latestRevisionNote,
+                    'requested_by' => $latestRevisionRequestedBy,
+                    'date'         => $latestRevisionDate,
+                ],
+                'deliverables' => $deliverables,
+                'references'   => $references,
+                'comments'     => $commentsData,
+                'routes' => [
+                    'show'       => route('strategist.tasks.show', $task),
+                    'edit'       => route('strategist.tasks.edit', $task),
+                    'approve'    => route('strategist.tasks.approve', $task),
+                    'revision'   => route('strategist.tasks.request-revision', $task),
+                    'follow_up'  => route('strategist.tasks.follow-up', $task),
+                    'comment'    => route('strategist.tasks.comment', $task),
+                ]
+            ]
+        ]);
     }
 
     public function edit(Task $task)
@@ -360,6 +501,9 @@ class TaskController extends Controller
     public function followUp(Task $task)
     {
         if (!$task->assigned_to) {
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Cannot follow up on unassigned task.'], 422);
+            }
             return back()->with('error', 'Cannot follow up on unassigned task.');
         }
 
@@ -371,6 +515,13 @@ class TaskController extends Controller
             'subtitle' => Auth::user()->name . ' is following up on "' . $task->title . '"',
             'link'    => '/designer/tasks',
         ]);
+
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Follow-up sent to ' . ($task->assignee->name ?? 'assigned user') . '!',
+            ]);
+        }
 
         return back()->with('success', 'Follow-up sent to ' . $task->assignee->name . '!');
     }
@@ -542,6 +693,7 @@ class TaskController extends Controller
     {
         $validated = $request->validate([
             'revision_note'     => ['required', 'string', 'max:2000'],
+            'revision_reason'   => ['nullable', 'string', 'max:100'],
             'reference_files'   => ['nullable', 'array'],
             'reference_files.*' => ['file', 'mimes:jpg,jpeg,jfif,png,gif,webp,svg,mp4,mov,webm,mkv,avi,m4v,3gp,ts,pdf,doc,docx,zip,rar,7z', 'max:512000'],
         ]);
@@ -730,6 +882,9 @@ class TaskController extends Controller
                 $query->whereNotIn('status', ['completed', 'published'])
                     ->whereNotNull('deadline')
                     ->where('deadline', '<', now());
+            } elseif ($request->input('status') === 'in_revision' || $request->input('status') === 'revision') {
+                $query->where('status', 'inprogress')
+                    ->where('revision_count', '>', 0);
             } else {
                 $query->where('status', $request->input('status'));
             }
@@ -793,17 +948,18 @@ class TaskController extends Controller
             ? Task::where('created_by', $strategistId)
             : Task::strategistVisible();
 
-        $totalCount     = $allTasks->count();
-        $todoCount      = (clone $allTasks)->where('status', 'todo')->count();
+        $totalCount      = $allTasks->count();
+        $todoCount       = (clone $allTasks)->where('status', 'todo')->count();
         $inProgressCount = (clone $allTasks)->where('status', 'inprogress')->count();
-        $reviewCount    = (clone $allTasks)->where('status', 'review')->count();
-        $completedCount = (clone $allTasks)->whereIn('status', ['completed', 'published'])->count();
-        $overdueCount   = (clone $allTasks)->whereNotIn('status', ['completed', 'published'])
+        $reviewCount     = (clone $allTasks)->where('status', 'review')->count();
+        $inRevisionCount = (clone $allTasks)->where('status', 'inprogress')->where('revision_count', '>', 0)->count();
+        $completedCount  = (clone $allTasks)->whereIn('status', ['completed', 'published'])->count();
+        $overdueCount    = (clone $allTasks)->whereNotIn('status', ['completed', 'published'])
             ->whereNotNull('deadline')->where('deadline', '<', now())->count();
 
         return view('strategist.tracking', compact(
             'tasks', 'clients', 'designers', 'strategists', 'scope',
-            'totalCount', 'todoCount', 'inProgressCount', 'reviewCount', 'completedCount', 'overdueCount'
+            'totalCount', 'todoCount', 'inProgressCount', 'reviewCount', 'inRevisionCount', 'completedCount', 'overdueCount'
         ));
     }
 
