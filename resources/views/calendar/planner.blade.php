@@ -34,16 +34,27 @@
     // Shared by the admin and strategist panels: $calendarRoute is this page's route name
     $isAdmin = auth()->user()->role === 'admin';
     $taskUrl = fn ($task) => $isAdmin ? route('admin.tasks.show', $task) : route('strategist.tracking', ['task' => $task->id]);
-    // Matches the reschedule API: admins can move anything, others only tasks they created
-    $canMove = fn ($task) => $isAdmin || $task->created_by === auth()->id();
+    // Matches the reschedule API: admins, strategists, or task creators can move
+    $canMove = fn ($task) => $isAdmin || auth()->user()?->role === 'strategist' || $task->created_by === auth()->id();
+
+    $isMonth = $view === 'month';
+    $isFeed = $view === 'feed';
+    $activeFilters = $activeFilters ?? [];
+    $festivalsByDate = $festivalsByDate ?? collect();
+    $feedGrid = $feedGrid ?? collect();
+    $designers = $designers ?? collect();
+    $storeTaskUrl = $isAdmin ? route('admin.tasks.store') : route('strategist.tasks.store');
 
     // Build calendar URLs that keep the current filters
-    $url = function (array $overrides = []) use ($view, $anchor, $clientId, $mine, $calendarRoute) {
+    $url = function (array $overrides = []) use ($view, $anchor, $clientId, $mine, $calendarRoute, $activeFilters) {
         $params = array_merge([
             'view' => $view,
             'date' => $anchor->toDateString(),
             'client' => $clientId,
             'mine' => $mine ? 1 : null,
+            'platform' => $activeFilters['platform'] ?? null,
+            'type' => $activeFilters['type'] ?? null,
+            'assignee' => $activeFilters['assignee'] ?? null,
         ], $overrides);
         return route($calendarRoute, array_filter($params, fn ($v) => $v !== null && $v !== ''));
     };
@@ -349,11 +360,196 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
 .cp-btn-primary { background: linear-gradient(135deg, #f43f3f, #dc2626); color: #fff; border-color: transparent; }
 .cp-btn-primary:hover { color: #fff; filter: brightness(1.06); }
 
+/* ── Filter Matrix ── */
+.cp-filter-matrix {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 12px 16px; margin-bottom: 16px; border-radius: 16px;
+    background: var(--card, #fff); border: 1px solid var(--border, #e2e6ef); box-shadow: var(--cp-shadow-sm);
+}
+.cp-filter-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.cp-filter-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; color: var(--text3, #94a3b8); margin-right: 2px; }
+.cp-chip {
+    display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 11px; border-radius: 99px;
+    font-size: 12px; font-weight: 700; text-decoration: none; cursor: pointer;
+    background: var(--card2, #f5f7fb); color: var(--text2, #475569); border: 1px solid var(--border, #e2e6ef); transition: all .15s ease;
+}
+.cp-chip:hover { border-color: var(--cp-brand); color: var(--cp-brand); background: var(--card, #fff); }
+.cp-chip.is-active { background: var(--cp-brand); color: #fff; border-color: var(--cp-brand); box-shadow: 0 3px 10px -2px rgba(239,68,68,0.5); }
+.cp-chip i { font-size: 11px; }
+
+/* ── Festival Cultural Markers ── */
+.cp-fest-chip {
+    display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; margin: 3px 0 2px; border-radius: 99px;
+    font-size: 10.5px; font-weight: 800; color: #b45309; background: linear-gradient(135deg, rgba(254,243,199,0.95), rgba(253,230,138,0.95));
+    border: 1px solid rgba(245,158,11,0.4); cursor: pointer; transition: transform .15s, box-shadow .15s; text-decoration: none; max-width: 130px;
+}
+body.dark-mode .cp-fest-chip { color: #fde68a; background: linear-gradient(135deg, rgba(120,53,15,0.45), rgba(180,83,9,0.35)); border-color: rgba(245,158,11,0.4); }
+.cp-fest-chip:hover { transform: translateY(-1px) scale(1.02); box-shadow: 0 4px 12px rgba(245,158,11,0.25); color: #92400e; }
+.cp-fest-chip .cp-fest-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cp-fest-chip i.fa-plus { font-size: 8.5px; opacity: 0.65; margin-left: 1px; }
+
+.cp-fest-chip-sm {
+    display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 99px; margin-bottom: 2px;
+    font-size: 10px; font-weight: 800; color: #b45309; background: rgba(254,243,199,0.9); border: 1px solid rgba(245,158,11,0.3);
+    cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+body.dark-mode .cp-fest-chip-sm { color: #fde68a; background: rgba(120,53,15,0.3); }
+
+/* ── Slot Quick-Add ── */
+.cp-slot-add-btn {
+    display: none; align-items: center; justify-content: center; gap: 5px; width: 100%; height: 26px; margin-top: auto;
+    border-radius: 8px; border: 1px dashed var(--border, #cbd5e1); background: rgba(255,255,255,0.7);
+    color: var(--text3, #94a3b8); font-size: 11px; font-weight: 700; cursor: pointer; transition: all .15s;
+}
+.cp-cell:hover .cp-slot-add-btn { display: flex; }
+.cp-slot-add-btn:hover { border-color: var(--cp-brand); color: var(--cp-brand); background: var(--card, #fff); box-shadow: var(--cp-shadow-sm); }
+
+.cp-mday-add-btn {
+    display: none; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--border, #cbd5e1);
+    background: var(--card, #fff); color: var(--text3, #94a3b8); font-size: 9px; cursor: pointer; place-items: center; transition: all .15s;
+}
+.cp-mday:hover .cp-mday-add-btn { display: grid; }
+.cp-mday-add-btn:hover { border-color: var(--cp-brand); color: var(--cp-brand); transform: scale(1.1); }
+
+/* ── Visual Instagram Feed View ── */
+.cp-feed-view { padding: 20px 24px; max-width: 1060px; margin: 0 auto; }
+.cp-feed-profile {
+    display: flex; align-items: center; gap: 28px; padding: 22px 26px; border-radius: 18px;
+    background: var(--card, #fff); border: 1px solid var(--border, #e2e6ef); box-shadow: var(--cp-shadow-sm); margin-bottom: 22px;
+}
+.cp-feed-avatar {
+    width: 84px; height: 84px; border-radius: 50%; padding: 3px;
+    background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); flex-shrink: 0;
+}
+.cp-feed-avatar-inner {
+    width: 100%; height: 100%; border-radius: 50%; overflow: hidden; background: var(--card, #fff);
+    display: grid; place-items: center; font-size: 24px; font-weight: 800; color: #fff; border: 2px solid var(--card, #fff);
+}
+.cp-feed-avatar-inner img { width: 100%; height: 100%; object-fit: cover; }
+.cp-feed-info { flex: 1; min-width: 0; }
+.cp-feed-handle { font-size: 19px; font-weight: 800; display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.cp-feed-handle-badge { color: #38bdf8; font-size: 14px; }
+.cp-feed-stats { display: flex; align-items: center; gap: 20px; font-size: 13px; color: var(--text2, #475569); margin-bottom: 6px; }
+.cp-feed-stats strong { color: var(--text, #0f172a); font-weight: 800; }
+.cp-feed-bio { font-size: 12.5px; color: var(--text3, #94a3b8); }
+
+.cp-feed-grid-wrap { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+@media (max-width: 768px) { .cp-feed-grid-wrap { grid-template-columns: repeat(2, 1fr); gap: 8px; } }
+.cp-feed-card {
+    position: relative; aspect-ratio: 1 / 1; border-radius: 12px; overflow: hidden;
+    background: var(--card2, #f1f5f9); border: 1px solid var(--border, #e2e6ef); box-shadow: var(--cp-shadow-sm);
+    cursor: pointer; transition: transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s;
+}
+.cp-feed-card:hover { transform: translateY(-3px) scale(1.01); box-shadow: 0 16px 32px -10px rgba(15,23,42,0.25); }
+.cp-feed-media { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cp-feed-placeholder {
+    width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: space-between; padding: 14px;
+    background: linear-gradient(135deg, rgba(239,68,68,0.06), rgba(99,102,241,0.08)); position: relative;
+}
+.cp-feed-card-badge {
+    position: absolute; top: 8px; right: 8px; z-index: 2; width: 26px; height: 26px; border-radius: 7px;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); color: #fff; display: grid; place-items: center; font-size: 11px;
+}
+.cp-feed-date-chip {
+    position: absolute; top: 8px; left: 8px; z-index: 2; padding: 2px 7px; border-radius: 6px;
+    background: rgba(15,23,42,0.7); backdrop-filter: blur(4px); color: #fff; font-size: 10.5px; font-weight: 800;
+}
+.cp-feed-overlay {
+    position: absolute; inset: 0; z-index: 3; background: rgba(15,23,42,0.82); backdrop-filter: blur(3px);
+    color: #fff; padding: 18px; display: flex; flex-direction: column; justify-content: center; align-items: center;
+    text-align: center; gap: 8px; opacity: 0; transition: opacity .18s ease;
+}
+.cp-feed-card:hover .cp-feed-overlay { opacity: 1; }
+.cp-feed-overlay-title { font-size: 13.5px; font-weight: 800; line-height: 1.35; max-width: 90%; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.cp-feed-overlay-meta { display: flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 700; }
+
+/* ── Deliverable Gallery & Copywriting Blocks ── */
+.cp-media-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-top: 8px; }
+.cp-media-tile {
+    position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden;
+    background: var(--card2, #f5f7fb); border: 1px solid var(--border, #e2e6ef); cursor: pointer;
+}
+.cp-media-tile img, .cp-media-tile video { width: 100%; height: 100%; object-fit: cover; }
+.cp-media-badge { position: absolute; bottom: 6px; left: 6px; padding: 2px 6px; border-radius: 4px; background: rgba(0,0,0,0.65); color: #fff; font-size: 9px; font-weight: 800; text-transform: uppercase; }
+.cp-media-actions { position: absolute; inset: 0; background: rgba(15,23,42,0.6); display: flex; align-items: center; justify-content: center; gap: 8px; opacity: 0; transition: opacity .15s; }
+.cp-media-tile:hover .cp-media-actions { opacity: 1; }
+.cp-media-btn { width: 32px; height: 32px; border-radius: 8px; background: #fff; color: #0f172a; display: grid; place-items: center; font-size: 13px; border: none; cursor: pointer; text-decoration: none; transition: transform .15s; }
+.cp-media-btn:hover { transform: scale(1.1); color: var(--cp-brand); }
+
+.cp-copy-box { position: relative; padding: 12px 14px; border-radius: 12px; background: var(--card2, #f8fafc); border: 1px solid var(--border, #e2e6ef); }
+.cp-copy-box-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.cp-copy-box-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: var(--text3, #94a3b8); }
+.cp-copy-act-btn { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border, #e2e6ef); background: var(--card, #fff); color: var(--text2, #475569); font-size: 11px; font-weight: 700; cursor: pointer; transition: all .15s; }
+.cp-copy-act-btn:hover { border-color: var(--cp-brand); color: var(--cp-brand); }
+.cp-copy-text { font-size: 13px; line-height: 1.6; color: var(--text, #0f172a); white-space: pre-wrap; word-break: break-word; margin: 0; }
+
+/* ── Lightbox & Modals ── */
+.cp-lightbox { position: fixed; inset: 0; z-index: 10005; background: rgba(15,23,42,0.92); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; padding: 24px; }
+.cp-lightbox.is-open { display: flex; }
+.cp-lightbox-content { max-width: 90vw; max-height: 90vh; display: flex; flex-direction: column; align-items: center; position: relative; }
+.cp-lightbox-content img, .cp-lightbox-content video { max-width: 100%; max-height: 85vh; border-radius: 12px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); object-fit: contain; }
+.cp-lightbox-close { position: absolute; top: -46px; right: 0; width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,0.2); color: #fff; border: none; font-size: 18px; cursor: pointer; display: grid; place-items: center; }
+.cp-lightbox-close:hover { background: rgba(255,255,255,0.35); }
+
+.cp-modal-overlay { position: fixed; inset: 0; z-index: 10002; background: rgba(15,23,42,0.5); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; padding: 20px; }
+.cp-modal-overlay.is-open { display: flex; }
+.cp-quick-dialog { width: min(540px, 100vw); background: var(--card, #fff); border-radius: 20px; border: 1px solid var(--border, #e2e6ef); box-shadow: 0 20px 45px -15px rgba(15,23,42,0.3); display: flex; flex-direction: column; overflow: hidden; }
+.cp-quick-head { padding: 20px 24px 16px; border-bottom: 1px solid var(--border, #e2e6ef); display: flex; align-items: center; justify-content: space-between; }
+.cp-quick-title { font-size: 17px; font-weight: 800; margin: 0; display: flex; align-items: center; gap: 8px; }
+.cp-quick-title i { color: var(--cp-brand); }
+.cp-quick-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+.cp-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.cp-form-group { display: flex; flex-direction: column; gap: 5px; }
+.cp-form-group label { font-size: 11.5px; font-weight: 800; color: var(--text2, #475569); text-transform: uppercase; letter-spacing: .5px; }
+.cp-form-group .cp-field { width: 100%; }
+.cp-form-group textarea.cp-field { height: 72px; padding: 8px 12px; resize: vertical; }
+.cp-quick-foot { padding: 14px 24px 18px; border-top: 1px solid var(--border, #e2e6ef); display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+
+/* ── Presentation View ── */
+.cp-wrap.is-presenting { background: #0f172a; color: #f8fafc; min-height: 100vh; padding: 16px 24px; border-radius: 20px; }
+.cp-wrap.is-presenting .cp-controls, .cp-wrap.is-presenting .cp-attention, .cp-wrap.is-presenting .cp-hint, .cp-wrap.is-presenting .cp-score-sub, .cp-wrap.is-presenting .cp-stat { display: none !important; }
+.cp-wrap.is-presenting .cp-hero { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); }
+.cp-present-banner { display: none; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 20px; margin-bottom: 16px; background: linear-gradient(90deg, #1e293b, #334155); border: 1px solid rgba(255,255,255,0.15); border-radius: 14px; color: #fff; box-shadow: 0 4px 18px rgba(0,0,0,0.25); }
+.cp-wrap.is-presenting .cp-present-banner { display: flex; }
+
+/* ── Toast ── */
+.cp-toast { position: fixed; bottom: 24px; right: 24px; z-index: 10010; display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-radius: 12px; background: #0f172a; color: #fff; box-shadow: 0 12px 30px rgba(0,0,0,0.3); font-size: 13px; font-weight: 700; transform: translateY(100px); opacity: 0; transition: all .25s cubic-bezier(.2,.8,.2,1); pointer-events: none; }
+.cp-toast.is-show { transform: translateY(0); opacity: 1; pointer-events: auto; }
+.cp-toast-undo { background: #ef4444; color: #fff; border: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 800; cursor: pointer; }
+
+/* ── Posting Schedule & Reschedule Card ── */
+.cp-reschedule-card {
+    padding: 16px 18px; border-radius: 16px;
+    background: linear-gradient(135deg, rgba(239,68,68,0.05) 0%, rgba(99,102,241,0.06) 100%);
+    border: 1px solid var(--border, #e2e6ef); box-shadow: var(--cp-shadow-sm);
+    display: flex; flex-direction: column; gap: 12px;
+}
+.cp-reschedule-info { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.cp-reschedule-date-display { display: flex; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 800; color: var(--text, #0f172a); }
+.cp-reschedule-controls { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; border-top: 1px dashed var(--border, #e2e6ef); }
+.cp-reschedule-input-wrap { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.cp-reschedule-input { height: 38px; font-size: 13px; font-weight: 700; padding: 0 10px; border-radius: 10px; background: var(--card, #fff); border: 1px solid var(--border, #e2e6ef); color: var(--text, #0f172a); }
+.cp-pill-btn {
+    display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 99px;
+    border: 1px solid var(--border, #e2e6ef); background: var(--card, #fff); color: var(--text2, #475569);
+    font-size: 11px; font-weight: 700; cursor: pointer; transition: all .15s ease;
+}
+.cp-pill-btn:hover { border-color: var(--cp-brand); color: var(--cp-brand); background: var(--card2, #f5f7fb); }
+.cp-pill-btn.is-selected { background: var(--cp-brand); color: #fff; border-color: var(--cp-brand); }
+.cp-reschedule-quick-pills { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.cp-btn-edit-date {
+    height: 32px; padding: 0 12px; font-size: 12px; font-weight: 700; border-radius: 9px;
+    background: var(--card, #fff); border: 1px solid var(--border, #e2e6ef); color: var(--text, #0f172a);
+    cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all .15s ease;
+}
+.cp-btn-edit-date:hover { border-color: var(--cp-brand); color: var(--cp-brand); background: var(--card2, #f5f7fb); }
+.cp-btn-edit-date.is-active { background: var(--cp-brand); color: #fff; border-color: var(--cp-brand); }
+
 /* ── Drawer ── */
 .cp-overlay { position: fixed; inset: 0; z-index: 9995; background: rgba(15,23,42,0.45); backdrop-filter: blur(3px); opacity: 0; visibility: hidden; transition: opacity .25s, visibility .25s; }
 .cp-overlay.is-open { opacity: 1; visibility: visible; }
 .cp-drawer {
-    position: fixed; top: 0; right: 0; bottom: 0; z-index: 10000; width: min(520px, 100vw); display: flex; flex-direction: column;
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 10000; width: min(640px, 100vw); display: flex; flex-direction: column;
     background: var(--card, #fff); color: var(--text, #0f172a); border-left: 1px solid var(--border, #e2e6ef);
     box-shadow: -24px 0 60px -20px rgba(15,23,42,0.35); transform: translateX(104%); transition: transform .32s cubic-bezier(.22,.9,.3,1);
     font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
@@ -421,7 +617,16 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
 }
 </style>
 
-<div class="cp-wrap">
+<div class="cp-wrap" id="cpCalendarWrap">
+
+    {{-- Presentation View Header Banner --}}
+    <div class="cp-present-banner" id="cpPresentBanner">
+        <div>
+            <h3><i class="fas fa-sparkles"></i> Client Content Presentation View</h3>
+            <p style="margin:2px 0 0;font-size:12px;opacity:0.85">Clean, unbranded preview formatted for client sign-off calls & presentations.</p>
+        </div>
+        <button type="button" class="cp-btn" id="cpExitPresentBtn" style="height:32px;font-size:12px;background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.25)"><i class="fas fa-xmark"></i> Exit Presentation Mode</button>
+    </div>
 
     {{-- ── Hero ── --}}
     <section class="cp-hero">
@@ -444,10 +649,12 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
                 <a href="{{ $nextUrl }}" title="Next {{ $view }}" aria-label="Next {{ $view }}"><i class="fas fa-chevron-right"></i></a>
             </div>
             <div class="cp-glass" role="tablist" aria-label="Calendar view">
-                <a href="{{ $url(['view' => 'week']) }}" class="{{ $isWeek ? 'is-active' : '' }}" role="tab"><i class="fas fa-table-cells"></i> Week</a>
-                <a href="{{ $url(['view' => 'month']) }}" class="{{ !$isWeek ? 'is-active' : '' }}" role="tab"><i class="fas fa-calendar-days"></i> Month</a>
+                <a href="{{ $url(['view' => 'week']) }}" class="{{ $view === 'week' ? 'is-active' : '' }}" role="tab"><i class="fas fa-table-cells"></i> Week</a>
+                <a href="{{ $url(['view' => 'month']) }}" class="{{ $view === 'month' ? 'is-active' : '' }}" role="tab"><i class="fas fa-calendar-days"></i> Month</a>
+                <a href="{{ $url(['view' => 'feed']) }}" class="{{ $view === 'feed' ? 'is-active' : '' }}" role="tab"><i class="fa-brands fa-instagram"></i> Feed Preview</a>
             </div>
             <div class="cp-glass">
+                <button type="button" id="cpPresentationToggle" title="Clean Client Presentation View"><i class="fas fa-display"></i> <span id="cpPresentLabel">Present</span></button>
                 <button type="button" onclick="window.print()" title="Print this calendar"><i class="fas fa-print"></i> Print</button>
             </div>
         </div>
@@ -468,6 +675,39 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
             <i class="fas fa-magnifying-glass"></i>
             <input type="search" class="cp-field" id="cpSearch" placeholder="Search posts, clients, designers..." autocomplete="off" aria-label="Search posts">
         </label>
+        <button type="button" class="cp-btn cp-btn-primary" data-quick-create="{{ today()->toDateString() }}" style="height:40px">
+            <i class="fas fa-plus"></i> Quick Schedule
+        </button>
+    </div>
+
+    {{-- ── Filter Matrix ── --}}
+    <div class="cp-filter-matrix">
+        <div class="cp-filter-group">
+            <span class="cp-filter-label"><i class="fas fa-tower-broadcast"></i> Platform:</span>
+            <a href="{{ $url(['platform' => null]) }}" class="cp-chip {{ empty($activeFilters['platform']) ? 'is-active' : '' }}">All</a>
+            <a href="{{ $url(['platform' => 'instagram']) }}" class="cp-chip {{ ($activeFilters['platform'] ?? '') === 'instagram' ? 'is-active' : '' }}"><i class="fa-brands fa-instagram" style="color:#E1306C"></i> Instagram</a>
+            <a href="{{ $url(['platform' => 'linkedin']) }}" class="cp-chip {{ ($activeFilters['platform'] ?? '') === 'linkedin' ? 'is-active' : '' }}"><i class="fa-brands fa-linkedin-in" style="color:#0A66C2"></i> LinkedIn</a>
+            <a href="{{ $url(['platform' => 'facebook']) }}" class="cp-chip {{ ($activeFilters['platform'] ?? '') === 'facebook' ? 'is-active' : '' }}"><i class="fa-brands fa-facebook-f" style="color:#1877F2"></i> Facebook</a>
+            <a href="{{ $url(['platform' => 'twitter']) }}" class="cp-chip {{ ($activeFilters['platform'] ?? '') === 'twitter' ? 'is-active' : '' }}"><i class="fa-brands fa-x-twitter"></i> X</a>
+            <a href="{{ $url(['platform' => 'youtube']) }}" class="cp-chip {{ ($activeFilters['platform'] ?? '') === 'youtube' ? 'is-active' : '' }}"><i class="fa-brands fa-youtube" style="color:#FF0000"></i> YouTube</a>
+        </div>
+        <div class="cp-filter-group">
+            <span class="cp-filter-label"><i class="fas fa-photo-film"></i> Format:</span>
+            <a href="{{ $url(['type' => null]) }}" class="cp-chip {{ empty($activeFilters['type']) ? 'is-active' : '' }}">All</a>
+            <a href="{{ $url(['type' => 'reel']) }}" class="cp-chip {{ ($activeFilters['type'] ?? '') === 'reel' ? 'is-active' : '' }}"><i class="fas fa-film"></i> Reels</a>
+            <a href="{{ $url(['type' => 'carousel']) }}" class="cp-chip {{ ($activeFilters['type'] ?? '') === 'carousel' ? 'is-active' : '' }}"><i class="fas fa-images"></i> Carousels</a>
+            <a href="{{ $url(['type' => 'post']) }}" class="cp-chip {{ ($activeFilters['type'] ?? '') === 'post' ? 'is-active' : '' }}"><i class="fas fa-image"></i> Posts</a>
+            <a href="{{ $url(['type' => 'story']) }}" class="cp-chip {{ ($activeFilters['type'] ?? '') === 'story' ? 'is-active' : '' }}"><i class="fas fa-mobile-screen"></i> Stories</a>
+        </div>
+        <div class="cp-filter-group">
+            <span class="cp-filter-label"><i class="fas fa-paint-brush"></i> Designer:</span>
+            <select class="cp-field" style="height:32px;font-size:12px;min-width:140px;padding:0 8px" onchange="window.location.href = this.value">
+                <option value="{{ $url(['assignee' => null]) }}">All Designers</option>
+                @foreach($designers as $des)
+                    <option value="{{ $url(['assignee' => $des->id]) }}" @selected(($activeFilters['assignee'] ?? null) == $des->id)>{{ $des->name }}</option>
+                @endforeach
+            </select>
+        </div>
     </div>
 
     {{-- ── Summary: completion + one tile per delivery state (tiles filter the calendar) ── --}}
@@ -565,7 +805,7 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
             </div>
         </div>
 
-        @if($isWeek)
+        @if($view === 'week')
             @if($rows->isEmpty())
                 <div class="cp-empty">
                     <div class="cp-empty-icon"><i class="fas fa-calendar-xmark"></i></div>
@@ -583,10 +823,20 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
                             @php
                                 $dayCards = $cardsByDate->get($day->toDateString(), collect());
                                 $dayDone = $dayCards->where('state', 'done')->count();
+                                $dayFestivals = $festivalsByDate->get($day->toDateString(), collect());
                             @endphp
                             <div class="cp-col-head {{ $day->isToday() ? 'is-today' : '' }} {{ $day->lt(today()) ? 'is-past' : '' }}">
                                 <div class="cp-day-name">{{ $day->format('D') }}</div>
                                 <div class="cp-day-num">{{ $day->format('d') }}</div>
+                                @if($dayFestivals->isNotEmpty())
+                                    @foreach($dayFestivals as $fest)
+                                        <button type="button" class="cp-fest-chip" title="Festival: {{ $fest->name }} · Click to quick-schedule" data-quick-create="{{ $day->toDateString() }}" data-fest="{{ $fest->name }}">
+                                            <span>{{ $fest->emoji ?: '🎉' }}</span>
+                                            <span class="cp-fest-name">{{ $fest->name }}</span>
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    @endforeach
+                                @endif
                                 @if($dayCards->isNotEmpty())
                                     <div class="cp-day-meter"><span style="width: {{ round($dayDone / $dayCards->count() * 100) }}%"></span></div>
                                     <div class="cp-day-count">{{ $dayDone }}/{{ $dayCards->count() }} posted</div>
@@ -642,6 +892,10 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
                                                 </span>
                                             </button>
                                         @endforeach
+                                        {{-- Quick Add Slot Button --}}
+                                        <button type="button" class="cp-slot-add-btn" data-quick-create="{{ $day->toDateString() }}" data-platform="{{ $channel->platform }}" data-client="{{ $row->client->id ?? '' }}" title="Schedule new post for {{ $row->client->name ?? 'client' }} on {{ $day->format('M d') }}">
+                                            <i class="fas fa-plus"></i> Schedule
+                                        </button>
                                     </div>
                                 @endforeach
                             @endforeach
@@ -649,6 +903,94 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
                     </div>
                 </div>
             @endif
+        @elseif($view === 'feed')
+            <div class="cp-feed-view">
+                <div class="cp-feed-profile">
+                    <div class="cp-feed-avatar">
+                        <div class="cp-feed-avatar-inner" style="background: {{ $selectedClient?->color ?? '#ef4444' }}">
+                            @if($selectedClient?->logo)
+                                <img src="{{ asset('storage/' . $selectedClient->logo) }}" alt="{{ $selectedClient->name }}">
+                            @else
+                                {{ $initials($selectedClient?->name ?? 'TMS') }}
+                            @endif
+                        </div>
+                    </div>
+                    <div class="cp-feed-info">
+                        <div class="cp-feed-handle">
+                            {{ $selectedClient ? $selectedClient->name : 'Agency Content Feed' }}
+                            <i class="fas fa-circle-check cp-feed-handle-badge"></i>
+                        </div>
+                        <div class="cp-feed-stats">
+                            <span><strong>{{ $feedGrid->count() }}</strong> planned posts</span>
+                            <span><strong>{{ $summary['counts']['done'] }}</strong> posted</span>
+                            <span><strong>{{ $summary['completion'] }}%</strong> complete</span>
+                        </div>
+                        <div class="cp-feed-bio">
+                            Instagram 9-Grid Aesthetic Feed Preview · Visual cadence simulation for {{ $title }}.
+                        </div>
+                    </div>
+                    <div>
+                        <button type="button" class="cp-btn cp-btn-primary" data-quick-create="{{ today()->toDateString() }}" data-platform="instagram">
+                            <i class="fas fa-plus"></i> Schedule Post
+                        </button>
+                    </div>
+                </div>
+
+                @if($feedGrid->isEmpty())
+                    <div class="cp-empty">
+                        <div class="cp-empty-icon"><i class="fa-brands fa-instagram"></i></div>
+                        <h3>No visual feed posts planned</h3>
+                        <p>No social media or visual posts scheduled for {{ $title }}.</p>
+                        <button type="button" class="cp-btn cp-btn-primary" data-quick-create="{{ today()->toDateString() }}" data-platform="instagram">
+                            <i class="fas fa-plus"></i> Plan First Post
+                        </button>
+                    </div>
+                @else
+                    <div class="cp-feed-grid-wrap">
+                        @foreach($feedGrid as $item)
+                            @php
+                                $task = $item->task;
+                                $st = $states[$item->state];
+                                $thumb = $item->thumbnail;
+                                $previewUrl = $thumb['url'] ?? null;
+                            @endphp
+                            <div class="cp-feed-card tone-{{ $st['tone'] }}" data-open-task="{{ $task->id }}">
+                                <span class="cp-feed-date-chip">{{ $item->planDate->format('M d') }}</span>
+                                <span class="cp-feed-card-badge">
+                                    <i class="fas {{ $typeIcon($task->type) }}"></i>
+                                </span>
+                                @if($previewUrl)
+                                    <img src="{{ $previewUrl }}" alt="{{ $task->title }}" class="cp-feed-media">
+                                @else
+                                    <div class="cp-feed-placeholder" style="background: radial-gradient(circle at top right, rgba(239,68,68,0.15), transparent 70%), var(--card2, #f8fafc)">
+                                        <div style="font-size:11px;font-weight:800;color:var(--text3,#94a3b8)">
+                                            {{ $task->client->name ?? 'Client' }}
+                                        </div>
+                                        <div style="font-size:13px;font-weight:800;line-height:1.35;color:var(--text,#0f172a)">
+                                            {{ $task->headline_copy ?: $task->title }}
+                                        </div>
+                                        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:auto">
+                                            <span class="cp-pill tone-{{ $st['tone'] }}" style="padding:2px 8px;font-size:10px">{{ $st['label'] }}</span>
+                                            <span style="font-size:11px;color:var(--text3,#94a3b8)">{{ $task->type ?? 'post' }}</span>
+                                        </div>
+                                    </div>
+                                @endif
+                                <div class="cp-feed-overlay">
+                                    <span class="cp-pill tone-{{ $st['tone'] }}">{{ $st['label'] }}</span>
+                                    <div class="cp-feed-overlay-title">{{ $task->title }}</div>
+                                    <div class="cp-feed-overlay-meta">
+                                        <span><i class="fas fa-calendar-day"></i> {{ $item->planDate->format('D, M d') }}</span>
+                                        @if($task->assignee)
+                                            <span>· <i class="fas fa-user-pen"></i> {{ $task->assignee->name }}</span>
+                                        @endif
+                                    </div>
+                                    <span style="font-size:11px;margin-top:6px;opacity:0.85"><i class="fas fa-eye"></i> Click to inspect</span>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
         @else
             <div class="cp-scroll">
                 <div class="cp-month">
@@ -662,6 +1004,7 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
                             $dayCards = $cardsByDate->get($day->toDateString(), collect());
                             $dayDone = $dayCards->where('state', 'done')->count();
                             $inMonth = $day->month === $periodStart->month;
+                            $dayFestivals = $festivalsByDate->get($day->toDateString(), collect());
                         @endphp
                         <div @if($dayTasks->isNotEmpty()) data-open-day="{{ $day->toDateString() }}" tabindex="0" role="button" title="See all {{ $dayTasks->count() }} posts on {{ $day->format('M d') }}" @endif @unless($day->lt(today())) data-drop-date="{{ $day->toDateString() }}" @endunless
                            class="cp-mday {{ $inMonth ? '' : 'is-out' }} {{ $day->isToday() ? 'is-today' : '' }} {{ $dayTasks->isEmpty() ? 'is-empty' : '' }}">
@@ -670,7 +1013,17 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
                                 @if($dayCards->isNotEmpty())
                                     <span class="cp-mday-ratio {{ $dayDone === $dayCards->count() ? 'is-complete' : '' }}">{{ $dayDone }}/{{ $dayCards->count() }} posted</span>
                                 @endif
+                                <button type="button" class="cp-mday-add-btn" data-quick-create="{{ $day->toDateString() }}" title="Add post on {{ $day->format('M d') }}">
+                                    <i class="fas fa-plus"></i>
+                                </button>
                             </span>
+                            @if($dayFestivals->isNotEmpty())
+                                @foreach($dayFestivals as $fest)
+                                    <div class="cp-fest-chip-sm" title="Festival: {{ $fest->name }} · Click to plan" data-quick-create="{{ $day->toDateString() }}" data-fest="{{ $fest->name }}">
+                                        <span>{{ $fest->emoji ?: '🎉' }} {{ $fest->name }}</span>
+                                    </div>
+                                @endforeach
+                            @endif
                             @if($dayCards->isNotEmpty())
                                 <span class="cp-mday-meter"><span style="width: {{ round($dayDone / $dayCards->count() * 100) }}%"></span></span>
                             @endif
@@ -787,6 +1140,57 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
                 <div class="cp-banner tone-green"><i class="fas fa-circle-check"></i> Posted on {{ $item->platformCount > 1 ? 'all ' . $item->platformCount . ' channels' : 'its channel' }}.</div>
             @endif
 
+            {{-- ── Posting Schedule & Date Changer ── --}}
+            <div class="cp-reschedule-card">
+                <div class="cp-reschedule-info">
+                    <div>
+                        <div class="cp-fact-label"><i class="fas fa-calendar-day" style="color:var(--cp-brand)"></i> Scheduled Posting Date</div>
+                        <div class="cp-reschedule-date-display" id="rescheduleDisplay-{{ $task->id }}">
+                            <span class="cp-reschedule-text">{{ $task->post_date ? \Illuminate\Support\Carbon::parse($task->post_date)->format('l, F j, Y') : $item->planDate->format('l, F j, Y') }}</span>
+                            @if($item->isToday)
+                                <span class="cp-pill tone-amber" style="padding:2px 8px;font-size:10px">Live Today</span>
+                            @elseif($item->state === 'missed')
+                                <span class="cp-pill tone-red" style="padding:2px 8px;font-size:10px">Overdue</span>
+                            @elseif($item->state === 'done')
+                                <span class="cp-pill tone-green" style="padding:2px 8px;font-size:10px">Published</span>
+                            @endif
+                        </div>
+                    </div>
+                    @if($canMove($task))
+                        <button type="button" class="cp-btn-edit-date" data-toggle-reschedule="{{ $task->id }}" title="Change scheduled posting date">
+                            <i class="fas fa-calendar-pen"></i> <span class="cp-toggle-label">Change Date</span>
+                        </button>
+                    @endif
+                </div>
+
+                @if($canMove($task))
+                    <div class="cp-reschedule-controls" id="rescheduleControls-{{ $task->id }}" style="display:none">
+                        <div class="cp-reschedule-input-wrap">
+                            <span class="cp-fact-label" style="font-weight:800;color:var(--text,#0f172a)"><i class="fas fa-calendar-pen" style="color:var(--cp-brand)"></i> New Posting Date:</span>
+                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                                <input type="date" class="cp-field cp-reschedule-input" id="postDateInput-{{ $task->id }}"
+                                       value="{{ $task->post_date ? \Illuminate\Support\Carbon::parse($task->post_date)->toDateString() : $item->planDate->toDateString() }}"
+                                       aria-label="Change posting date">
+                                <button type="button" class="cp-btn cp-btn-primary cp-reschedule-submit-btn" data-apply-post-date="{{ $task->id }}" title="Save new posting date">
+                                    <i class="fas fa-check"></i> Save Date
+                                </button>
+                                <button type="button" class="cp-btn" data-cancel-reschedule="{{ $task->id }}" title="Cancel date change" style="height:38px;padding:0 12px">
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                        <div class="cp-reschedule-quick-pills">
+                            <span class="cp-muted" style="font-size:11px;font-weight:700">Quick Shift:</span>
+                            <button type="button" class="cp-pill-btn" data-quick-date="{{ $task->id }}" data-quick-val="{{ today()->toDateString() }}">Today</button>
+                            <button type="button" class="cp-pill-btn" data-quick-date="{{ $task->id }}" data-quick-val="{{ today()->addDay()->toDateString() }}">Tomorrow</button>
+                            <button type="button" class="cp-pill-btn" data-quick-date="{{ $task->id }}" data-quick-val="{{ today()->addDays(2)->toDateString() }}">+2 Days</button>
+                            <button type="button" class="cp-pill-btn" data-quick-date="{{ $task->id }}" data-quick-val="{{ today()->addDays(7)->toDateString() }}">+1 Week</button>
+                            <button type="button" class="cp-pill-btn" data-quick-date="{{ $task->id }}" data-quick-val="{{ today()->next(\Illuminate\Support\Carbon::MONDAY)->toDateString() }}">Next Mon</button>
+                        </div>
+                    </div>
+                @endif
+            </div>
+
             <div>
                 <div class="cp-d-section"><i class="fas fa-tower-broadcast"></i> Channels · {{ $item->postedCount }}/{{ max($item->platformCount, 1) }} posted</div>
                 <div class="cp-channels">
@@ -819,7 +1223,7 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
             </div>
 
             <div class="cp-facts">
-                <div class="cp-fact"><div class="cp-fact-label">Go-live</div><div class="cp-fact-val">{{ $item->planDate->format('D, M d') }}</div></div>
+                <div class="cp-fact"><div class="cp-fact-label">Go-live</div><div class="cp-fact-val" id="factPostDate-{{ $task->id }}">{{ $item->planDate->format('D, M d') }}</div></div>
                 <div class="cp-fact"><div class="cp-fact-label">Deadline</div><div class="cp-fact-val {{ $deadlineLate ? 'is-late' : '' }}">{{ $task->deadline ? \Illuminate\Support\Carbon::parse($task->deadline)->format('M d') : '—' }}</div></div>
                 <div class="cp-fact"><div class="cp-fact-label">Design due</div><div class="cp-fact-val">{{ $task->design_deadline ? \Illuminate\Support\Carbon::parse($task->design_deadline)->format('M d') : '—' }}</div></div>
                 <div class="cp-fact"><div class="cp-fact-label">Designer</div><div class="cp-fact-val">{{ $task->assignee->name ?? 'Unassigned' }}</div></div>
@@ -827,15 +1231,82 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
                 <div class="cp-fact"><div class="cp-fact-label">Task status</div><div class="cp-fact-val" style="text-transform:capitalize">{{ str_replace('_', ' ', $task->status) }}</div></div>
             </div>
 
-            @if($task->caption)
+            {{-- Deliverable Media Gallery --}}
+            <div>
+                <div class="cp-d-section">
+                    <i class="fas fa-photo-film"></i> Deliverable Creatives & Media ({{ $task->media->count() }})
+                </div>
+                @if($task->media->isNotEmpty())
+                    <div class="cp-media-gallery">
+                        @foreach($task->media as $m)
+                            @php
+                                $ext = strtolower(pathinfo($m->file_path, PATHINFO_EXTENSION));
+                                $isVideo = in_array($ext, ['mp4','mov','webm']);
+                                $mediaUrl = asset('storage/' . $m->file_path);
+                            @endphp
+                            <div class="cp-media-tile" data-lightbox-src="{{ $mediaUrl }}" data-lightbox-type="{{ $isVideo ? 'video' : 'image' }}">
+                                @if($isVideo)
+                                    <video src="{{ $mediaUrl }}#t=0.5" preload="metadata"></video>
+                                    <span class="cp-media-badge"><i class="fas fa-video"></i> {{ strtoupper($ext) }}</span>
+                                @else
+                                    <img src="{{ $mediaUrl }}" alt="{{ $m->file_name }}">
+                                    <span class="cp-media-badge">{{ strtoupper($ext) }}</span>
+                                @endif
+                                <div class="cp-media-actions">
+                                    <button type="button" class="cp-media-btn" title="Zoom full screen" data-lightbox-trigger><i class="fas fa-magnifying-glass-plus"></i></button>
+                                    <a href="{{ $mediaUrl }}" download class="cp-media-btn" title="Download file"><i class="fas fa-download"></i></a>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="cp-muted" style="padding:10px 12px;background:var(--card2,#f8fafc);border-radius:10px;border:1px dashed var(--border,#cbd5e1)">
+                        <i class="fas fa-image" style="margin-right:6px"></i> Creative deliverables pending upload by {{ $task->assignee->name ?? 'assigned designer' }}.
+                    </div>
+                @endif
+            </div>
+
+            {{-- Copywriting Suite --}}
+            @if($task->headline_copy || $task->caption || $task->hashtags)
                 <div>
-                    <div class="cp-d-section"><i class="fas fa-quote-left"></i> Caption</div>
-                    <p class="cp-text">{{ $task->caption }}</p>
+                    <div class="cp-d-section"><i class="fas fa-bullhorn"></i> Marketing Copy & Captions</div>
+                    <div style="display:flex;flex-direction:column;gap:10px">
+                        @if($task->headline_copy)
+                            <div class="cp-copy-box">
+                                <div class="cp-copy-box-head">
+                                    <span class="cp-copy-box-title"><i class="fas fa-heading"></i> Headline Hook</span>
+                                    <button type="button" class="cp-copy-act-btn" data-copy-text="{{ $task->headline_copy }}" title="Copy headline hook"><i class="fas fa-copy"></i> Copy</button>
+                                </div>
+                                <p class="cp-copy-text" style="font-weight:700">{{ $task->headline_copy }}</p>
+                            </div>
+                        @endif
+
+                        @if($task->caption)
+                            <div class="cp-copy-box">
+                                <div class="cp-copy-box-head">
+                                    <span class="cp-copy-box-title"><i class="fas fa-quote-left"></i> Caption</span>
+                                    <button type="button" class="cp-copy-act-btn" data-copy-text="{{ $task->caption }}" title="Copy caption"><i class="fas fa-copy"></i> Copy</button>
+                                </div>
+                                <p class="cp-copy-text">{{ $task->caption }}</p>
+                            </div>
+                        @endif
+
+                        @if($task->hashtags)
+                            <div class="cp-copy-box">
+                                <div class="cp-copy-box-head">
+                                    <span class="cp-copy-box-title"><i class="fas fa-hashtag"></i> Hashtags</span>
+                                    <button type="button" class="cp-copy-act-btn" data-copy-text="{{ $task->hashtags }}" title="Copy hashtags"><i class="fas fa-copy"></i> Copy</button>
+                                </div>
+                                <p class="cp-copy-text" style="color:var(--cp-brand);font-weight:600">{{ $task->hashtags }}</p>
+                            </div>
+                        @endif
+                    </div>
                 </div>
             @endif
+
             @if($task->brief)
                 <div>
-                    <div class="cp-d-section"><i class="fas fa-file-lines"></i> Brief</div>
+                    <div class="cp-d-section"><i class="fas fa-file-lines"></i> Brief & Strategy Notes</div>
                     <p class="cp-text">{{ \Illuminate\Support\Str::limit($task->brief, 600) }}</p>
                 </div>
             @endif
@@ -853,9 +1324,109 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
     <div class="cp-drawer-content" id="cpDrawerContent"></div>
 </aside>
 
+{{-- ── Lightbox Zoom Modal ── --}}
+<div class="cp-lightbox" id="cpLightbox">
+    <div class="cp-lightbox-content">
+        <button type="button" class="cp-lightbox-close" id="cpLightboxClose" aria-label="Close lightbox"><i class="fas fa-xmark"></i></button>
+        <div id="cpLightboxTarget"></div>
+    </div>
+</div>
+
+{{-- ── Quick Schedule Modal ── --}}
+<div class="cp-modal-overlay" id="cpQuickModal">
+    <div class="cp-quick-dialog" role="dialog" aria-modal="true" aria-labelledby="cpQuickModalTitle">
+        <div class="cp-quick-head">
+            <h3 class="cp-quick-title" id="cpQuickModalTitle"><i class="fas fa-calendar-plus"></i> Quick Schedule Content</h3>
+            <button type="button" class="cp-drawer-close" style="position:static" id="cpQuickModalClose" aria-label="Close modal"><i class="fas fa-xmark"></i></button>
+        </div>
+        <form id="cpQuickScheduleForm" action="{{ $storeTaskUrl }}" method="POST">
+            @csrf
+            <input type="hidden" name="status" value="todo">
+            <input type="hidden" name="priority" value="normal">
+            <div class="cp-quick-body">
+                <div class="cp-form-row">
+                    <div class="cp-form-group">
+                        <label for="qsDate">Go-Live Date *</label>
+                        <input type="date" class="cp-field" id="qsDate" name="post_date" required min="{{ today()->toDateString() }}">
+                    </div>
+                    <div class="cp-form-group">
+                        <label for="qsClient">Client *</label>
+                        <select class="cp-field" id="qsClient" name="client_id" required>
+                            <option value="">Select client...</option>
+                            @foreach($clients as $c)
+                                <option value="{{ $c->id }}" @selected($clientId === $c->id)>{{ $c->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                <div class="cp-form-row">
+                    <div class="cp-form-group">
+                        <label for="qsPlatform">Primary Platform *</label>
+                        <select class="cp-field" id="qsPlatform" name="platform[]" required>
+                            <option value="instagram">Instagram</option>
+                            <option value="linkedin">LinkedIn</option>
+                            <option value="facebook">Facebook</option>
+                            <option value="twitter">X / Twitter</option>
+                            <option value="youtube">YouTube</option>
+                            <option value="pinterest">Pinterest</option>
+                        </select>
+                    </div>
+                    <div class="cp-form-group">
+                        <label for="qsType">Format *</label>
+                        <select class="cp-field" id="qsType" name="type" required>
+                            <option value="post">Post / Graphic</option>
+                            <option value="reel">Reel / Short</option>
+                            <option value="story">Story</option>
+                            <option value="carousel">Carousel</option>
+                            <option value="video">Long Video</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="cp-form-group">
+                    <label for="qsTitle">Post Title / Content Hook *</label>
+                    <input type="text" class="cp-field" id="qsTitle" name="title" placeholder="e.g. Festival Special Offer Announcement" required>
+                </div>
+                <div class="cp-form-row">
+                    <div class="cp-form-group">
+                        <label for="qsAssignee">Designer Assignee</label>
+                        <select class="cp-field" id="qsAssignee" name="assigned_to">
+                            <option value="">Unassigned (Open pool)</option>
+                            @foreach($designers as $des)
+                                <option value="{{ $des->id }}">{{ $des->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="cp-form-group">
+                        <label for="qsPriority">Priority</label>
+                        <select class="cp-field" id="qsPriority" name="priority">
+                            <option value="normal">Normal</option>
+                            <option value="high">High</option>
+                            <option value="urgent">Urgent</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="cp-form-group">
+                    <label for="qsBrief">Brief / Instructions *</label>
+                    <textarea class="cp-field" id="qsBrief" name="brief" placeholder="Key messaging, design direction, brand elements..." required>Create engaging social media creative aligned with brand guidelines.</textarea>
+                </div>
+            </div>
+            <div class="cp-quick-foot">
+                <button type="button" class="cp-btn" id="cpQuickCancelBtn">Cancel</button>
+                <button type="submit" class="cp-btn cp-btn-primary" id="cpQuickSubmitBtn"><i class="fas fa-check"></i> Schedule Post</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- ── Toast Notification ── --}}
+<div class="cp-toast" id="cpToast">
+    <span id="cpToastMsg"></span>
+    <button type="button" class="cp-toast-undo" id="cpToastUndo" style="display:none">Undo</button>
+</div>
+
 <script>
 (function () {
-    const items = Array.from(document.querySelectorAll('.cp-card, .cp-mitem'));
+    const items = Array.from(document.querySelectorAll('.cp-card, .cp-mitem, .cp-feed-card'));
     const search = document.getElementById('cpSearch');
     const stateButtons = Array.from(document.querySelectorAll('[data-state-filter]'));
     let activeState = null;
@@ -864,7 +1435,7 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
         const q = (search.value || '').trim().toLowerCase();
         items.forEach(el => {
             const okState = !activeState || el.dataset.state === activeState;
-            const okSearch = !q || (el.dataset.search || '').includes(q);
+            const okSearch = !q || (el.dataset.search || el.textContent || '').toLowerCase().includes(q);
             el.hidden = !(okState && okSearch);
         });
         stateButtons.forEach(btn => {
@@ -878,7 +1449,7 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
         activeState = activeState === btn.dataset.stateFilter ? null : btn.dataset.stateFilter;
         applyFilters();
     }));
-    search.addEventListener('input', applyFilters);
+    search?.addEventListener('input', applyFilters);
 
     // ── Drawer ──
     const drawer = document.getElementById('cpDrawer');
@@ -902,7 +1473,6 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
         if (template) showInDrawer(template);
     }
 
-    // fromDay: the month day this post was opened from, so the panel can offer a way back
     function openTask(id, fromDay) {
         const template = document.getElementById('cp-task-' + id);
         if (!template) return;
@@ -920,6 +1490,12 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
 
     function closeTask() {
         if (!drawer.classList.contains('is-open')) return;
+        drawer.querySelectorAll('.cp-reschedule-controls').forEach(c => c.style.display = 'none');
+        drawer.querySelectorAll('.cp-btn-edit-date').forEach(b => {
+            b.classList.remove('is-active');
+            const lbl = b.querySelector('.cp-toggle-label');
+            if (lbl) lbl.textContent = 'Change Date';
+        });
         drawer.classList.remove('is-open');
         overlay.classList.remove('is-open');
         drawer.setAttribute('aria-hidden', 'true');
@@ -927,29 +1503,298 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
         lastFocus?.focus?.();
     }
 
+    document.getElementById('cpDrawerClose')?.addEventListener('click', closeTask);
+    overlay?.addEventListener('click', closeTask);
+
+    // ── Global Toast ──
+    const toast = document.getElementById('cpToast');
+    const toastMsg = document.getElementById('cpToastMsg');
+    const toastUndo = document.getElementById('cpToastUndo');
+    let toastTimer = null;
+
+    function showToast(msg, onUndo = null) {
+        clearTimeout(toastTimer);
+        toastMsg.textContent = msg;
+        if (onUndo) {
+            toastUndo.style.display = 'inline-block';
+            toastUndo.onclick = () => {
+                hideToast();
+                onUndo();
+            };
+        } else {
+            toastUndo.style.display = 'none';
+        }
+        toast.classList.add('is-show');
+        toastTimer = setTimeout(hideToast, onUndo ? 8000 : 4000);
+    }
+
+    function hideToast() {
+        toast.classList.remove('is-show');
+    }
+
+    // ── Quick Schedule Modal ──
+    const quickModal = document.getElementById('cpQuickModal');
+    const quickForm = document.getElementById('cpQuickScheduleForm');
+    const quickClose = document.getElementById('cpQuickModalClose');
+    const quickCancel = document.getElementById('cpQuickCancelBtn');
+    const quickSubmit = document.getElementById('cpQuickSubmitBtn');
+
+    function openQuickModal(date, client = null, platform = null, festName = null) {
+        if (date) document.getElementById('qsDate').value = date;
+        if (client) document.getElementById('qsClient').value = client;
+        if (platform) document.getElementById('qsPlatform').value = platform;
+        const titleInput = document.getElementById('qsTitle');
+        if (festName) {
+            titleInput.value = `${festName} Special Campaign`;
+        } else {
+            titleInput.value = '';
+        }
+        quickModal.classList.add('is-open');
+        setTimeout(() => titleInput.focus(), 100);
+    }
+
+    function closeQuickModal() {
+        quickModal.classList.remove('is-open');
+    }
+
+    quickClose?.addEventListener('click', closeQuickModal);
+    quickCancel?.addEventListener('click', closeQuickModal);
+    quickModal?.addEventListener('click', (e) => {
+        if (e.target === quickModal) closeQuickModal();
+    });
+
+    quickForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const originalText = quickSubmit.innerHTML;
+        quickSubmit.disabled = true;
+        quickSubmit.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scheduling...';
+
+        try {
+            const formData = new FormData(quickForm);
+            const response = await fetch(quickForm.action, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                },
+                body: formData,
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                const errorMsg = data.message || Object.values(data.errors || {})[0]?.[0] || 'Could not schedule post.';
+                throw new Error(errorMsg);
+            }
+            closeQuickModal();
+            showToast('Post scheduled successfully! Reloading...');
+            setTimeout(() => window.location.reload(), 600);
+        } catch (err) {
+            showToast(err.message);
+            quickSubmit.disabled = false;
+            quickSubmit.innerHTML = originalText;
+        }
+    });
+
+    // ── Lightbox Zoom Modal ──
+    const lightbox = document.getElementById('cpLightbox');
+    const lightboxTarget = document.getElementById('cpLightboxTarget');
+    const lightboxClose = document.getElementById('cpLightboxClose');
+
+    function openLightbox(src, type = 'image') {
+        if (!src) return;
+        lightboxTarget.innerHTML = type === 'video'
+            ? `<video src="${src}" controls autoplay style="max-width:100%;max-height:85vh;border-radius:12px"></video>`
+            : `<img src="${src}" alt="Creative Preview" style="max-width:100%;max-height:85vh;border-radius:12px;object-fit:contain">`;
+        lightbox.classList.add('is-open');
+    }
+
+    function closeLightbox() {
+        lightbox.classList.remove('is-open');
+        lightboxTarget.innerHTML = '';
+    }
+
+    lightboxClose?.addEventListener('click', closeLightbox);
+    lightbox?.addEventListener('click', (e) => {
+        if (e.target === lightbox) closeLightbox();
+    });
+
+    // ── Presentation Mode ──
+    const calendarWrap = document.getElementById('cpCalendarWrap');
+    const presentToggle = document.getElementById('cpPresentationToggle');
+    const presentLabel = document.getElementById('cpPresentLabel');
+    const exitPresentBtn = document.getElementById('cpExitPresentBtn');
+
+    function togglePresentationMode() {
+        const isNowPresenting = calendarWrap.classList.toggle('is-presenting');
+        if (presentLabel) presentLabel.textContent = isNowPresenting ? 'Exit' : 'Present';
+    }
+
+    presentToggle?.addEventListener('click', togglePresentationMode);
+    exitPresentBtn?.addEventListener('click', togglePresentationMode);
+
+    // ── Delegated Click Handler ──
     document.addEventListener('click', (e) => {
-        const trigger = e.target.closest('[data-open-task]');
-        if (trigger) {
+        // Toggle Reschedule Controls
+        const toggleReschedBtn = e.target.closest('[data-toggle-reschedule]');
+        if (toggleReschedBtn) {
             e.preventDefault();
-            openTask(trigger.dataset.openTask, trigger.dataset.fromDay);
+            e.stopPropagation();
+            const taskId = toggleReschedBtn.dataset.toggleReschedule;
+            const controls = document.getElementById('rescheduleControls-' + taskId);
+            if (controls) {
+                const isOpen = controls.style.display !== 'none';
+                controls.style.display = isOpen ? 'none' : 'flex';
+                toggleReschedBtn.classList.toggle('is-active', !isOpen);
+                const lbl = toggleReschedBtn.querySelector('.cp-toggle-label');
+                if (lbl) lbl.textContent = isOpen ? 'Change Date' : 'Close';
+            }
             return;
         }
-        // Month view: clicking a day (or its "+N more") lists every post that day
+
+        // Cancel Reschedule Controls
+        const cancelReschedBtn = e.target.closest('[data-cancel-reschedule]');
+        if (cancelReschedBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const taskId = cancelReschedBtn.dataset.cancelReschedule;
+            const controls = document.getElementById('rescheduleControls-' + taskId);
+            if (controls) controls.style.display = 'none';
+            const toggleBtn = document.querySelector(`[data-toggle-reschedule="${taskId}"]`);
+            if (toggleBtn) {
+                toggleBtn.classList.remove('is-active');
+                const lbl = toggleBtn.querySelector('.cp-toggle-label');
+                if (lbl) lbl.textContent = 'Change Date';
+            }
+            return;
+        }
+
+        // Quick Date Shift Pill inside drawer
+        const qdBtn = e.target.closest('[data-quick-date]');
+        if (qdBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const taskId = qdBtn.dataset.quickDate;
+            const val = qdBtn.dataset.quickVal;
+            const input = document.getElementById('postDateInput-' + taskId);
+            if (input) {
+                input.value = val;
+                qdBtn.closest('.cp-reschedule-quick-pills')?.querySelectorAll('.cp-pill-btn')?.forEach(b => b.classList.remove('is-selected'));
+                qdBtn.classList.add('is-selected');
+            }
+            return;
+        }
+
+        // Apply Changed Post Date from drawer
+        const applyBtn = e.target.closest('[data-apply-post-date]');
+        if (applyBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const taskId = applyBtn.dataset.applyPostDate;
+            const input = document.getElementById('postDateInput-' + taskId);
+            if (!input || !input.value) return;
+            const newDate = input.value;
+            const originalHtml = applyBtn.innerHTML;
+            applyBtn.disabled = true;
+            applyBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+            fetch(`/api/tasks/${taskId}/reschedule`, {
+                method: 'PATCH',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                },
+                body: JSON.stringify({ date_type: 'post_date', new_date: newDate }),
+            })
+            .then(res => res.json().then(data => ({ ok: res.ok, data })))
+            .then(({ ok, data }) => {
+                if (!ok) throw new Error(data.message || 'Could not change posting date.');
+                const pretty = new Date(newDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                showToast(`Posting date updated to ${pretty}! Updating calendar...`);
+                const disp = document.getElementById('rescheduleDisplay-' + taskId);
+                if (disp) {
+                    const textSpan = disp.querySelector('.cp-reschedule-text');
+                    if (textSpan) textSpan.textContent = pretty;
+                }
+                const factVal = document.getElementById('factPostDate-' + taskId);
+                if (factVal) factVal.textContent = new Date(newDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+                applyBtn.innerHTML = '<i class="fas fa-check"></i> Saved!';
+                setTimeout(() => window.location.reload(), 700);
+            })
+            .catch(err => {
+                showToast(err.message);
+                applyBtn.disabled = false;
+                applyBtn.innerHTML = originalHtml;
+            });
+            return;
+        }
+
+        // Quick Create Trigger
+        const quickTrigger = e.target.closest('[data-quick-create]');
+        if (quickTrigger) {
+            e.preventDefault();
+            e.stopPropagation();
+            openQuickModal(
+                quickTrigger.dataset.quickCreate,
+                quickTrigger.dataset.client,
+                quickTrigger.dataset.platform,
+                quickTrigger.dataset.fest
+            );
+            return;
+        }
+
+        // Copy Text Trigger
+        const copyTrigger = e.target.closest('[data-copy-text]');
+        if (copyTrigger) {
+            e.preventDefault();
+            e.stopPropagation();
+            const text = copyTrigger.dataset.copyText;
+            navigator.clipboard.writeText(text).then(() => {
+                const originalHtml = copyTrigger.innerHTML;
+                copyTrigger.innerHTML = '<i class="fas fa-check" style="color:#10b981"></i> Copied!';
+                setTimeout(() => { copyTrigger.innerHTML = originalHtml; }, 2000);
+            });
+            return;
+        }
+
+        // Lightbox Trigger
+        const lbTrigger = e.target.closest('[data-lightbox-src]');
+        if (lbTrigger) {
+            e.preventDefault();
+            e.stopPropagation();
+            openLightbox(lbTrigger.dataset.lightboxSrc, lbTrigger.dataset.lightboxType || 'image');
+            return;
+        }
+
+        // Open Task Trigger
+        const taskTrigger = e.target.closest('[data-open-task]');
+        if (taskTrigger) {
+            e.preventDefault();
+            openTask(taskTrigger.dataset.openTask, taskTrigger.dataset.fromDay);
+            return;
+        }
+
+        // Month view: clicking a day opens day view
         const day = e.target.closest('[data-open-day]');
         if (day) openDay(day.dataset.openDay);
     });
+
     document.querySelectorAll('[data-open-day]').forEach(day => day.addEventListener('keydown', (e) => {
         if ((e.key === 'Enter' || e.key === ' ') && e.target === day) { e.preventDefault(); openDay(day.dataset.openDay); }
     }));
-    document.getElementById('cpDrawerClose').addEventListener('click', closeTask);
-    overlay.addEventListener('click', closeTask);
+
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeTask();
+        if (e.key === 'Escape') {
+            if (lightbox.classList.contains('is-open')) closeLightbox();
+            else if (quickModal.classList.contains('is-open')) closeQuickModal();
+            else if (drawer.classList.contains('is-open')) closeTask();
+        }
         const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName);
-        if (e.key === '/' && !typing) { e.preventDefault(); search.focus(); }
+        if (e.key === '/' && !typing) { e.preventDefault(); search?.focus(); }
     });
 
-    // ── Drag a post onto another (today or future) day to move its go-live date ──
+    // ── Drag & Drop Reschedule with Undo Toast ──
     let dragged = null;
     document.querySelectorAll('[data-move-task]').forEach(el => {
         el.addEventListener('dragstart', (e) => {
@@ -966,6 +1811,7 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
             dragged = null;
         });
     });
+
     document.querySelectorAll('[data-drop-date]').forEach(target => {
         target.addEventListener('dragover', (e) => {
             if (!dragged || target.dataset.dropDate === dragged.dataset.moveFrom) return;
@@ -981,13 +1827,15 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
             target.classList.remove('is-drop-over');
             if (!dragged) return;
             const card = dragged;
+            const taskId = card.dataset.moveTask;
+            const field = card.dataset.moveField;
+            const oldDate = card.dataset.moveFrom;
             const newDate = target.dataset.dropDate;
-            const label = card.dataset.moveField === 'post_date' ? 'go-live date' : 'deadline';
             const title = card.getAttribute('title') || card.textContent.trim();
             const pretty = new Date(newDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-            if (!confirm(`Move the ${label} of "${title.split(' · ')[0]}" to ${pretty}?\nThe designer and task creator will be notified.`)) return;
-            try {
-                const response = await fetch(`/api/tasks/${card.dataset.moveTask}/reschedule`, {
+
+            async function performReschedule(targetDate) {
+                const response = await fetch(`/api/tasks/${taskId}/reschedule`, {
                     method: 'PATCH',
                     headers: {
                         'Accept': 'application/json',
@@ -995,20 +1843,32 @@ select.cp-field { padding-right: 30px; cursor: pointer; min-width: 190px; }
                         'X-Requested-With': 'XMLHttpRequest',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
                     },
-                    body: JSON.stringify({ date_type: card.dataset.moveField, new_date: newDate }),
+                    body: JSON.stringify({ date_type: field, new_date: targetDate }),
                 });
                 const data = await response.json().catch(() => ({}));
-                if (!response.ok) throw new Error(data.message || 'Could not reschedule this post.');
-                if (typeof ajax !== 'undefined') ajax.showSuccess(`Moved to ${pretty}`);
-                // Reload so summaries, day totals and the attention lists all reflect the move
-                setTimeout(() => window.location.reload(), 500);
+                if (!response.ok) throw new Error(data.message || 'Could not reschedule post.');
+                return data;
+            }
+
+            try {
+                await performReschedule(newDate);
+                showToast(`Moved "${title.split(' · ')[0]}" to ${pretty}`, async () => {
+                    try {
+                        await performReschedule(oldDate);
+                        showToast(`Reverted move back to original date.`);
+                        setTimeout(() => window.location.reload(), 600);
+                    } catch (err) {
+                        showToast(`Undo failed: ${err.message}`);
+                    }
+                });
+                setTimeout(() => window.location.reload(), 1400);
             } catch (err) {
-                if (typeof ajax !== 'undefined') ajax.showError(err.message); else alert(err.message);
+                showToast(err.message);
             }
         });
     });
 
-    // Allow linking straight to a post's details: ?task=ID
+    // Deep link direct open (?task=ID or ?day=YYYY-MM-DD)
     const params = new URL(window.location.href).searchParams;
     if (params.get('task')) openTask(params.get('task'));
     else if (params.get('day')) openDay(params.get('day'));

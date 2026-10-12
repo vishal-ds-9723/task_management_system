@@ -27,6 +27,14 @@
         ? \App\Models\Task::query()->where('status', 'pending_approval')->count()
         : 0;
 
+    // Count pending review approvals (for strategists / strategist panel)
+    $strategistPendingApprovalsCount = $isStrategistPanel
+        ? \App\Models\Task::query()
+            ->strategistVisible()
+            ->where('status', 'review')
+            ->count()
+        : 0;
+
     // Count tasks awaiting proof (completed but not published)
     $awaitingProofCount = $isStrategistPanel
         ? \App\Models\Task::query()
@@ -135,17 +143,19 @@
             <a href="{{ route('admin.approvals') }}" class="nav-item {{ request()->routeIs('admin.approvals*') ? 'active' : '' }}" title="Approvals">
                 <span class="icon"><i class="fas fa-check-circle"></i></span>
                 <span class="nav-text">Approvals</span>
-                <span class="nav-tooltip">Approvals</span>
+                <span class="nav-tooltip">Approvals{{ $pendingTaskApprovalsCount > 0 ? " ({$pendingTaskApprovalsCount})" : '' }}</span>
                 @if($pendingTaskApprovalsCount > 0)
-                    <span class="nav-badge" style="margin-left:auto;background:#ef4444;padding:2px 6px;border-radius:10px;font-size:11px;font-weight:600">{{ $pendingTaskApprovalsCount }}</span>
+                    <span class="nav-badge-dot" style="background:#ef4444"></span>
+                    <span class="nav-badge" style="margin-left:auto;background:#ef4444;color:#ffffff !important;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700;line-height:1;min-width:18px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.2)">{{ $pendingTaskApprovalsCount > 99 ? '99+' : $pendingTaskApprovalsCount }}</span>
                 @endif
             </a>
             <a href="{{ route('admin.publishing') }}" class="nav-item {{ request()->routeIs('admin.publishing*') ? 'active' : '' }}" title="Publishing Tracker">
                 <span class="icon"><i class="fas fa-bullhorn"></i></span>
                 <span class="nav-text">Publishing</span>
-                <span class="nav-tooltip">Publishing</span>
+                <span class="nav-tooltip">Publishing{{ $adminAwaitingProofCount > 0 ? " ({$adminAwaitingProofCount})" : '' }}</span>
                 @if($adminAwaitingProofCount > 0)
-                    <span class="nav-badge" style="margin-left:auto;background:#d97706;padding:2px 6px;border-radius:10px;font-size:11px;font-weight:600">{{ $adminAwaitingProofCount }}</span>
+                    <span class="nav-badge-dot" style="background:#f59e0b"></span>
+                    <span class="nav-badge" style="margin-left:auto;background:#d97706;color:#ffffff !important;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700;line-height:1;min-width:18px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.2)">{{ $adminAwaitingProofCount > 99 ? '99+' : $adminAwaitingProofCount }}</span>
                 @endif
             </a>
             <a href="{{ route('admin.report') }}" class="nav-item {{ request()->routeIs('admin.report') ? 'active' : '' }}" title="Monthly Report">
@@ -270,17 +280,22 @@
                 <span class="nav-text">Dev Daily Logs</span>
                 <span class="nav-tooltip">Dev Daily Logs</span>
             </a>
-            <a href="{{ route('strategist.approvals') }}" class="nav-item {{ request()->routeIs('strategist.approvals') ? 'active' : '' }}" title="Approval Tracker" data-force-loader>
+            <a href="{{ route('strategist.approvals') }}" class="nav-item {{ request()->routeIs('strategist.approvals*') ? 'active' : '' }}" title="Approval Tracker" data-force-loader>
                 <span class="icon"><i class="fas fa-bell"></i></span>
                 <span class="nav-text">Approvals</span>
-                <span class="nav-tooltip">Approvals</span>
+                <span class="nav-tooltip">Approvals{{ $strategistPendingApprovalsCount > 0 ? " ({$strategistPendingApprovalsCount})" : '' }}</span>
+                @if($strategistPendingApprovalsCount > 0)
+                    <span class="nav-badge-dot" style="background:#ef4444"></span>
+                    <span class="nav-badge" style="margin-left:auto;background:#ef4444;color:#ffffff !important;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700;line-height:1;min-width:18px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.2)">{{ $strategistPendingApprovalsCount > 99 ? '99+' : $strategistPendingApprovalsCount }}</span>
+                @endif
             </a>
             <a href="{{ route('strategist.publishing') }}" class="nav-item {{ request()->routeIs('strategist.publishing*') ? 'active' : '' }}" title="Publishing Queue">
                 <span class="icon"><i class="fas fa-bullhorn"></i></span>
                 <span class="nav-text">Publishing</span>
-                <span class="nav-tooltip">Publishing</span>
+                <span class="nav-tooltip">Publishing{{ $awaitingProofCount > 0 ? " ({$awaitingProofCount})" : '' }}</span>
                 @if($awaitingProofCount > 0)
-                    <span class="nav-badge" style="margin-left:auto;background:#d97706;padding:2px 6px;border-radius:10px;font-size:11px;font-weight:600">{{ $awaitingProofCount }}</span>
+                    <span class="nav-badge-dot" style="background:#f59e0b"></span>
+                    <span class="nav-badge" style="margin-left:auto;background:#d97706;color:#ffffff !important;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700;line-height:1;min-width:18px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.2)">{{ $awaitingProofCount > 99 ? '99+' : $awaitingProofCount }}</span>
                 @endif
             </a>
             <a href="{{ route('strategist.action-items') }}" class="nav-item {{ request()->routeIs('strategist.action-items') ? 'active' : '' }}" title="Notes">
@@ -289,7 +304,8 @@
                 <span class="nav-tooltip">Notes</span>
                 @php $myPendingActions = \App\Models\ActionItem::where('assigned_to', auth()->id())->whereIn('status', ['pending', 'in_progress'])->count(); @endphp
                 @if($myPendingActions > 0)
-                    <span class="nav-badge" style="margin-left:auto;background:#ef4444;padding:2px 6px;border-radius:10px;font-size:11px;font-weight:600">{{ $myPendingActions }}</span>
+                    <span class="nav-badge-dot" style="background:#ef4444"></span>
+                    <span class="nav-badge" style="margin-left:auto;background:#ef4444;color:#ffffff !important;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700;line-height:1;min-width:18px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.2)">{{ $myPendingActions > 99 ? '99+' : $myPendingActions }}</span>
                 @endif
             </a>
         </div>

@@ -3,6 +3,7 @@
 namespace App\Services\Strategist;
 
 use App\Models\Client;
+use App\Models\Festival;
 use App\Models\FestivalSelection;
 use App\Models\Task;
 use App\Support\SocialRegistry;
@@ -64,11 +65,11 @@ class CalendarService
      * for the week grid, split into one card per target platform so every channel shows
      * whether it has actually been posted.
      */
-    public function buildPlanner(Carbon $anchor, string $view, ?int $clientId, bool $mine, int $userId): array
+    public function buildPlanner(Carbon $anchor, string $view, ?int $clientId, bool $mine, int $userId, array $filters = []): array
     {
         $today = today();
 
-        if ($view === 'month') {
+        if ($view === 'month' || $view === 'feed') {
             $periodStart = $anchor->copy()->startOfMonth();
             $periodEnd = $anchor->copy()->endOfMonth()->startOfDay();
             $rangeStart = $periodStart->copy()->startOfWeek();
@@ -78,7 +79,7 @@ class CalendarService
             $periodEnd = $rangeEnd = $anchor->copy()->endOfWeek()->startOfDay();
         }
 
-        $tasks = $this->contentTasks($clientId, $mine, $userId)
+        $tasks = $this->contentTasks($clientId, $mine, $userId, $filters)
             ->where(fn ($q) => $this->planDateBetween($q, $rangeStart, $rangeEnd))
             ->get()
             ->map(fn (Task $task) => $this->describe($task, $today))
@@ -94,7 +95,28 @@ class CalendarService
             'date' => $item->planDate->toDateString(),
         ]));
 
+        // Filter cards by platform if explicitly requested
+        if (!empty($filters['platform'])) {
+            $cards = $cards->where('platform', strtolower($filters['platform']))->values();
+        }
+
         $inPeriod = $cards->filter(fn ($card) => $card->date >= $periodStart->toDateString() && $card->date <= $periodEnd->toDateString());
+
+        // Festivals in period
+        $festivals = Festival::active()
+            ->whereBetween('date', [$rangeStart->toDateString(), $rangeEnd->toDateString()])
+            ->orderBy('date')
+            ->get(['id', 'name', 'date', 'emoji', 'category']);
+        $festivalsByDate = $festivals->groupBy(fn ($f) => $f->date->toDateString());
+
+        // Feed Grid (for visual Instagram / aesthetic feed preview)
+        $feedGrid = $tasks->filter(function ($item) {
+            $ch = collect($item->channels)->pluck('platform')->all();
+            return empty($ch) || in_array('instagram', $ch, true) || in_array('general', $ch, true) || in_array('facebook', $ch, true) || in_array('linkedin', $ch, true);
+        })->sortBy(fn ($i) => $i->planDate->timestamp)->values();
+
+        // Platform breakdown for cadence stats
+        $platformCounts = $cards->groupBy('platform')->map->count();
 
         return [
             'view' => $view,
@@ -109,17 +131,37 @@ class CalendarService
             'summary' => $this->summarize($inPeriod),
             'attention' => $this->attention($clientId, $mine, $userId, $today),
             'nextPlanned' => $tasks->isEmpty() ? $this->nextPlannedDate($clientId, $mine, $userId, $periodEnd) : null,
+            'festivalsByDate' => $festivalsByDate,
+            'feedGrid' => $feedGrid,
+            'platformCounts' => $platformCounts,
+            'activeFilters' => $filters,
         ];
     }
 
-    private function contentTasks(?int $clientId, bool $mine, int $userId): Builder
+    private function contentTasks(?int $clientId, bool $mine, int $userId, array $filters = []): Builder
     {
         return Task::query()
-            ->with(['client:id,name,logo,color,emoji', 'assignee:id,name', 'creator:id,name', 'socialMediaPosts'])
+            ->with([
+                'client:id,name,logo,color,emoji',
+                'assignee:id,name,avatar_color,role',
+                'creator:id,name',
+                'socialMediaPosts',
+                'media',
+            ])
             ->whereNotIn('type', Task::DEV_TYPES) // dev work lives in the developer panel
             ->whereDoesntHave('assignee', fn ($q) => $q->where('role', 'developer'))
             ->when($clientId, fn ($q) => $q->where('client_id', $clientId))
-            ->when($mine, fn ($q) => $q->where('created_by', $userId));
+            ->when($mine, fn ($q) => $q->where('created_by', $userId))
+            ->when(!empty($filters['assignee']), fn ($q) => $q->where('assigned_to', $filters['assignee']))
+            ->when(!empty($filters['type']), fn ($q) => $q->where('type', $filters['type']))
+            ->when(!empty($filters['platform']), function ($q) use ($filters) {
+                $plat = strtolower($filters['platform']);
+                $q->where(function ($sq) use ($plat) {
+                    $sq->whereJsonContains('platform', $plat)
+                       ->orWhere('platform', 'like', "%{$plat}%")
+                       ->orWhereHas('socialMediaPosts', fn ($pq) => $pq->where('platform', $plat));
+                });
+            });
     }
 
     private function planDateBetween(Builder $q, Carbon $from, Carbon $to): void
@@ -171,6 +213,9 @@ class CalendarService
         $postedCount = collect($channels)->where('state', 'done')->count();
         $overall = $platforms->isNotEmpty() && $postedCount === $platforms->count() ? 'done' : $pendingState;
 
+        $thumbnail = $task->getPreviewThumbnail();
+        $deliverableCount = $task->getDeliverableMediaList()->count();
+
         return (object) [
             'task' => $task,
             'planDate' => $planDate,
@@ -179,6 +224,8 @@ class CalendarService
             'channels' => $channels,
             'postedCount' => $postedCount,
             'platformCount' => $platforms->count(),
+            'thumbnail' => $thumbnail,
+            'deliverableCount' => $deliverableCount,
         ];
     }
 

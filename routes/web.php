@@ -91,6 +91,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::get('/urgent-tasks', [Admin\TaskController::class, 'urgentTasks'])->name('urgent-tasks');
     Route::post('/tasks', [Admin\TaskController::class, 'store'])->name('tasks.store');
     Route::get('/tasks/{task}', [Admin\TaskController::class, 'show'])->name('tasks.show');
+    Route::get('/tasks/{task}/quick-inspect', [\App\Http\Controllers\Strategist\TaskController::class, 'quickInspect'])->name('tasks.quick-inspect');
+    Route::post('/tasks/{task}/comment', [\App\Http\Controllers\Strategist\TaskController::class, 'addComment'])->name('tasks.comment');
     Route::get('/tasks/{task}/edit', [Admin\TaskController::class, 'edit'])->name('tasks.edit');
     Route::patch('/tasks/{task}', [Admin\TaskController::class, 'update'])->name('tasks.update');
     Route::delete('/tasks/{task}', [Admin\TaskController::class, 'destroy'])->name('tasks.destroy');

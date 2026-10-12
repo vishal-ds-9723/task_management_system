@@ -27,6 +27,8 @@ class PublishingService
                 'published'           => $query->where('status', 'published'),
                 'client_yes'          => $query->where('status', 'completed')->whereNotNull('client_approved_at'),
                 'client_no'           => $query->where('status', 'completed')->whereNull('client_approved_at'),
+                'overdue'             => $query->where('status', 'completed')->whereNotNull('post_date')->whereDate('post_date', '<', now()->toDateString()),
+                'today'               => $query->where('status', 'completed')->whereNotNull('post_date')->whereDate('post_date', now()->toDateString()),
                 default               => null,
             };
         }
@@ -35,10 +37,21 @@ class PublishingService
             $query->where('client_id', $request->client);
         }
 
+        if ($request->filled('platform')) {
+            $platform = $request->platform;
+            $query->where(function ($q) use ($platform) {
+                $q->where('platform', 'like', '%"' . $platform . '"%')
+                  ->orWhere('platform', 'like', '%' . $platform . '%');
+            });
+        }
+
         if ($request->filled('search')) {
             $search = '%' . $request->search . '%';
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', $search)
+                  ->orWhere('caption', 'like', $search)
+                  ->orWhere('headline_copy', 'like', $search)
+                  ->orWhere('hashtags', 'like', $search)
                   ->orWhereHas('client', fn($q2) => $q2->where('name', 'like', $search));
             });
         }
@@ -55,6 +68,11 @@ class PublishingService
         $publishedCount = (clone $baseQuery)->where('status', 'published')->count();
         $totalCount = $pendingCount + $publishedCount;
 
+        // Due / Overdue breakdown for completed tasks
+        $todayStr = now()->toDateString();
+        $overdueCount = (clone $baseQuery)->where('status', 'completed')->whereNotNull('post_date')->whereDate('post_date', '<', $todayStr)->count();
+        $todayCount = (clone $baseQuery)->where('status', 'completed')->whereNotNull('post_date')->whereDate('post_date', $todayStr)->count();
+
         // Client approval breakdown for completed (awaiting publish) tasks
         $clientApprovedCount = (clone $baseQuery)->where('status', 'completed')->whereNotNull('client_approved_at')->count();
         $clientPendingCount = (clone $baseQuery)->where('status', 'completed')->whereNull('client_approved_at')->count();
@@ -68,6 +86,7 @@ class PublishingService
 
         return compact(
             'tasks', 'pendingCount', 'publishedCount', 'totalCount',
+            'overdueCount', 'todayCount',
             'clientApprovedCount', 'clientPendingCount',
             'awaitingCount', 'partialCount', 'totalCompleted', 'clients'
         );

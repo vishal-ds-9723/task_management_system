@@ -20,7 +20,7 @@ class CalendarController extends Controller
 
     public function index(Request $request)
     {
-        $view = $request->input('view') === 'month' ? 'month' : 'week';
+        $view = in_array($request->input('view'), ['month', 'feed'], true) ? $request->input('view') : 'week';
 
         try {
             $anchor = $request->filled('date') ? Carbon::parse($request->input('date'))->startOfDay() : today();
@@ -30,15 +30,23 @@ class CalendarController extends Controller
 
         $clientId = $request->integer('client') ?: null;
         $mine = $request->boolean('mine');
+        $filters = [
+            'platform' => $request->input('platform'),
+            'type'     => $request->input('type'),
+            'assignee' => $request->integer('assignee') ?: null,
+        ];
 
-        $planner = $this->service->buildPlanner($anchor, $view, $clientId, $mine, Auth::id());
+        $planner = $this->service->buildPlanner($anchor, $view, $clientId, $mine, Auth::id(), $filters);
         $clients = Client::where('is_active', true)->orderBy('name')->get(['id', 'name', 'logo', 'emoji', 'color']);
+        $designers = \App\Models\User::whereIn('role', ['designer', 'content_writer', 'editor', 'strategist', 'admin'])->orderBy('name')->get(['id', 'name', 'avatar_color', 'role']);
 
         return view('calendar.planner', $planner + [
             'calendarRoute' => 'strategist.calendar',
             'clients' => $clients,
             'clientId' => $clientId,
             'mine' => $mine,
+            'filters' => $filters,
+            'designers' => $designers,
             'states' => CalendarService::STATES,
         ]);
     }

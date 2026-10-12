@@ -163,13 +163,13 @@ class CalendarEventService
     {
         $user = Auth::user();
 
-        if ($task->created_by !== $user->id && $user->role !== 'admin') {
+        if ($task->created_by !== $user->id && $user->role !== 'admin' && $user->role !== 'strategist') {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
         $validated = $request->validate([
             'date_type' => ['required', 'in:deadline,post_date'],
-            'new_date'  => ['required', 'date', 'after_or_equal:today'],
+            'new_date'  => ['required', 'date'],
         ]);
 
         $field   = $validated['date_type'] === 'post_date' ? 'post_date' : 'deadline';

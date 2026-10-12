@@ -786,6 +786,17 @@ textarea.is-valid {
 }
 
 /* ── Nav badge counts shown when expanded ── */
+.sidebar .nav-badge {
+    color: #ffffff !important;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+}
+
+.sidebar:not(.expanded):not(.mobile-open) .nav-badge {
+    display: none !important;
+}
+
 .sidebar.expanded .nav-badge,
 .sidebar.mobile-open .nav-badge {
     display: inline-flex !important;
@@ -793,11 +804,19 @@ textarea.is-valid {
     justify-content: center;
     min-width: 20px;
     height: 18px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    color: #ffffff !important;
+    white-space: nowrap;
     animation: sbBadgePop 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
-@keyframes sbBadgePop {
-    from { transform: scale(0); }
-    to   { transform: scale(1); }
+
+.sidebar.expanded .nav-item .nav-badge-dot,
+.sidebar.mobile-open .nav-item .nav-badge-dot {
+    display: none !important;
 }
 
 /* ── User pill: card-like hover when expanded ── */
