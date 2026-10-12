@@ -1,10 +1,8 @@
 @extends('layouts.app')
 
 @push('styles')
-    <link href="{{ asset('css/pages/designer-theme.css') }}?v=6.0" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.datatables.net/2.0.8/css/dataTables.dataTables.min.css" />
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://cdn.datatables.net/2.0.8/js/dataTables.min.js"></script>
+    <link rel="stylesheet" href="{{ asset('css/pages/designer-theme.css') }}?v=6.0">
+    <link rel="stylesheet" href="https://cdn.datatables.net/2.0.8/css/dataTables.dataTables.min.css">
 @endpush
 
 @section('content')
@@ -298,10 +296,14 @@
     @endif
 
 </div>
+@endsection
 
 {{-- ══════════════════════════════════════════════
      5 · CONTROLLER JAVASCRIPT
      ══════════════════════════════════════════════ --}}
+@push('scripts')
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/2.0.8/js/dataTables.min.js"></script>
 <script>
 // ══════════════════════════════════════════════════
 // STUDIO FILTER & PAGINATION PERSISTENCE CONTROLLER
@@ -1052,4 +1054,4 @@ function initStudioLiveSync() {
     });
 }
 </script>
-@endsection
+@endpush

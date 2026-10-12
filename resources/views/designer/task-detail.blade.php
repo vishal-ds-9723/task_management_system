@@ -1,5 +1,11 @@
 @extends('layouts.app')
 
+@push('styles')
+    <link rel="stylesheet" href="{{ asset('css/task-detail.css') }}?v=6.2">
+    <link rel="stylesheet" href="{{ asset('css/animations.css') }}?v=2.0">
+    <link rel="stylesheet" href="{{ asset('css/pages/designer-theme.css') }}?v=6.0">
+@endpush
+
 @section('content')
 @php
     $workflowSteps = $workflowSteps ?? [];
@@ -14,11 +20,6 @@
     $referenceMedia = $allMedia->filter(fn($m) => $m->isReference())->values();
     $deliverableMedia = $allMedia->filter(fn($m) => $m->isDeliverable())->values();
 @endphp
-@push('styles')
-    <link href="{{ asset('css/task-detail.css') }}?v=6.2" rel="stylesheet">
-    <link href="{{ asset('css/animations.css') }}" rel="stylesheet">
-    <link href="{{ asset('css/pages/designer-theme.css') }}?v=6.0" rel="stylesheet">
-@endpush
 
 <div class="task-minimal">
     {{-- ══════════════════════════════════════════════
@@ -682,6 +683,8 @@
 </div>
 @endif
 
+@endsection
+
 @push('scripts')
 <script>
 /**
@@ -1143,5 +1146,3 @@ function escapeHtml(text) {
 }
 </script>
 @endpush
-
-@endsection
