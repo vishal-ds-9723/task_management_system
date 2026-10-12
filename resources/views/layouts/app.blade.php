@@ -755,12 +755,292 @@ window.addEventListener('pageshow', () => {
     hidePageLoader(true);
 });
 
-// ===== REAL-TIME NOTIFICATION POLLING =====
+// ===== REAL-TIME LIVE NOTIFICATION & AUDIO CHIME ENGINE =====
 (function() {
-    const POLL_INTERVAL = 15000; // 15 seconds
-    let lastUnreadCount = parseInt(document.getElementById('notifCountBadge')?.textContent || '0', 10);
-    let notifPanelOpen = false;
+    'use strict';
 
+    const POLL_INTERVAL = 12000; // 12 seconds
+    let lastUnreadCount = parseInt(document.getElementById('notifCountBadge')?.textContent || '0', 10);
+    const knownNotificationIds = new Set();
+    let isInitialLoad = true;
+    let isPolling = false;
+
+    // ─────────── 1. WEB AUDIO API CHIME & CHROME AUTOPLAY UNLOCKER ───────────
+    const TMSAudio = {
+        ctx: null,
+        unlocked: false,
+        lastChimeTime: 0,
+
+        getCtx() {
+            if (!this.ctx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                if (AudioContextClass) {
+                    this.ctx = new AudioContextClass();
+                }
+            }
+            return this.ctx;
+        },
+
+        unlock() {
+            const ctx = this.getCtx();
+            if (ctx && ctx.state === 'suspended') {
+                ctx.resume().then(() => {
+                    this.unlocked = true;
+                    updateSoundUi();
+                }).catch(() => {});
+            } else if (ctx && ctx.state === 'running') {
+                this.unlocked = true;
+            }
+        },
+
+        /**
+         * Generates a studio-grade two-tone harmonic chime
+         * Tone 1: 587.33 Hz (D5) - warm bell onset
+         * Tone 2: 880.00 Hz (A5) - crisp upper chime with overtone shimmer
+         */
+        playChime(isTest) {
+            // Check user sound preference
+            const isSoundEnabled = localStorage.getItem('tms_sound_enabled') !== 'false';
+            if (!isSoundEnabled && !isTest) return;
+
+            // Throttle consecutive chimes (minimum 1.5s between plays) unless testing
+            const nowTime = Date.now();
+            if (!isTest && (nowTime - this.lastChimeTime < 1500)) return;
+            this.lastChimeTime = nowTime;
+
+            this.unlock();
+            const ctx = this.getCtx();
+
+            if (ctx && ctx.state === 'running') {
+                try {
+                    const t = ctx.currentTime;
+
+                    // Note 1: 587.33 Hz (D5)
+                    const osc1 = ctx.createOscillator();
+                    const gain1 = ctx.createGain();
+                    osc1.type = 'sine';
+                    osc1.frequency.setValueAtTime(587.33, t);
+                    gain1.gain.setValueAtTime(0.0001, t);
+                    gain1.gain.exponentialRampToValueAtTime(0.24, t + 0.02);
+                    gain1.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+                    osc1.connect(gain1);
+                    gain1.connect(ctx.destination);
+                    osc1.start(t);
+                    osc1.stop(t + 0.30);
+
+                    // Note 2: 880.00 Hz (A5) - starts 90ms after Note 1
+                    const osc2 = ctx.createOscillator();
+                    const gain2 = ctx.createGain();
+                    osc2.type = 'sine';
+                    osc2.frequency.setValueAtTime(880.00, t + 0.09);
+                    gain2.gain.setValueAtTime(0.0001, t + 0.09);
+                    gain2.gain.exponentialRampToValueAtTime(0.30, t + 0.12);
+                    gain2.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
+                    osc2.connect(gain2);
+                    gain2.connect(ctx.destination);
+                    osc2.start(t + 0.09);
+                    osc2.stop(t + 0.58);
+
+                    // Subtle Harmonic Shimmer (1760 Hz, A6)
+                    const osc3 = ctx.createOscillator();
+                    const gain3 = ctx.createGain();
+                    osc3.type = 'sine';
+                    osc3.frequency.setValueAtTime(1760.00, t + 0.09);
+                    gain3.gain.setValueAtTime(0.0001, t + 0.09);
+                    gain3.gain.exponentialRampToValueAtTime(0.05, t + 0.12);
+                    gain3.gain.exponentialRampToValueAtTime(0.0001, t + 0.40);
+                    osc3.connect(gain3);
+                    gain3.connect(ctx.destination);
+                    osc3.start(t + 0.09);
+                    osc3.stop(t + 0.42);
+
+                    return;
+                } catch (e) {
+                    // Fall back to HTML5 Audio if Web Audio API threw
+                }
+            }
+
+            // Fallback: HTML5 Audio element
+            try {
+                let audio = document.getElementById('tmsNotificationAudio');
+                if (!audio) {
+                    audio = document.createElement('audio');
+                    audio.id = 'tmsNotificationAudio';
+                    audio.src = '/sounds/notification.wav';
+                    audio.preload = 'auto';
+                    document.body.appendChild(audio);
+                }
+                audio.currentTime = 0;
+                audio.play().catch(() => {});
+            } catch (_) {}
+        }
+    };
+
+    // Attach user gesture unlockers for Chrome Autoplay Policy
+    ['click', 'pointerdown', 'keydown'].forEach(evt => {
+        document.addEventListener(evt, () => TMSAudio.unlock(), { passive: true, once: false });
+    });
+
+    // ─────────── 2. SOUND UI CONTROLS ───────────
+    function updateSoundUi() {
+        const isSoundEnabled = localStorage.getItem('tms_sound_enabled') !== 'false';
+        const toggleBtn = document.getElementById('tmsSoundToggleBtn');
+        const icon = document.getElementById('tmsSoundIcon');
+        const label = document.getElementById('tmsSoundLabel');
+
+        if (toggleBtn) {
+            if (isSoundEnabled) {
+                toggleBtn.classList.remove('muted');
+                toggleBtn.classList.add('active');
+                if (icon) icon.className = 'fas fa-volume-up';
+                if (label) label.textContent = 'Sound: ON';
+            } else {
+                toggleBtn.classList.remove('active');
+                toggleBtn.classList.add('muted');
+                if (icon) icon.className = 'fas fa-volume-mute';
+                if (label) label.textContent = 'Sound: OFF';
+            }
+        }
+
+        // Desktop permission button state
+        const desktopBtn = document.getElementById('tmsDesktopPromptBtn');
+        const desktopLabel = document.getElementById('tmsDesktopLabel');
+        if (desktopBtn && 'Notification' in window) {
+            if (Notification.permission === 'granted') {
+                desktopBtn.classList.add('granted');
+                desktopBtn.title = 'Desktop alerts enabled in Chrome';
+                if (desktopLabel) desktopLabel.textContent = 'Alerts: ON';
+            } else if (Notification.permission === 'denied') {
+                desktopBtn.classList.remove('granted');
+                desktopBtn.title = 'Notifications blocked in Chrome site settings';
+                if (desktopLabel) desktopLabel.textContent = 'Alerts Blocked';
+            } else {
+                desktopBtn.classList.remove('granted');
+                desktopBtn.title = 'Click to enable Chrome desktop notifications';
+                if (desktopLabel) desktopLabel.textContent = 'Desktop Alerts';
+            }
+        }
+    }
+
+    window.toggleTmsSound = function() {
+        const current = localStorage.getItem('tms_sound_enabled') !== 'false';
+        const next = !current;
+        localStorage.setItem('tms_sound_enabled', next ? 'true' : 'false');
+        updateSoundUi();
+        if (next) {
+            TMSAudio.playChime(true);
+        }
+    };
+
+    window.testTmsSound = function() {
+        TMSAudio.playChime(true);
+        const btn = document.querySelector('.notif-test-btn');
+        if (btn) {
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check" style="color:#059669"></i> <span style="color:#059669">Chime Played!</span>';
+            setTimeout(() => { if (btn) btn.innerHTML = originalHtml; }, 1800);
+        }
+    };
+
+    window.requestTmsDesktopPermission = function() {
+        if (!('Notification' in window)) {
+            alert('Desktop notifications are not supported in this browser.');
+            return;
+        }
+        Notification.requestPermission().then(p => {
+            updateSoundUi();
+            if (p === 'granted') {
+                try {
+                    new Notification('TheLayout TMS Desktop Alerts Active', {
+                        body: 'You will receive notifications and sound alerts here even when Chrome is minimized.',
+                        icon: '/images/icon.png'
+                    });
+                    TMSAudio.playChime(true);
+                } catch (_) {}
+            }
+        });
+    };
+
+    window.playTmsNotificationChime = function(force) {
+        TMSAudio.playChime(!!force);
+    };
+
+    // ─────────── 3. DESKTOP NOTIFICATIONS ───────────
+    function showDesktopAlert(item) {
+        if (!('Notification' in window) || Notification.permission !== 'granted') return;
+        if (document.hidden || !document.hasFocus()) {
+            try {
+                const title = item.title || 'New TMS Notification';
+                const body = (item.subtitle ? item.subtitle + '\n' : '') + 'TheLayout Task Management';
+                const n = new Notification(title, {
+                    body: body,
+                    icon: '/images/icon.png',
+                    tag: 'tms-notif-' + (item.id || Date.now()),
+                    silent: false
+                });
+                n.onclick = function() {
+                    window.focus();
+                    if (item.link && item.link !== '#') {
+                        window.location.href = item.link;
+                    }
+                    n.close();
+                };
+                setTimeout(() => n.close(), 9000);
+            } catch (_) {}
+        }
+    }
+
+    // ─────────── 4. RICH IN-APP TOAST ───────────
+    function showRichNotifToast(item, extraCount) {
+        if (document.getElementById('notifPanel')?.classList.contains('open')) return;
+
+        const existing = document.getElementById('notifToastLive');
+        if (existing) existing.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'notifToastLive';
+        toast.className = 'tms-live-toast';
+
+        const extraBadge = extraCount > 0 ? `<span class="tms-toast-extra">+${extraCount} more</span>` : '';
+        const titleText = escapeHtml(item?.title || 'New Notification');
+        const subText = item?.subtitle ? `<div class="tms-toast-sub">${escapeHtml(item.subtitle)}</div>` : '';
+
+        toast.innerHTML = `
+            <div class="tms-toast-icon"><i class="fas fa-bell"></i></div>
+            <div class="tms-toast-body">
+                <div class="tms-toast-title">${titleText} ${extraBadge}</div>
+                ${subText}
+            </div>
+            <button type="button" class="tms-toast-close" aria-label="Dismiss">&times;</button>
+        `;
+
+        toast.onclick = function(e) {
+            if (e.target.closest('.tms-toast-close')) {
+                e.stopPropagation();
+                toast.remove();
+                return;
+            }
+            toast.remove();
+            if (item && item.link && item.link !== '#') {
+                window.location.href = item.link;
+            } else {
+                openNotif();
+            }
+        };
+
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-12px) scale(0.96)';
+                toast.style.transition = 'all 0.35s ease';
+                setTimeout(() => toast.remove(), 350);
+            }
+        }, 6000);
+    }
+
+    // ─────────── 5. BADGE & LIST RENDERING ───────────
     function updateNotifBadge(count) {
         const dot = document.getElementById('notifDot');
         const badge = document.getElementById('notifCountBadge');
@@ -782,7 +1062,6 @@ window.addEventListener('pageshow', () => {
                 '<div style="font-size:36px;margin-bottom:10px;opacity:0.4"><i class="fas fa-bell"></i></div>' +
                 '<div class="notif-item-title" style="margin-bottom:4px">No notifications yet</div>' +
                 '<div class="notif-item-sub">Deadline alerts & task updates will appear here.</div></div>';
-            // Remove footer if exists
             const footer = document.querySelector('.notif-footer');
             if (footer) footer.style.display = 'none';
             return;
@@ -803,18 +1082,21 @@ window.addEventListener('pageshow', () => {
         });
         list.innerHTML = html;
 
-        // Show footer
         const footer = document.querySelector('.notif-footer');
         if (footer) footer.style.display = '';
     }
 
     function escapeHtml(text) {
         const div = document.createElement('div');
-        div.textContent = text;
+        div.textContent = text == null ? '' : String(text);
         return div.innerHTML;
     }
 
+    // ─────────── 6. LIVE POLLING LOGIC ───────────
     function pollNotifications() {
+        if (isPolling) return;
+        isPolling = true;
+
         fetch('/api/notifications/poll', {
             headers: {
                 'Accept': 'application/json',
@@ -824,63 +1106,94 @@ window.addEventListener('pageshow', () => {
         .then(r => { if (!r.ok) throw new Error('Poll failed'); return r.json(); })
         .then(data => {
             const newCount = data.unread_count || 0;
+            const notifs = data.notifications || [];
 
-            // Show toast if new notifications arrived
-            if (newCount > lastUnreadCount && lastUnreadCount >= 0) {
-                const diff = newCount - lastUnreadCount;
-                showNotifToast(diff);
+            // Populate known IDs on initial load
+            if (isInitialLoad) {
+                notifs.forEach(n => { if (n.id) knownNotificationIds.add(n.id); });
+                lastUnreadCount = newCount;
+                isInitialLoad = false;
+                updateNotifBadge(newCount);
+                updateSoundUi();
+                return;
+            }
+
+            // Find brand-new notifications
+            const freshItems = notifs.filter(n => n.id && !knownNotificationIds.has(n.id) && !n.read);
+            const countIncreased = newCount > lastUnreadCount;
+
+            if (freshItems.length > 0 || (countIncreased && lastUnreadCount >= 0)) {
+                // Register newly seen IDs
+                freshItems.forEach(n => knownNotificationIds.add(n.id));
+
+                // 🔔 1. PLAY THE CHIME!
+                TMSAudio.playChime(false);
+
+                // 🖥️ 2. TRIGGER NATIVE DESKTOP NOTIFICATION (if tab is hidden or minimized)
+                const leadItem = freshItems[0] || notifs[0] || { title: 'New Notification', subtitle: `${newCount} unread tasks` };
+                showDesktopAlert(leadItem);
+
+                // 🍞 3. SHOW RICH IN-APP TOAST
+                showRichNotifToast(leadItem, Math.max(0, freshItems.length - 1));
             }
 
             updateNotifBadge(newCount);
             lastUnreadCount = newCount;
 
-            // If notification panel is open, refresh the list
+            // If notification panel is open, refresh the list in real-time
             if (document.getElementById('notifPanel')?.classList.contains('open')) {
-                renderNotifList(data.notifications);
+                renderNotifList(notifs);
             }
         })
-        .catch(() => { /* silent fail — will retry next interval */ });
+        .catch(() => { /* silent fail, will retry next interval */ })
+        .finally(() => {
+            isPolling = false;
+        });
     }
 
-    function showNotifToast(count) {
-        // Don't show toast if panel is already open
-        if (document.getElementById('notifPanel')?.classList.contains('open')) return;
-
-        const existing = document.getElementById('notifToastLive');
-        if (existing) existing.remove();
-
-        const toast = document.createElement('div');
-        toast.id = 'notifToastLive';
-        toast.style.cssText = 'position:fixed;top:20px;right:24px;background:linear-gradient(135deg,var(--primary),#6366F1);color:#fff;padding:12px 20px;border-radius:12px;font-weight:600;z-index:10001;font-size:13px;box-shadow:0 8px 32px rgba(99,102,241,0.35);display:flex;align-items:center;gap:8px;cursor:pointer;animation:toastSlideIn 0.4s ease';
-        toast.innerHTML = '<span style="font-size:16px"><i class="fas fa-bell"></i></span> ' + count + ' new notification' + (count > 1 ? 's' : '');
-        toast.onclick = function() { toast.remove(); openNotif(); };
-        document.body.appendChild(toast);
-
-        setTimeout(() => {
-            if (toast.parentNode) {
-                toast.style.opacity = '0';
-                toast.style.transform = 'translateY(-10px)';
-                toast.style.transition = 'all 0.3s ease';
-                setTimeout(() => toast.remove(), 300);
-            }
-        }, 4000);
-    }
-
-    // Start polling
+    // Start background interval
     setInterval(pollNotifications, POLL_INTERVAL);
 
-    // Track panel open state for smarter updates
+    // Instant check when user switches back to tab or focuses Chrome
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+            TMSAudio.unlock();
+            pollNotifications();
+        }
+    });
+
+    window.addEventListener('focus', function() {
+        TMSAudio.unlock();
+        pollNotifications();
+    });
+
+    // Panel open hook
     const origOpen = window.openNotif;
     window.openNotif = function() {
+        TMSAudio.unlock();
         origOpen();
-        // Immediate refresh when opening panel
+        updateSoundUi();
         fetch('/api/notifications/poll', {
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
         }).then(r => r.json()).then(data => {
             renderNotifList(data.notifications);
-            lastUnreadCount = 0; // Will be 0 after mark-all-read
+            lastUnreadCount = 0;
+            if (data.notifications) {
+                data.notifications.forEach(n => { if (n.id) knownNotificationIds.add(n.id); });
+            }
         }).catch(() => {});
     };
+
+    // Initialize UI on DOM ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            updateSoundUi();
+            pollNotifications();
+        });
+    } else {
+        updateSoundUi();
+        pollNotifications();
+    }
 })();
 
 /**
@@ -1956,6 +2269,88 @@ remindersCheckInterval = setInterval(updateGlobalReminders, 30000); // Check eve
     from { opacity: 0; transform: translateY(20px) scale(0.95); }
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
+
+.tms-live-toast {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 40%, #4338ca 100%);
+    color: #fff;
+    padding: 13px 18px;
+    border-radius: 14px;
+    z-index: 100001;
+    font-size: 13px;
+    box-shadow: 0 14px 40px rgba(49, 46, 129, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.18) inset;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    max-width: 380px;
+    animation: tmsToastSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.tms-live-toast:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 48px rgba(49, 46, 129, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.28) inset;
+}
+.tms-toast-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.16);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: #fde047;
+    flex-shrink: 0;
+}
+.tms-toast-body {
+    flex: 1;
+    min-width: 0;
+}
+.tms-toast-title {
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 1.35;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.tms-toast-extra {
+    font-size: 10px;
+    background: rgba(255, 255, 255, 0.22);
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-weight: 700;
+}
+.tms-toast-sub {
+    font-size: 11.5px;
+    color: #c7d2fe;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.tms-toast-close {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+.tms-toast-close:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.15);
+}
+@keyframes tmsToastSlideIn {
+    from { opacity: 0; transform: translateY(-16px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
 </style>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -2022,8 +2417,12 @@ remindersCheckInterval = setInterval(updateGlobalReminders, 30000); // Check eve
             icon: '/images/logo.png'
         };
         new Notification(notificationTitle, notificationOptions);
+        if (typeof window.playTmsNotificationChime === 'function') {
+            window.playTmsNotificationChime();
+        }
     });
 </script>
+<audio id="tmsNotificationAudio" src="{{ asset('sounds/notification.wav') }}" preload="auto" style="display:none"></audio>
 @stack('scripts')
 </body>
 </html>
