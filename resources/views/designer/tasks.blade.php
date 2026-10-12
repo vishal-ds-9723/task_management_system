@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @push('styles')
-    <link rel="stylesheet" href="{{ asset('css/pages/designer-theme.css') }}?v=6.0">
+    <link rel="stylesheet" href="{{ asset('css/pages/designer-theme.css') }}?v=7.0">
     <link rel="stylesheet" href="https://cdn.datatables.net/2.0.8/css/dataTables.dataTables.min.css">
 @endpush
 
