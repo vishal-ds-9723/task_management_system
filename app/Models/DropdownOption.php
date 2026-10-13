@@ -29,6 +29,71 @@ class DropdownOption extends Model
         ];
     }
 
+    protected $appends = [
+        'emoji',
+    ];
+
+    /**
+     * Get a suitable Unicode emoji icon for HTML dropdowns.
+     */
+    public function getEmojiAttribute(): string
+    {
+        if (!empty($this->icon) && !str_starts_with($this->icon, 'fa-') && !str_starts_with($this->icon, 'fas ') && !str_starts_with($this->icon, 'fa ')) {
+            return $this->icon;
+        }
+
+        $iconMap = [
+            'fa-clapperboard'        => '🎬',
+            'fa-image'               => '📸',
+            'fa-mobile-screen'       => '📱',
+            'fa-video'               => '🎥',
+            'fa-layer-group'         => '📑',
+            'fa-pen-nib'             => '✒️',
+            'fa-compass-drafting'    => '🎨',
+            'fa-tag'                 => '🏷️',
+            'fa-panorama'            => '🖼️',
+            'fa-newspaper'           => '📄',
+            'fa-book-open'           => '📖',
+            'fa-globe'               => '🌐',
+            'fa-laptop-code'         => '💻',
+            'fa-wrench'              => '🔧',
+            'fa-server'              => '🖥️',
+            'fa-asterisk'            => '✳️',
+            'fa-circle'              => '⚪',
+            'fa-triangle-exclamation' => '⚠️',
+            'fa-user-shield'         => '🛡️',
+            'fa-building'            => '🏢',
+            'fa-chess'               => '♟️',
+            'fa-circle-question'     => '❓',
+        ];
+
+        foreach ($iconMap as $key => $emoji) {
+            if (!empty($this->icon) && str_contains($this->icon, $key)) {
+                return $emoji;
+            }
+        }
+
+        return match($this->value) {
+            'reel' => '🎬',
+            'post' => '📸',
+            'story' => '📱',
+            'video' => '🎥',
+            'carousel' => '📑',
+            'logo' => '✒️',
+            'product_design' => '🎨',
+            'branding' => '🏷️',
+            'banner' => '🖼️',
+            'flyer' => '📄',
+            'brochure' => '📖',
+            'website' => '🌐',
+            'software' => '💻',
+            'maintenance' => '🔧',
+            'server_maintenance' => '🖥️',
+            'others' => '✳️',
+            default => '📌',
+        };
+    }
+
     /**
      * Scope for category.
      */

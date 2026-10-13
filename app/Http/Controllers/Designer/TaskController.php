@@ -92,7 +92,10 @@ class TaskController extends Controller
 
     public function urgentTaskPage()
     {
-        $clients = \App\Models\Client::where('is_active', true)->orderBy('name')->get();
+        $clients = \App\Models\Client::where('is_active', true)
+            ->where('name', 'not like', '%Internal%')
+            ->orderBy('name')
+            ->get();
         $currentActiveTask = Task::assignedTo(Auth::id())
             ->where('status', 'inprogress')
             ->where('is_paused', false)

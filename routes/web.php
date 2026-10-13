@@ -168,6 +168,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
 
     // Admin approvals interface for task submissions with media review
     Route::get('/approvals', [Admin\ApprovalController::class, 'index'])->name('approvals');
+    Route::post('/approvals/bulk-approve', [Admin\ApprovalController::class, 'bulkApprove'])->name('approvals.bulk-approve');
     Route::get('/approvals/{task}', [Admin\ApprovalController::class, 'show'])->name('approvals.show');
     Route::patch('/approvals/{task}/approve', [Admin\ApprovalController::class, 'approve'])->name('approvals.approve');
     Route::patch('/approvals/{task}/reject', [Admin\ApprovalController::class, 'reject'])->name('approvals.reject');
@@ -176,6 +177,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
 
     // Publishing tracker
     Route::get('/publishing', [Admin\PublishingController::class, 'index'])->name('publishing');
+    Route::post('/publishing/bulk-publish', [Admin\PublishingController::class, 'bulkPublish'])->name('publishing.bulk-publish');
     Route::get('/publishing/{task}', [Admin\PublishingController::class, 'show'])->name('publishing.show');
     Route::post('/publishing/{task}/publish', [Admin\PublishingController::class, 'publish'])->name('publishing.publish');
     Route::post('/publishing/{task}/unpublish', [Admin\PublishingController::class, 'unpublish'])->name('publishing.unpublish');

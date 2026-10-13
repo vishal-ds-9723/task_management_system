@@ -19,6 +19,7 @@ class PublishingService
             match ($request->filter) {
                 'pending', 'awaiting' => $query->where('status', 'completed'),
                 'published'           => $query->where('status', 'published'),
+                'overdue'             => $query->where('status', 'completed')->whereNotNull('post_date')->whereDate('post_date', '<', now()->toDateString()),
                 'client_yes'          => $query->where('status', 'completed')->whereNotNull('client_approved_at'),
                 'client_no'           => $query->where('status', 'completed')->whereNull('client_approved_at'),
                 default               => null,
@@ -47,6 +48,7 @@ class PublishingService
         $pendingCount = Task::publishable()->where('status', 'completed')->count();
         $publishedCount = Task::publishable()->where('status', 'published')->count();
         $totalCount = $pendingCount + $publishedCount;
+        $overdueCount = Task::publishable()->where('status', 'completed')->whereNotNull('post_date')->whereDate('post_date', '<', now()->toDateString())->count();
         $clientApprovedCount = Task::publishable()->where('status', 'completed')->whereNotNull('client_approved_at')->count();
         $clientPendingCount = Task::publishable()->where('status', 'completed')->whereNull('client_approved_at')->count();
         $awaitingCount = $pendingCount;
@@ -56,10 +58,26 @@ class PublishingService
         $strategists = User::where('role', 'strategist')->orderBy('name')->get();
 
         return compact(
-            'tasks', 'pendingCount', 'publishedCount', 'totalCount',
+            'tasks', 'pendingCount', 'publishedCount', 'totalCount', 'overdueCount',
             'clientApprovedCount', 'clientPendingCount',
             'awaitingCount', 'partialCount', 'clients', 'strategists'
         );
+    }
+
+    public function bulkPublish(array $taskIds): int
+    {
+        $tasks = Task::publishable()
+            ->whereIn('id', $taskIds)
+            ->where('status', 'completed')
+            ->get();
+
+        $count = 0;
+        foreach ($tasks as $task) {
+            $this->publish($task);
+            $count++;
+        }
+
+        return $count;
     }
 
     public function getPublishingShowData(Task $task)

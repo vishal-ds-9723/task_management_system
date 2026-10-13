@@ -35,9 +35,32 @@ class ApprovalController extends Controller
             }
         }
 
-        $tasks = $this->service->getPendingTasks($request);
+        $data = $this->service->getPendingTasksData($request);
 
-        return view('admin.approvals.index', compact('tasks'));
+        return view('admin.approvals.index', $data);
+    }
+
+    public function bulkApprove(Request $request)
+    {
+        $request->validate([
+            'task_ids'   => 'required|array',
+            'task_ids.*' => 'integer|exists:tasks,id',
+        ]);
+
+        $taskIds = $request->input('task_ids', []);
+        $count = $this->service->bulkApprove($taskIds);
+
+        $message = "Successfully approved and completed {$count} task" . ($count !== 1 ? 's' : '') . '!';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'count'   => $count,
+                'message' => $message,
+            ]);
+        }
+
+        return back()->with('success', $message);
     }
 
     public function show(Task $task)

@@ -197,7 +197,41 @@
         </div>
     </a>
     @endif
+    @if(($urgentCount ?? 0) > 0 || ($systemUrgentCount ?? 0) > 0)
+    <a href="javascript:void(0)" onclick="filterByStatus('urgent')" class="trk-stat trk-stat-urgent {{ request('status') === 'urgent' ? 'trk-stat-active' : '' }}" style="border-color:rgba(239,68,68,0.3)" title="Urgent tasks requiring fast-track attention">
+        <div class="trk-stat-icon" style="background:rgba(239,68,68,0.15);color:#EF4444;position:relative">
+            <i class="fa-solid fa-bolt"></i>
+            <span class="trk-pulse-dot" style="position:absolute;top:2px;right:2px;background:#EF4444"></span>
+        </div>
+        <div class="trk-stat-body">
+            <div class="trk-stat-val" style="color:#EF4444">{{ $urgentCount > 0 ? $urgentCount : $systemUrgentCount }}</div>
+            <div class="trk-stat-label" style="color:#EF4444">Urgent</div>
+        </div>
+    </a>
+    @endif
 </div>
+
+{{-- Situational Awareness Banner: Active Urgent Designer Tasks while in My Created Scope --}}
+@if(($scope ?? 'all') === 'my' && ($systemUrgentCount ?? 0) > 0)
+    <div class="trk-urgent-alert-banner" style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,rgba(239,68,68,0.12),rgba(249,115,22,0.08));border:1.5px solid rgba(239,68,68,0.35);border-radius:12px;padding:12px 18px;margin-bottom:16px;box-shadow:0 4px 15px rgba(239,68,68,0.08);flex-wrap:wrap;gap:10px">
+        <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:36px;height:36px;border-radius:10px;background:#EF4444;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 4px 10px rgba(239,68,68,0.35);flex-shrink:0">
+                <i class="fa-solid fa-bolt"></i>
+            </div>
+            <div>
+                <div style="font-size:13.5px;font-weight:800;color:var(--text)">
+                    ⚡ {{ $systemUrgentCount }} Urgent Designer-Initiated Task{{ $systemUrgentCount > 1 ? 's' : '' }} Active
+                </div>
+                <div style="font-size:11.5px;color:var(--text2);margin-top:2px">
+                    A designer started an emergency task that is not in your personal "My Created" view.
+                </div>
+            </div>
+        </div>
+        <a href="{{ route('strategist.tracking', ['scope' => 'all', 'status' => 'urgent']) }}" class="trk-header-btn trk-btn-primary" style="background:#EF4444;font-size:11.5px;padding:7px 14px;border:none;box-shadow:0 2px 8px rgba(239,68,68,0.3)">
+            <i class="fa-solid fa-bolt"></i> View Urgent Tasks
+        </a>
+    </div>
+@endif
 
 {{-- Filter Bar --}}
 <div class="trk-filter-bar">
@@ -234,6 +268,7 @@
             </select>
             <select name="status" class="trk-select" id="trkStatusSelect" onchange="submitFilterFormAjax()">
                 <option value="all">All Status</option>
+                <option value="urgent" {{ request('status') == 'urgent' ? 'selected' : '' }}>⚡ Urgent Tasks</option>
                 <option value="todo" {{ request('status') == 'todo' ? 'selected' : '' }}>To Do</option>
                 <option value="inprogress" {{ request('status') == 'inprogress' ? 'selected' : '' }}>In Progress</option>
                 <option value="in_revision" {{ request('status') == 'in_revision' ? 'selected' : '' }}>In Revision</option>
@@ -310,6 +345,11 @@
                         <td>
                             <div class="trk-task-title">
                                 <span>{{ $task->title }}</span>
+                                @if($task->is_urgent_task)
+                                    <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:6px;font-size:10px;font-weight:800;background:rgba(239,68,68,0.15);color:#EF4444;border:1px solid rgba(239,68,68,0.35);letter-spacing:0.2px">
+                                        <i class="fa-solid fa-bolt"></i> Urgent Designer
+                                    </span>
+                                @endif
                                 @if($isTimerRunning)
                                     <span class="trk-live-pulse" title="Designer is working on this task right now!">
                                         <span class="trk-pulse-dot"></span> Active Now
@@ -317,6 +357,12 @@
                                 @endif
                             </div>
                             <div class="trk-task-meta">
+                                @if($task->is_urgent_task && $task->urgent_requested_by)
+                                    <span style="font-size:10.5px;font-weight:700;color:#DC2626;display:inline-flex;align-items:center;gap:3px">
+                                        <i class="fa-solid fa-bullhorn" style="font-size:9px"></i> Req: {{ $task->urgent_requested_by }}
+                                    </span>
+                                @endif
+
                                 @if($isDevTask)
                                     @if($task->tech_stack)
                                         <span><i class="fas fa-code" style="font-size:9px;opacity:.7"></i> {{ $task->tech_stack }}</span>
@@ -374,8 +420,10 @@
                             @endif
                         </td>
                         <td>
-                            @if($task->priority === 'urgent')
-                                <span class="trk-priority trk-prio-urgent">Urgent</span>
+                            @if($task->is_urgent_task || $task->priority === 'urgent')
+                                <span class="trk-priority trk-prio-urgent" style="background:#EF4444;color:#fff;box-shadow:0 2px 8px rgba(239,68,68,0.35);display:inline-flex;align-items:center;gap:4px">
+                                    <i class="fa-solid fa-bolt" style="font-size:9px"></i> Urgent
+                                </span>
                             @elseif($task->priority === 'high')
                                 <span class="trk-priority trk-prio-high">High</span>
                             @else
@@ -398,6 +446,11 @@
                                 <button type="button" class="trk-action-btn trk-action-view" title="Quick Drawer Inspector" onclick="openTaskInspector({{ $task->id }})">
                                     <i class="fa-solid fa-eye"></i>
                                 </button>
+                                @if($task->status === 'review')
+                                    <button type="button" class="trk-action-btn" style="color:#059669;border-color:rgba(5,150,105,0.3);background:rgba(5,150,105,0.08)" title="Fast-Track: Approve & Send to Admin" onclick="approveTaskFromTracking({{ $task->id }}, '{{ addslashes($task->title) }}', event)">
+                                        <i class="fa-solid fa-check-double"></i>
+                                    </button>
+                                @endif
                                 <a href="{{ route('strategist.tasks.show', $task) }}" class="trk-action-btn" title="Open Full Task Details">
                                     <i class="fa-solid fa-arrow-up-right-from-square"></i>
                                 </a>
@@ -459,12 +512,20 @@
                 <div class="trk-card-badge-row">
                     <span class="tag {{ $task->type_tag_class }}">{{ ucfirst($task->type) }}</span>
                     <span class="status {{ $task->status_class }}">{{ $task->status_label }}</span>
-                    @if($task->priority === 'urgent')
+                    @if($task->is_urgent_task)
+                        <span class="trk-priority trk-prio-urgent" style="background:#EF4444;color:#fff;box-shadow:0 2px 8px rgba(239,68,68,0.35);display:inline-flex;align-items:center;gap:3px"><i class="fa-solid fa-bolt" style="font-size:9px"></i> Urgent Designer</span>
+                    @elseif($task->priority === 'urgent')
                         <span class="trk-priority trk-prio-urgent">Urgent</span>
                     @elseif($task->priority === 'high')
                         <span class="trk-priority trk-prio-high">High</span>
                     @endif
                 </div>
+
+                @if($task->is_urgent_task && $task->urgent_requested_by)
+                    <div style="font-size:11px;font-weight:700;color:#DC2626;padding:2px 0 4px;display:flex;align-items:center;gap:4px">
+                        <i class="fa-solid fa-bullhorn" style="font-size:9px"></i> Req: {{ $task->urgent_requested_by }}
+                    </div>
+                @endif
 
                 <div class="trk-card-middle">
                     <div style="display:flex;align-items:center;gap:8px">
@@ -491,6 +552,11 @@
                         <i class="fa-solid fa-eye"></i> Inspect
                     </button>
                     <div style="display:flex;gap:4px">
+                        @if($task->status === 'review')
+                            <button type="button" class="trk-action-btn" style="color:#059669;border-color:rgba(5,150,105,0.3);background:rgba(5,150,105,0.08)" title="Fast-Track: Approve & Send to Admin" onclick="approveTaskFromTracking({{ $task->id }}, '{{ addslashes($task->title) }}', event)">
+                                <i class="fa-solid fa-check-double"></i>
+                            </button>
+                        @endif
                         @if($task->assignee && !in_array($task->status, ['completed', 'published']))
                             <button type="button" class="trk-action-btn trk-action-followup" title="Nudge Designer" onclick="nudgeTask({{ $task->id }}, '{{ addslashes($task->assignee->name) }}', event)">
                                 <i class="fa-solid fa-bell"></i>
@@ -553,6 +619,9 @@
                 <span id="drawerStatusBadge" class="status">Loading</span>
                 <span id="drawerTypeBadge" class="tag">Type</span>
                 <span id="drawerPriorityBadge" class="trk-priority">Priority</span>
+                <span id="drawerUrgentBadge" class="trk-priority trk-prio-urgent" style="display:none;background:#EF4444;color:#fff;box-shadow:0 2px 8px rgba(239,68,68,0.35);font-size:10.5px">
+                    <i class="fa-solid fa-bolt"></i> Urgent Designer
+                </span>
             </div>
         </div>
         <button type="button" class="trk-drawer-close" onclick="closeTaskInspector()" title="Close Inspector (&times;)">
@@ -562,6 +631,27 @@
 
     {{-- Body --}}
     <div class="trk-drawer-body" id="drawerBody">
+        {{-- Urgent Designer Task Triage Card (Shown only if is_urgent_task) --}}
+        <div id="drawerUrgentCard" class="trk-d-card" style="display:none;background:linear-gradient(135deg,rgba(239,68,68,0.08),rgba(249,115,22,0.06));border:1.5px solid rgba(239,68,68,0.35);box-shadow:0 4px 15px rgba(239,68,68,0.08)">
+            <div class="trk-d-title" style="color:#DC2626;display:flex;justify-content:space-between;align-items:center">
+                <span><i class="fa-solid fa-bolt"></i> Urgent Designer Self-Initiated Task</span>
+                <span class="trk-live-pulse" style="background:#EF4444;color:#fff"><span class="trk-pulse-dot" style="background:#fff"></span> Fast-Track Priority</span>
+            </div>
+            <div style="font-size:12px;color:var(--text);display:flex;flex-direction:column;gap:6px;margin-top:6px">
+                <div style="display:flex;align-items:center;gap:8px">
+                    <strong style="color:var(--text3);min-width:100px">Requested By:</strong>
+                    <span id="drawerUrgentRequestedBy" style="font-weight:700;color:#DC2626">Emergency Request</span>
+                </div>
+                <div id="drawerPausedPredecessorRow" style="display:none;align-items:center;gap:8px">
+                    <strong style="color:var(--text3);min-width:100px">Paused Task:</strong>
+                    <span id="drawerPausedPredecessorText" style="font-weight:600;color:var(--text)">—</span>
+                    <button type="button" id="drawerInspectPausedBtn" class="trk-btn-ghost" style="padding:2px 8px;font-size:10px;border-radius:4px;cursor:pointer">
+                        <i class="fa-solid fa-eye"></i> View Paused
+                    </button>
+                </div>
+            </div>
+        </div>
+
         {{-- Designer & Timer Status Strip --}}
         <div class="trk-d-card">
             <div class="trk-d-title"><i class="fa-solid fa-stopwatch"></i> Creative Production &amp; Timer Status</div>
@@ -649,6 +739,9 @@
             </button>
         </div>
         <div style="display:flex;gap:6px">
+            <button type="button" id="drawerApproveBtn" class="trk-btn-primary" style="display:none;background:#059669;border:none;color:#fff;font-size:12px;font-weight:700;padding:8px 14px;border-radius:8px;cursor:pointer;align-items:center;gap:6px" onclick="approveTaskFromDrawer()">
+                <i class="fa-solid fa-check-double"></i> Approve &amp; Send to Admin
+            </button>
             <a href="#" id="drawerEditLink" class="trk-btn-ghost" style="font-size:12px" data-no-loader><i class="fa-solid fa-pen"></i> Edit</a>
             <a href="#" id="drawerFullPageLink" class="trk-btn-primary" style="font-size:12px"><i class="fa-solid fa-arrow-up-right-from-square"></i> Full Workspace</a>
         </div>
@@ -938,6 +1031,73 @@ function renderTaskInDrawer(task) {
     // Route links in footer
     document.getElementById('drawerEditLink').href = task.routes?.edit || `/strategist/tasks/${task.id}/edit`;
     document.getElementById('drawerFullPageLink').href = task.routes?.show || `/strategist/tasks/${task.id}`;
+
+    // Urgent Designer Task Triage
+    const urgentBadge = document.getElementById('drawerUrgentBadge');
+    const urgentCard = document.getElementById('drawerUrgentCard');
+    if (task.is_urgent_task) {
+        if (urgentBadge) urgentBadge.style.display = 'inline-flex';
+        if (urgentCard) {
+            urgentCard.style.display = 'block';
+            document.getElementById('drawerUrgentRequestedBy').textContent = task.urgent_requested_by || 'Emergency Client Request';
+            const pausedRow = document.getElementById('drawerPausedPredecessorRow');
+            if (task.paused_predecessor) {
+                pausedRow.style.display = 'flex';
+                document.getElementById('drawerPausedPredecessorText').textContent = `#${task.paused_predecessor.id} ${task.paused_predecessor.title}`;
+                const btn = document.getElementById('drawerInspectPausedBtn');
+                if (btn) btn.onclick = () => openTaskInspector(task.paused_predecessor.id);
+            } else {
+                pausedRow.style.display = 'none';
+            }
+        }
+    } else {
+        if (urgentBadge) urgentBadge.style.display = 'none';
+        if (urgentCard) urgentCard.style.display = 'none';
+    }
+
+    // Fast-Track Approve Button (Shown when task is in review)
+    const approveBtn = document.getElementById('drawerApproveBtn');
+    if (approveBtn) {
+        if (task.status === 'review') {
+            approveBtn.style.display = 'inline-flex';
+        } else {
+            approveBtn.style.display = 'none';
+        }
+    }
+}
+
+// ── Fast-Track Approve from Drawer & Tracking ───────────────────
+async function approveTaskFromDrawer() {
+    if (!currentTaskData) return;
+    await approveTaskFromTracking(currentTaskData.id, currentTaskData.title);
+}
+
+async function approveTaskFromTracking(taskId, taskTitle, event) {
+    if (event) event.stopPropagation();
+    if (!confirm(`Fast-Track Approve "${taskTitle}" and send to Admin for final sign-off?`)) return;
+
+    try {
+        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        const res = await fetch(`/strategist/tasks/${taskId}/approve`, {
+            method: 'PATCH',
+            headers: {
+                'X-CSRF-TOKEN': token,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ force: true })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showStrategistToast('success', data.message || 'Task approved and sent to Admin!');
+            setTimeout(() => location.reload(), 700);
+        } else {
+            showStrategistToast('error', data.message || 'Failed to approve task.');
+        }
+    } catch (err) {
+        showStrategistToast('error', 'Network error approving task.');
+    }
 }
 
 // ── 4. 1-Click Copy Caption from Drawer ──────────────────────────

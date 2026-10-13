@@ -8,6 +8,7 @@ use App\Models\Notification;
 use App\Models\User;
 use App\Models\Employee;
 use App\Models\Comment;
+use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -67,25 +68,27 @@ class TaskService
             ->get()
             ->groupBy('status');
 
-        // Single query for all status counts instead of 7 separate COUNT queries
+        // Single query for all status counts including pending_approval and urgent tasks
         $statusCounts = Task::selectRaw("
             COUNT(*) as total,
             SUM(status = 'todo') as todo,
             SUM(status = 'inprogress') as inprogress,
-            SUM(status = 'review') as review,
+            SUM(status IN ('review', 'pending_approval')) as review,
             SUM(status = 'completed') as completed,
             SUM(status = 'published') as published,
-            SUM(deadline < NOW() AND status NOT IN ('completed','published')) as overdue
+            SUM(deadline < NOW() AND status NOT IN ('completed','published')) as overdue,
+            SUM(is_urgent_task = 1 OR priority = 'urgent') as urgent
         ")->first();
 
         $taskStats = [
-            'total'      => (int) $statusCounts->total,
-            'todo'       => (int) $statusCounts->todo,
-            'inprogress' => (int) $statusCounts->inprogress,
-            'review'     => (int) $statusCounts->review,
-            'completed'  => (int) $statusCounts->completed,
-            'published'  => (int) $statusCounts->published,
-            'overdue'    => (int) $statusCounts->overdue,
+            'total'      => (int) ($statusCounts->total ?? 0),
+            'todo'       => (int) ($statusCounts->todo ?? 0),
+            'inprogress' => (int) ($statusCounts->inprogress ?? 0),
+            'review'     => (int) ($statusCounts->review ?? 0),
+            'completed'  => (int) ($statusCounts->completed ?? 0),
+            'published'  => (int) ($statusCounts->published ?? 0),
+            'overdue'    => (int) ($statusCounts->overdue ?? 0),
+            'urgent'     => (int) ($statusCounts->urgent ?? 0),
         ];
 
         $recentTasks = Task::with(['client', 'assignee'])
@@ -127,7 +130,7 @@ class TaskService
         $dateTo     = $request->get('date_to', '');
         $sort       = $request->get('sort', 'latest');
 
-        $query = Task::with(['client', 'assignee']);
+        $query = Task::with(['client', 'assignee', 'creator', 'media']);
 
         if (!empty($search)) {
             $query->where(function ($q) use ($search) {
@@ -136,7 +139,13 @@ class TaskService
             });
         }
 
-        if (!empty($status)) {
+        if ($status === 'urgent') {
+            $query->where(function ($q) {
+                $q->where('is_urgent_task', true)->orWhere('priority', 'urgent');
+            });
+        } elseif ($status === 'review') {
+            $query->whereIn('status', ['review', 'pending_approval']);
+        } elseif (!empty($status)) {
             $query->where('status', $status);
         }
 
@@ -510,5 +519,40 @@ private function logAudit($action, Task $task, $oldValues = null)
             'this_year' => $today->copy()->endOfYear()->endOfDay(),
             default => $today->copy()->endOfWeek()->endOfDay(),
         };
+    }
+
+    public function bulkUpdateStatus(array $taskIds, string $status): int
+    {
+        $validStatuses = ['todo', 'inprogress', 'review', 'pending_approval', 'completed', 'published'];
+        if (!in_array($status, $validStatuses, true)) {
+            throw new \InvalidArgumentException('Invalid task status');
+        }
+
+        $tasks = Task::whereIn('id', $taskIds)->get();
+        $count = 0;
+
+        foreach ($tasks as $task) {
+            $oldStatus = $task->status;
+            $task->status = $status;
+            if (in_array($status, ['completed', 'published'], true) && is_null($task->completed_at)) {
+                $task->completed_at = now();
+            } elseif (!in_array($status, ['completed', 'published'], true)) {
+                $task->completed_at = null;
+            }
+            $task->save();
+
+            AuditLog::create([
+                'task_id'    => $task->id,
+                'user_id'    => Auth::id(),
+                'action'     => 'status_changed',
+                'old_values' => ['status' => $oldStatus],
+                'new_values' => ['status' => $status],
+                'details'    => 'Status updated via bulk action by Admin',
+            ]);
+
+            $count++;
+        }
+
+        return $count;
     }
 }

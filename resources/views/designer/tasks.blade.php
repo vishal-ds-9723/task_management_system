@@ -905,7 +905,7 @@ async function checkTaskLiveSync(isManual = false) {
     const isTyping = searchInput && document.activeElement === searchInput && searchInput.value.length > 0;
 
     // Guard: Do not re-render if any modal (such as Create Task) is currently open
-    const isModalOpen = document.querySelector('.modal.show, #selfTaskModal.show, .studio-modal.show, [id*="TaskModal"][style*="display: block"]');
+    const isModalOpen = document.querySelector('.modal.show, #selfTaskModal.is-open, #selfTaskModal.show, .studio-modal.show, [id*="TaskModal"][style*="display: block"], [id*="TaskModal"][style*="display: flex"]');
     if (!isManual && (isTyping || isModalOpen)) {
         return;
     }

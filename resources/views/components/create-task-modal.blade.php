@@ -38,7 +38,7 @@
                         @foreach($taskTypesGrouped as $groupName => $types)
                             <optgroup label="{{ $groupName }}">
                                 @foreach($types as $t)
-                                    <option value="{{ $t->value }}">{{ $t->label }}</option>
+                                    <option value="{{ $t->value }}">{{ $t->emoji ? ($t->emoji . ' ') : '' }}{{ $t->label }}</option>
                                 @endforeach
                             </optgroup>
                         @endforeach

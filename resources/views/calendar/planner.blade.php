@@ -411,57 +411,195 @@ body.dark-mode .cp-fest-chip-sm { color: #fde68a; background: rgba(120,53,15,0.3
 .cp-mday:hover .cp-mday-add-btn { display: grid; }
 .cp-mday-add-btn:hover { border-color: var(--cp-brand); color: var(--cp-brand); transform: scale(1.1); }
 
-/* ── Visual Instagram Feed View ── */
-.cp-feed-view { padding: 20px 24px; max-width: 1060px; margin: 0 auto; }
-.cp-feed-profile {
-    display: flex; align-items: center; gap: 28px; padding: 22px 26px; border-radius: 18px;
-    background: var(--card, #fff); border: 1px solid var(--border, #e2e6ef); box-shadow: var(--cp-shadow-sm); margin-bottom: 22px;
+/* ── Visual Instagram Feed Studio (Compact & Non-Lengthy) ── */
+.cp-feed-view { padding: 14px 20px 30px; max-width: 1320px; margin: 0 auto; }
+
+/* Client Filter Bar */
+.cp-feed-clients-bar {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+    padding: 10px 14px; border-radius: 14px; background: var(--card, #fff);
+    border: 1px solid var(--border, #e2e6ef); box-shadow: var(--cp-shadow-sm);
 }
-.cp-feed-avatar {
-    width: 84px; height: 84px; border-radius: 50%; padding: 3px;
+.cp-feed-bar-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: var(--text3, #94a3b8); display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.cp-feed-clients-scroll { display: flex; align-items: center; gap: 6px; overflow-x: auto; scrollbar-width: none; flex: 1; }
+.cp-feed-clients-scroll::-webkit-scrollbar { display: none; }
+.cp-count-pill { font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 99px; background: rgba(0,0,0,0.1); margin-left: 4px; }
+
+/* Toolbar */
+.cp-feed-toolbar {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+    padding: 12px 16px; margin-bottom: 20px; border-radius: 16px;
+    background: var(--card, #fff); border: 1px solid var(--border, #e2e6ef); box-shadow: var(--cp-shadow-sm);
+}
+.cp-feed-toolbar-left, .cp-feed-toolbar-right { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.cp-seg-group { display: flex; align-items: center; gap: 8px; }
+.cp-seg-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: var(--text3, #94a3b8); display: flex; align-items: center; gap: 5px; }
+.cp-segmented { display: inline-flex; align-items: center; background: var(--card2, #f1f5f9); border: 1px solid var(--border, #e2e6ef); border-radius: 11px; padding: 3px; gap: 2px; }
+.cp-seg-btn {
+    display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border-radius: 8px;
+    font-size: 12px; font-weight: 700; border: none; background: transparent; color: var(--text2, #475569);
+    cursor: pointer; transition: all .15s ease;
+}
+.cp-seg-btn:hover { color: var(--cp-brand); }
+.cp-seg-btn.is-active { background: var(--card, #fff); color: var(--text, #0f172a); box-shadow: 0 2px 6px rgba(15,23,42,0.08); font-weight: 800; }
+body.dark-mode .cp-seg-btn.is-active { background: var(--card); color: #fff; }
+.cp-feed-cadence-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text2, #475569); }
+.cp-feed-cadence-badge strong { color: var(--text, #0f172a); }
+
+/* Split Studio Layout */
+.cp-feed-studio {
+    display: grid; grid-template-columns: minmax(370px, 420px) minmax(360px, 1fr); gap: 26px; align-items: start;
+}
+@media (max-width: 980px) {
+    .cp-feed-studio { grid-template-columns: 1fr; }
+}
+
+/* ── PHONE MOCKUP CHASSIS ── */
+.cp-phone-wrapper { display: flex; justify-content: center; width: 100%; }
+.cp-phone-chassis {
+    width: 100%; max-width: 395px; height: 720px; max-height: calc(100vh - 160px);
+    border-radius: 46px; background: var(--card, #fff);
+    border: 11px solid #0f172a; box-shadow: 0 25px 50px -12px rgba(15,23,42,0.35), 0 0 0 1px rgba(255,255,255,0.1) inset;
+    display: flex; flex-direction: column; position: relative; overflow: hidden;
+}
+body.dark-mode .cp-phone-chassis { border-color: #1e293b; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7); }
+.cp-phone-island { width: 94px; height: 22px; background: #000; border-radius: 20px; margin: 7px auto 3px; display: grid; place-items: center; flex-shrink: 0; z-index: 10; }
+.cp-phone-camera { width: 10px; height: 10px; border-radius: 50%; background: #0f172a; border: 1.5px solid #1e293b; margin-left: 45px; }
+.cp-phone-status-bar { display: flex; align-items: center; justify-content: space-between; padding: 0 20px 4px; font-size: 11px; font-weight: 800; color: var(--text, #0f172a); flex-shrink: 0; }
+.cp-phone-status-icons { display: flex; align-items: center; gap: 6px; font-size: 10px; }
+
+/* Phone App Header */
+.cp-phone-app-header { padding: 4px 16px 8px; border-bottom: 1px solid var(--border, #e2e6ef); flex-shrink: 0; background: var(--card, #fff); }
+.cp-phone-top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.cp-phone-username { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 800; color: var(--text, #0f172a); }
+.cp-phone-top-actions { display: flex; align-items: center; gap: 14px; font-size: 15px; color: var(--text, #0f172a); cursor: pointer; }
+.cp-phone-profile-row { display: flex; align-items: center; gap: 20px; margin-bottom: 8px; }
+.cp-phone-avatar-ring {
+    width: 62px; height: 62px; border-radius: 50%; padding: 2px;
     background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); flex-shrink: 0;
 }
-.cp-feed-avatar-inner {
+.cp-phone-avatar-inner {
     width: 100%; height: 100%; border-radius: 50%; overflow: hidden; background: var(--card, #fff);
-    display: grid; place-items: center; font-size: 24px; font-weight: 800; color: #fff; border: 2px solid var(--card, #fff);
+    display: grid; place-items: center; font-size: 18px; font-weight: 800; color: #fff; border: 2px solid var(--card, #fff);
 }
-.cp-feed-avatar-inner img { width: 100%; height: 100%; object-fit: cover; }
-.cp-feed-info { flex: 1; min-width: 0; }
-.cp-feed-handle { font-size: 19px; font-weight: 800; display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.cp-feed-handle-badge { color: #38bdf8; font-size: 14px; }
-.cp-feed-stats { display: flex; align-items: center; gap: 20px; font-size: 13px; color: var(--text2, #475569); margin-bottom: 6px; }
-.cp-feed-stats strong { color: var(--text, #0f172a); font-weight: 800; }
-.cp-feed-bio { font-size: 12.5px; color: var(--text3, #94a3b8); }
+.cp-phone-avatar-inner img { width: 100%; height: 100%; object-fit: cover; }
+.cp-phone-stats-cols { display: flex; align-items: center; justify-content: space-around; flex: 1; text-align: center; }
+.cp-phone-stat strong { display: block; font-size: 14px; font-weight: 800; color: var(--text, #0f172a); }
+.cp-phone-stat span { font-size: 11px; color: var(--text3, #94a3b8); }
+.cp-phone-bio { font-size: 11.5px; line-height: 1.35; margin-bottom: 8px; color: var(--text, #0f172a); }
+.cp-phone-name { font-weight: 800; }
+.cp-phone-category { color: var(--text3, #94a3b8); font-size: 10.5px; }
+.cp-phone-link { color: #0284c7; font-weight: 700; font-size: 11px; text-decoration: none; }
+.cp-phone-buttons { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.cp-phone-btn {
+    flex: 1; height: 26px; border-radius: 7px; border: 1px solid var(--border, #e2e6ef);
+    background: var(--card2, #f1f5f9); color: var(--text, #0f172a); font-size: 11.5px; font-weight: 700; cursor: pointer;
+}
+.cp-phone-btn-icon { flex: none; width: 28px; }
+.cp-phone-tabs { display: flex; align-items: center; border-top: 1px solid var(--border, #e2e6ef); margin: 0 -16px -8px; }
+.cp-phone-tab { flex: 1; height: 34px; display: grid; place-items: center; font-size: 14px; color: var(--text3, #94a3b8); cursor: pointer; border-bottom: 2px solid transparent; }
+.cp-phone-tab.is-active { color: var(--text, #0f172a); border-bottom-color: var(--text, #0f172a); }
 
-.cp-feed-grid-wrap { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-@media (max-width: 768px) { .cp-feed-grid-wrap { grid-template-columns: repeat(2, 1fr); gap: 8px; } }
-.cp-feed-card {
-    position: relative; aspect-ratio: 1 / 1; border-radius: 12px; overflow: hidden;
-    background: var(--card2, #f1f5f9); border: 1px solid var(--border, #e2e6ef); box-shadow: var(--cp-shadow-sm);
-    cursor: pointer; transition: transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s;
+/* Phone Feed Scrollable Grid */
+.cp-phone-feed-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; background: var(--card2, #f8fafc); scrollbar-width: thin; }
+.cp-phone-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; background: var(--border, #e2e8f0); }
+body.dark-mode .cp-phone-grid { background: #334155; }
+
+/* Phone Tile & Universal Feed Tile */
+.cp-feed-tile {
+    position: relative; aspect-ratio: 1; overflow: hidden; background: var(--card, #fff);
+    cursor: pointer; transition: filter .15s ease, transform .15s ease;
 }
-.cp-feed-card:hover { transform: translateY(-3px) scale(1.01); box-shadow: 0 16px 32px -10px rgba(15,23,42,0.25); }
-.cp-feed-media { width: 100%; height: 100%; object-fit: cover; display: block; }
-.cp-feed-placeholder {
-    width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: space-between; padding: 14px;
-    background: linear-gradient(135deg, rgba(239,68,68,0.06), rgba(99,102,241,0.08)); position: relative;
+.cp-feed-tile:hover { filter: brightness(0.92); }
+.cp-feed-tile.is-selected { outline: 3px solid var(--cp-brand, #ef4444); outline-offset: -3px; z-index: 2; }
+.cp-tile-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cp-tile-empty {
+    width: 100%; height: 100%; padding: 8px; display: flex; flex-direction: column; justify-content: space-between;
+    background: linear-gradient(135deg, rgba(239,68,68,0.06), rgba(99,102,241,0.08));
 }
-.cp-feed-card-badge {
-    position: absolute; top: 8px; right: 8px; z-index: 2; width: 26px; height: 26px; border-radius: 7px;
-    background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); color: #fff; display: grid; place-items: center; font-size: 11px;
+.cp-tile-empty-title { font-size: 10.5px; font-weight: 800; line-height: 1.3; color: var(--text, #0f172a); }
+.cp-tile-empty-client { font-size: 9px; font-weight: 700; color: var(--text3, #94a3b8); text-transform: uppercase; }
+.cp-tile-date {
+    position: absolute; bottom: 4px; left: 4px; z-index: 2; padding: 1px 5px; border-radius: 4px;
+    background: rgba(15,23,42,0.72); backdrop-filter: blur(3px); color: #fff; font-size: 9px; font-weight: 800;
 }
-.cp-feed-date-chip {
-    position: absolute; top: 8px; left: 8px; z-index: 2; padding: 2px 7px; border-radius: 6px;
-    background: rgba(15,23,42,0.7); backdrop-filter: blur(4px); color: #fff; font-size: 10.5px; font-weight: 800;
+.cp-tile-type-badge {
+    position: absolute; top: 4px; right: 4px; z-index: 2; width: 20px; height: 20px; border-radius: 5px;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); color: #fff; display: grid; place-items: center; font-size: 9px;
 }
-.cp-feed-overlay {
-    position: absolute; inset: 0; z-index: 3; background: rgba(15,23,42,0.82); backdrop-filter: blur(3px);
-    color: #fff; padding: 18px; display: flex; flex-direction: column; justify-content: center; align-items: center;
-    text-align: center; gap: 8px; opacity: 0; transition: opacity .18s ease;
+.cp-phone-home-bar { width: 120px; height: 4px; background: var(--text, #0f172a); border-radius: 99px; margin: 6px auto; flex-shrink: 0; }
+
+/* ── 9-GRID FOCUS MODE ── */
+.cp-grid9-wrapper { width: 100%; max-width: 480px; margin: 0 auto; }
+.cp-grid9-card {
+    background: var(--card, #fff); border: 1px solid var(--border, #e2e6ef); border-radius: 20px;
+    padding: 18px; box-shadow: var(--cp-shadow-sm);
 }
-.cp-feed-card:hover .cp-feed-overlay { opacity: 1; }
-.cp-feed-overlay-title { font-size: 13.5px; font-weight: 800; line-height: 1.35; max-width: 90%; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.cp-feed-overlay-meta { display: flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 700; }
+.cp-grid9-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.cp-grid9-title { font-size: 13.5px; font-weight: 800; display: flex; align-items: center; gap: 8px; color: var(--text, #0f172a); }
+.cp-grid9-pager { display: flex; align-items: center; gap: 8px; }
+.cp-pager-btn { width: 28px; height: 28px; border-radius: 7px; border: 1px solid var(--border, #e2e6ef); background: var(--card2, #f1f5f9); color: var(--text, #0f172a); cursor: pointer; display: grid; place-items: center; font-size: 11px; }
+.cp-pager-btn:hover { border-color: var(--cp-brand); color: var(--cp-brand); }
+.cp-grid9-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.cp-grid9-grid .cp-feed-tile { border-radius: 10px; border: 1px solid var(--border, #e2e6ef); }
+
+/* ── STUDIO GRID (COMPACT 4-COL & STANDARD 3-COL) ── */
+.cp-studio-grid-wrapper { width: 100%; }
+.cp-studio-grid-scroll { max-height: calc(100vh - 200px); overflow-y: auto; padding-right: 6px; }
+.cp-studio-grid-scroll.is-compact { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.cp-studio-grid-scroll.is-standard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.cp-studio-grid-scroll .cp-feed-tile { border-radius: 12px; border: 1px solid var(--border, #e2e6ef); }
+
+/* ── LIVE POST INSPECTOR (RIGHT COLUMN) ── */
+.cp-feed-inspector-col { width: 100%; }
+.cp-live-inspector-card {
+    background: var(--card, #fff); border: 1px solid var(--border, #e2e6ef); border-radius: 22px;
+    padding: 22px; box-shadow: var(--cp-shadow-sm); position: sticky; top: 16px;
+    max-height: calc(100vh - 160px); overflow-y: auto;
+}
+.cp-insp-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.cp-insp-badges { display: flex; align-items: center; gap: 8px; }
+.cp-insp-format { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; color: var(--text2, #475569); }
+.cp-insp-action-btn { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 8px; font-size: 11.5px; font-weight: 700; border: 1px solid var(--border, #e2e6ef); background: var(--card2, #f1f5f9); color: var(--text2, #475569); cursor: pointer; }
+.cp-insp-action-btn:hover { border-color: var(--cp-brand); color: var(--cp-brand); }
+.cp-insp-title { font-size: 16px; font-weight: 800; line-height: 1.35; margin: 0 0 8px; color: var(--text, #0f172a); }
+.cp-insp-meta-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--text2, #475569); margin-bottom: 16px; }
+.cp-insp-meta-row span { display: inline-flex; align-items: center; gap: 5px; }
+
+/* Artwork preview */
+.cp-insp-media-box {
+    position: relative; width: 100%; height: 210px; border-radius: 14px; overflow: hidden;
+    background: var(--card2, #f1f5f9); border: 1px solid var(--border, #e2e6ef); margin-bottom: 16px;
+    display: grid; place-items: center;
+}
+.cp-insp-media-box img { width: 100%; height: 100%; object-fit: contain; background: #0b0f19; }
+.cp-insp-media-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--text3, #94a3b8); font-size: 12px; font-weight: 700; }
+.cp-insp-media-empty i { font-size: 32px; color: #e1306c; opacity: .7; }
+.cp-insp-zoom-btn {
+    position: absolute; bottom: 8px; right: 8px; display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border-radius: 7px; background: rgba(15,23,42,0.75); backdrop-filter: blur(4px);
+    color: #fff; font-size: 11px; font-weight: 700; border: none; cursor: pointer; transition: transform .15s;
+}
+.cp-insp-zoom-btn:hover { transform: scale(1.05); }
+
+/* Copywriting blocks */
+.cp-insp-section { margin-bottom: 14px; }
+.cp-insp-sec-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: var(--text3, #94a3b8); }
+.cp-copy-btn { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 5px; border: 1px solid var(--border, #e2e6ef); background: var(--card, #fff); color: var(--text2, #475569); font-size: 10.5px; font-weight: 700; cursor: pointer; }
+.cp-copy-btn:hover { border-color: var(--cp-brand); color: var(--cp-brand); }
+.cp-insp-quote {
+    margin: 0; padding: 10px 12px; border-radius: 10px; background: rgba(245,158,11,0.08);
+    border-left: 3px solid #f59e0b; font-size: 12.5px; font-weight: 700; line-height: 1.45; color: var(--text, #0f172a);
+}
+.cp-insp-caption-box {
+    padding: 10px 12px; border-radius: 10px; background: var(--card2, #f8fafc); border: 1px solid var(--border, #e2e6ef);
+    font-size: 12px; line-height: 1.55; color: var(--text, #0f172a); max-height: 110px; overflow-y: auto; white-space: pre-wrap;
+}
+.cp-insp-tags-wrap {
+    padding: 8px 10px; border-radius: 10px; background: var(--card2, #f8fafc); border: 1px solid var(--border, #e2e6ef);
+    font-size: 11.5px; line-height: 1.5; color: #6366f1; font-weight: 600; word-break: break-word;
+}
+.cp-insp-footer { display: flex; align-items: center; gap: 10px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border, #e2e6ef); }
 
 /* ── Deliverable Gallery & Copywriting Blocks ── */
 .cp-media-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-top: 8px; }
@@ -904,32 +1042,66 @@ body.dark-mode .cp-fest-chip-sm { color: #fde68a; background: rgba(120,53,15,0.3
                 </div>
             @endif
         @elseif($view === 'feed')
-            <div class="cp-feed-view">
-                <div class="cp-feed-profile">
-                    <div class="cp-feed-avatar">
-                        <div class="cp-feed-avatar-inner" style="background: {{ $selectedClient?->color ?? '#ef4444' }}">
-                            @if($selectedClient?->logo)
-                                <img src="{{ asset('storage/' . $selectedClient->logo) }}" alt="{{ $selectedClient->name }}">
-                            @else
-                                {{ $initials($selectedClient?->name ?? 'TMS') }}
+            <div class="cp-feed-view" id="cpFeedView">
+                {{-- Quick Client Switcher Bar for Admin & Multi-Client Feeds --}}
+                <div class="cp-feed-clients-bar">
+                    <span class="cp-feed-bar-label"><i class="fas fa-building"></i> Client Feed:</span>
+                    <div class="cp-feed-clients-scroll">
+                        <a href="{{ $url(['client' => null, 'view' => 'feed']) }}" class="cp-chip {{ !$clientId ? 'is-active' : '' }}">
+                            <i class="fas fa-layer-group"></i> All Clients ({{ $feedGrid->count() }})
+                        </a>
+                        @foreach($clients as $c)
+                            @php
+                                $cCount = $feedGrid->filter(fn($i) => ($i->task->client_id ?? null) === $c->id)->count();
+                            @endphp
+                            @if($cCount > 0 || $clientId === $c->id)
+                                <a href="{{ $url(['client' => $c->id, 'view' => 'feed']) }}" 
+                                   class="cp-chip {{ $clientId === $c->id ? 'is-active' : '' }}"
+                                   @if($clientId === $c->id) style="background: {{ $c->color ?? '#ef4444' }}; border-color: {{ $c->color ?? '#ef4444' }}; color: #fff;" @endif>
+                                    <span>{{ $c->emoji ?: '🏢' }} {{ $c->name }}</span>
+                                    <span class="cp-count-pill">{{ $cCount }}</span>
+                                </a>
                             @endif
+                        @endforeach
+                    </div>
+                </div>
+
+                {{-- Feed Studio Control Toolbar --}}
+                <div class="cp-feed-toolbar">
+                    <div class="cp-feed-toolbar-left">
+                        <div class="cp-seg-group">
+                            <span class="cp-seg-label"><i class="fas fa-eye"></i> Layout:</span>
+                            <div class="cp-segmented" id="cpFeedLayoutTabs">
+                                <button type="button" class="cp-seg-btn is-active" data-feed-mode="phone" title="Smartphone Mockup View (Contained & Compact)">
+                                    <i class="fas fa-mobile-screen"></i> <span>Phone Frame</span>
+                                </button>
+                                <button type="button" class="cp-seg-btn" data-feed-mode="grid9" title="Classic 9-Grid Profile Focus">
+                                    <i class="fas fa-border-all"></i> <span>9-Grid Focus</span>
+                                </button>
+                                <button type="button" class="cp-seg-btn" data-feed-mode="compact" title="Compact 4-Column Studio (Low Scroll)">
+                                    <i class="fas fa-grip"></i> <span>Compact (4-Col)</span>
+                                </button>
+                                <button type="button" class="cp-seg-btn" data-feed-mode="grid" title="Standard 3-Column Grid">
+                                    <i class="fas fa-table-cells"></i> <span>3-Col Grid</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="cp-seg-group">
+                            <span class="cp-seg-label"><i class="fas fa-list-ol"></i> Display:</span>
+                            <div class="cp-segmented" id="cpFeedLimitTabs">
+                                <button type="button" class="cp-seg-btn is-active" data-feed-limit="9" title="First 9 Posts (Instagram Profile Window)">Top 9</button>
+                                <button type="button" class="cp-seg-btn" data-feed-limit="18" title="First 18 Posts">Top 18</button>
+                                <button type="button" class="cp-seg-btn" data-feed-limit="all" title="Show All Posts">All ({{ $feedGrid->count() }})</button>
+                            </div>
                         </div>
                     </div>
-                    <div class="cp-feed-info">
-                        <div class="cp-feed-handle">
-                            {{ $selectedClient ? $selectedClient->name : 'Agency Content Feed' }}
-                            <i class="fas fa-circle-check cp-feed-handle-badge"></i>
+
+                    <div class="cp-feed-toolbar-right">
+                        <div class="cp-feed-cadence-badge">
+                            <i class="fa-brands fa-instagram" style="color:#e1306c"></i>
+                            <span><strong>{{ $feedGrid->count() }}</strong> posts scheduled</span>
                         </div>
-                        <div class="cp-feed-stats">
-                            <span><strong>{{ $feedGrid->count() }}</strong> planned posts</span>
-                            <span><strong>{{ $summary['counts']['done'] }}</strong> posted</span>
-                            <span><strong>{{ $summary['completion'] }}%</strong> complete</span>
-                        </div>
-                        <div class="cp-feed-bio">
-                            Instagram 9-Grid Aesthetic Feed Preview · Visual cadence simulation for {{ $title }}.
-                        </div>
-                    </div>
-                    <div>
                         <button type="button" class="cp-btn cp-btn-primary" data-quick-create="{{ today()->toDateString() }}" data-platform="instagram">
                             <i class="fas fa-plus"></i> Schedule Post
                         </button>
@@ -946,48 +1118,256 @@ body.dark-mode .cp-fest-chip-sm { color: #fde68a; background: rgba(120,53,15,0.3
                         </button>
                     </div>
                 @else
-                    <div class="cp-feed-grid-wrap">
-                        @foreach($feedGrid as $item)
-                            @php
-                                $task = $item->task;
-                                $st = $states[$item->state];
-                                $thumb = $item->thumbnail;
-                                $previewUrl = $thumb['url'] ?? null;
-                            @endphp
-                            <div class="cp-feed-card tone-{{ $st['tone'] }}" data-open-task="{{ $task->id }}">
-                                <span class="cp-feed-date-chip">{{ $item->planDate->format('M d') }}</span>
-                                <span class="cp-feed-card-badge">
-                                    <i class="fas {{ $typeIcon($task->type) }}"></i>
-                                </span>
-                                @if($previewUrl)
-                                    <img src="{{ $previewUrl }}" alt="{{ $task->title }}" class="cp-feed-media">
-                                @else
-                                    <div class="cp-feed-placeholder" style="background: radial-gradient(circle at top right, rgba(239,68,68,0.15), transparent 70%), var(--card2, #f8fafc)">
-                                        <div style="font-size:11px;font-weight:800;color:var(--text3,#94a3b8)">
-                                            {{ $task->client->name ?? 'Client' }}
-                                        </div>
-                                        <div style="font-size:13px;font-weight:800;line-height:1.35;color:var(--text,#0f172a)">
-                                            {{ $task->headline_copy ?: $task->title }}
-                                        </div>
-                                        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:auto">
-                                            <span class="cp-pill tone-{{ $st['tone'] }}" style="padding:2px 8px;font-size:10px">{{ $st['label'] }}</span>
-                                            <span style="font-size:11px;color:var(--text3,#94a3b8)">{{ $task->type ?? 'post' }}</span>
+                    {{-- Studio Split Workspace: Left feed preview + Right live post inspector --}}
+                    <div class="cp-feed-studio" id="cpFeedStudio">
+                        {{-- ── LEFT PREVIEW COLUMN ── --}}
+                        <div class="cp-feed-stage-col">
+
+                            {{-- 1. PHONE MOCKUP MODE --}}
+                            <div class="cp-phone-wrapper" id="cpPhoneWrapper">
+                                <div class="cp-phone-chassis">
+                                    {{-- Dynamic Island & Speaker --}}
+                                    <div class="cp-phone-island">
+                                        <div class="cp-phone-camera"></div>
+                                    </div>
+                                    {{-- Phone Status Bar --}}
+                                    <div class="cp-phone-status-bar">
+                                        <span>9:41</span>
+                                        <div class="cp-phone-status-icons">
+                                            <i class="fas fa-signal"></i>
+                                            <i class="fas fa-wifi"></i>
+                                            <i class="fas fa-battery-full"></i>
                                         </div>
                                     </div>
-                                @endif
-                                <div class="cp-feed-overlay">
-                                    <span class="cp-pill tone-{{ $st['tone'] }}">{{ $st['label'] }}</span>
-                                    <div class="cp-feed-overlay-title">{{ $task->title }}</div>
-                                    <div class="cp-feed-overlay-meta">
-                                        <span><i class="fas fa-calendar-day"></i> {{ $item->planDate->format('D, M d') }}</span>
-                                        @if($task->assignee)
-                                            <span>· <i class="fas fa-user-pen"></i> {{ $task->assignee->name }}</span>
-                                        @endif
+                                    {{-- Compact Instagram App Header --}}
+                                    <div class="cp-phone-app-header">
+                                        <div class="cp-phone-top-bar">
+                                            <div class="cp-phone-username">
+                                                <span>{{ Str::lower(Str::slug($selectedClient?->name ?? 'agency_feed', '_')) }}</span>
+                                                <i class="fas fa-circle-check" style="color:#0ea5e9;font-size:12px"></i>
+                                                <i class="fas fa-chevron-down" style="font-size:10px;opacity:.6"></i>
+                                            </div>
+                                            <div class="cp-phone-top-actions">
+                                                <i class="fas fa-plus-square" data-quick-create="{{ today()->toDateString() }}" data-platform="instagram" title="Quick Add Post"></i>
+                                                <i class="fas fa-bars"></i>
+                                            </div>
+                                        </div>
+
+                                        {{-- Profile Stats Row --}}
+                                        <div class="cp-phone-profile-row">
+                                            <div class="cp-phone-avatar-ring">
+                                                <div class="cp-phone-avatar-inner" style="background: {{ $selectedClient?->color ?? '#ef4444' }}">
+                                                    @if($selectedClient?->logo)
+                                                        <img src="{{ asset('storage/' . $selectedClient->logo) }}" alt="{{ $selectedClient->name }}">
+                                                    @else
+                                                        {{ $initials($selectedClient?->name ?? 'TMS') }}
+                                                    @endif
+                                                </div>
+                                            </div>
+                                            <div class="cp-phone-stats-cols">
+                                                <div class="cp-phone-stat">
+                                                    <strong>{{ $feedGrid->count() }}</strong>
+                                                    <span>posts</span>
+                                                </div>
+                                                <div class="cp-phone-stat">
+                                                    <strong>{{ $summary['counts']['done'] }}</strong>
+                                                    <span>posted</span>
+                                                </div>
+                                                <div class="cp-phone-stat">
+                                                    <strong>{{ $summary['completion'] }}%</strong>
+                                                    <span>done</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {{-- Mini Bio --}}
+                                        <div class="cp-phone-bio">
+                                            <div class="cp-phone-name">{{ $selectedClient ? $selectedClient->name : 'Agency Content Strategy' }}</div>
+                                            <div class="cp-phone-category">Media / Agency · Content Cadence</div>
+                                            <div class="cp-phone-link"><i class="fas fa-link"></i> {{ Str::lower(Str::slug($selectedClient?->name ?? 'agency')) }}.com</div>
+                                        </div>
+
+                                        {{-- App Action Buttons --}}
+                                        <div class="cp-phone-buttons">
+                                            <button type="button" class="cp-phone-btn">Edit Profile</button>
+                                            <button type="button" class="cp-phone-btn">Share Profile</button>
+                                            <button type="button" class="cp-phone-btn cp-phone-btn-icon"><i class="fas fa-user-plus"></i></button>
+                                        </div>
+
+                                        {{-- Feed Nav Tabs --}}
+                                        <div class="cp-phone-tabs">
+                                            <div class="cp-phone-tab is-active"><i class="fas fa-table-cells"></i></div>
+                                            <div class="cp-phone-tab"><i class="fa-brands fa-youtube"></i></div>
+                                            <div class="cp-phone-tab"><i class="fas fa-id-badge"></i></div>
+                                        </div>
                                     </div>
-                                    <span style="font-size:11px;margin-top:6px;opacity:0.85"><i class="fas fa-eye"></i> Click to inspect</span>
+
+                                    {{-- Phone Feed Scrollable Grid --}}
+                                    <div class="cp-phone-feed-scroll" id="cpPhoneFeedScroll">
+                                        <div class="cp-phone-grid" id="cpPhoneGridContainer">
+                                            @foreach($feedGrid as $index => $item)
+                                                @php
+                                                    $task = $item->task;
+                                                    $st = $states[$item->state];
+                                                    $thumb = $item->thumbnail;
+                                                    $previewUrl = $thumb['url'] ?? null;
+                                                @endphp
+                                                <div class="cp-feed-tile tone-{{ $st['tone'] }} {{ $index === 0 ? 'is-selected' : '' }}"
+                                                     data-feed-index="{{ $index }}"
+                                                     data-task-id="{{ $task->id }}"
+                                                     data-title="{{ $task->title }}"
+                                                     data-headline="{{ $task->headline_copy ?: '' }}"
+                                                     data-caption="{{ $task->caption ?: '' }}"
+                                                     data-hashtags="{{ $task->hashtags ?: '' }}"
+                                                     data-thumb="{{ $previewUrl ?: '' }}"
+                                                     data-type="{{ $task->type ?: 'post' }}"
+                                                     data-state-label="{{ $st['label'] }}"
+                                                     data-state-tone="{{ $st['tone'] }}"
+                                                     data-date="{{ $item->planDate->format('M d, Y') }}"
+                                                     data-client="{{ $task->client->name ?? 'Client' }}"
+                                                     data-assignee="{{ $task->assignee->name ?? 'Unassigned' }}"
+                                                     title="{{ $task->title }} · {{ $item->planDate->format('M d') }}">
+                                                    
+                                                    <span class="cp-tile-date">{{ $item->planDate->format('d M') }}</span>
+                                                    <span class="cp-tile-type-badge">
+                                                        <i class="fas {{ $typeIcon($task->type) }}"></i>
+                                                    </span>
+                                                    
+                                                    @if($previewUrl)
+                                                        <img src="{{ $previewUrl }}" alt="{{ $task->title }}" class="cp-tile-img" loading="lazy">
+                                                    @else
+                                                        <div class="cp-tile-empty">
+                                                            <div class="cp-tile-empty-title">{{ Str::limit($task->headline_copy ?: $task->title, 28) }}</div>
+                                                            <div class="cp-tile-empty-client">{{ $task->client->name ?? '' }}</div>
+                                                        </div>
+                                                    @endif
+
+                                                    <div class="cp-tile-active-indicator"></div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+
+                                    {{-- Phone Home Indicator Bar --}}
+                                    <div class="cp-phone-home-bar"></div>
                                 </div>
                             </div>
-                        @endforeach
+
+                            {{-- 2. 9-GRID FOCUS MODE --}}
+                            <div class="cp-grid9-wrapper" id="cpGrid9Wrapper" style="display:none">
+                                <div class="cp-grid9-card">
+                                    <div class="cp-grid9-header">
+                                        <div class="cp-grid9-title">
+                                            <i class="fas fa-border-all" style="color:var(--cp-brand)"></i>
+                                            <span>Instagram 9-Grid Aesthetic Simulator</span>
+                                        </div>
+                                        <div class="cp-grid9-pager" id="cpGrid9Pager">
+                                            <button type="button" class="cp-pager-btn" id="cpGrid9Prev" title="Previous 9 Posts"><i class="fas fa-chevron-left"></i></button>
+                                            <span id="cpGrid9PageIndicator" style="font-size:12px;font-weight:700">Page 1</span>
+                                            <button type="button" class="cp-pager-btn" id="cpGrid9Next" title="Next 9 Posts"><i class="fas fa-chevron-right"></i></button>
+                                        </div>
+                                    </div>
+                                    <div class="cp-grid9-grid" id="cpGrid9Container">
+                                        {{-- Injected dynamically from feed items --}}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- 3. COMPACT & STANDARD STUDIO GRID CONTAINER --}}
+                            <div class="cp-studio-grid-wrapper" id="cpStudioGridWrapper" style="display:none">
+                                <div class="cp-studio-grid-scroll" id="cpStudioGridContainer">
+                                    {{-- Injected dynamically --}}
+                                </div>
+                            </div>
+
+                        </div>
+
+                        {{-- ── RIGHT LIVE INSPECTOR COLUMN ── --}}
+                        <div class="cp-feed-inspector-col">
+                            <div class="cp-live-inspector-card" id="cpLiveInspectorCard">
+                                {{-- Inspector Header --}}
+                                <div class="cp-insp-top">
+                                    <div class="cp-insp-badges">
+                                        <span class="cp-pill tone-green" id="inspStatePill">Scheduled</span>
+                                        <span class="cp-insp-format" id="inspFormatPill"><i class="fas fa-image"></i> Post</span>
+                                    </div>
+                                    <div class="cp-insp-top-actions">
+                                        <button type="button" class="cp-insp-action-btn" id="inspOpenDrawerBtn" title="Inspect Full Deliverables & Comments">
+                                            <i class="fas fa-expand"></i> Full View
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {{-- Main Title & Date --}}
+                                <h3 class="cp-insp-title" id="inspTitle">Select a post to inspect</h3>
+                                <div class="cp-insp-meta-row">
+                                    <span><i class="fas fa-calendar-day"></i> <strong id="inspDate">—</strong></span>
+                                    <span><i class="fas fa-building"></i> <span id="inspClient">—</span></span>
+                                    <span><i class="fas fa-user-pen"></i> <span id="inspAssignee">—</span></span>
+                                </div>
+
+                                {{-- Artwork Preview Box --}}
+                                <div class="cp-insp-media-box" id="inspMediaBox">
+                                    <img src="" alt="" id="inspMediaImg" style="display:none">
+                                    <div class="cp-insp-media-empty" id="inspMediaEmpty">
+                                        <i class="fa-brands fa-instagram"></i>
+                                        <span>No image preview uploaded yet</span>
+                                    </div>
+                                    <button type="button" class="cp-insp-zoom-btn" id="inspZoomBtn" title="Open Full Screen Lightbox" style="display:none">
+                                        <i class="fas fa-magnifying-glass-plus"></i> Zoom
+                                    </button>
+                                </div>
+
+                                {{-- Copywriting Engine: Headline Hook --}}
+                                <div class="cp-insp-section" id="inspHeadlineSec">
+                                    <div class="cp-insp-sec-head">
+                                        <span><i class="fas fa-bolt" style="color:#f59e0b"></i> Headline Hook</span>
+                                        <button type="button" class="cp-copy-btn" id="inspCopyHookBtn" title="Copy headline hook">
+                                            <i class="fas fa-copy"></i> Copy
+                                        </button>
+                                    </div>
+                                    <blockquote class="cp-insp-quote" id="inspHeadlineText">
+                                        No headline hook added.
+                                    </blockquote>
+                                </div>
+
+                                {{-- Copywriting Engine: Caption --}}
+                                <div class="cp-insp-section" id="inspCaptionSec">
+                                    <div class="cp-insp-sec-head">
+                                        <span><i class="fas fa-align-left" style="color:#0ea5e9"></i> Caption</span>
+                                        <button type="button" class="cp-copy-btn" id="inspCopyCaptionBtn" title="Copy full caption">
+                                            <i class="fas fa-copy"></i> Copy
+                                        </button>
+                                    </div>
+                                    <div class="cp-insp-caption-box" id="inspCaptionText">
+                                        No caption written yet.
+                                    </div>
+                                </div>
+
+                                {{-- Copywriting Engine: Hashtags --}}
+                                <div class="cp-insp-section" id="inspHashtagsSec">
+                                    <div class="cp-insp-sec-head">
+                                        <span><i class="fas fa-hashtag" style="color:#8b5cf6"></i> Hashtags</span>
+                                        <button type="button" class="cp-copy-btn" id="inspCopyTagsBtn" title="Copy all hashtags">
+                                            <i class="fas fa-copy"></i> Copy Tags
+                                        </button>
+                                    </div>
+                                    <div class="cp-insp-tags-wrap" id="inspHashtagsText">
+                                        No hashtags added.
+                                    </div>
+                                </div>
+
+                                {{-- Bottom Action Footer --}}
+                                <div class="cp-insp-footer">
+                                    <button type="button" class="cp-btn cp-btn-primary" style="flex:1" id="inspOpenFullBtn">
+                                        <i class="fas fa-sliders-h"></i> Open Task Drawer
+                                    </button>
+                                    <a href="#" class="cp-btn" id="inspEditLink" style="padding:0 12px" title="Edit Task">
+                                        <i class="fas fa-pen-to-square"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 @endif
             </div>
@@ -1867,6 +2247,258 @@ body.dark-mode .cp-fest-chip-sm { color: #fde68a; background: rgba(120,53,15,0.3
             }
         });
     });
+
+    // ── Feed Studio Controller ──
+    function initFeedStudio() {
+        const feedView = document.getElementById('cpFeedView');
+        if (!feedView) return;
+
+        const layoutTabs = document.querySelectorAll('#cpFeedLayoutTabs [data-feed-mode]');
+        const limitTabs = document.querySelectorAll('#cpFeedLimitTabs [data-feed-limit]');
+        const phoneWrapper = document.getElementById('cpPhoneWrapper');
+        const grid9Wrapper = document.getElementById('cpGrid9Wrapper');
+        const studioGridWrapper = document.getElementById('cpStudioGridWrapper');
+        const studioGridContainer = document.getElementById('cpStudioGridContainer');
+        const grid9Container = document.getElementById('cpGrid9Container');
+        const phoneGridContainer = document.getElementById('cpPhoneGridContainer');
+
+        const allTiles = Array.from(phoneGridContainer?.querySelectorAll('.cp-feed-tile') || []);
+        if (allTiles.length === 0) return;
+
+        let currentMode = 'phone';
+        let currentLimit = '9';
+        let current9Page = 1;
+
+        // Tile Inspector Elements
+        const inspTitle = document.getElementById('inspTitle');
+        const inspStatePill = document.getElementById('inspStatePill');
+        const inspFormatPill = document.getElementById('inspFormatPill');
+        const inspDate = document.getElementById('inspDate');
+        const inspClient = document.getElementById('inspClient');
+        const inspAssignee = document.getElementById('inspAssignee');
+        const inspMediaImg = document.getElementById('inspMediaImg');
+        const inspMediaEmpty = document.getElementById('inspMediaEmpty');
+        const inspZoomBtn = document.getElementById('inspZoomBtn');
+        const inspHeadlineText = document.getElementById('inspHeadlineText');
+        const inspCaptionText = document.getElementById('inspCaptionText');
+        const inspHashtagsText = document.getElementById('inspHashtagsText');
+        const inspOpenDrawerBtn = document.getElementById('inspOpenDrawerBtn');
+        const inspOpenFullBtn = document.getElementById('inspOpenFullBtn');
+        const inspEditLink = document.getElementById('inspEditLink');
+
+        function getTypeIcon(type) {
+            const icons = {
+                reel: 'fa-film', video: 'fa-play-circle', carousel: 'fa-layer-group',
+                story: 'fa-circle-notch', graphic: 'fa-palette', default: 'fa-image'
+            };
+            return icons[type] || icons.default;
+        }
+
+        function capitalize(s) {
+            return s ? s.charAt(0).toUpperCase() + s.slice(1) : 'Post';
+        }
+
+        function selectTile(tile) {
+            if (!tile) return;
+            const taskId = tile.dataset.taskId;
+            const title = tile.dataset.title;
+            const headline = tile.dataset.headline;
+            const caption = tile.dataset.caption;
+            const hashtags = tile.dataset.hashtags;
+            const thumb = tile.dataset.thumb;
+            const type = tile.dataset.type;
+            const stateLabel = tile.dataset.stateLabel;
+            const stateTone = tile.dataset.stateTone;
+            const date = tile.dataset.date;
+            const client = tile.dataset.client;
+            const assignee = tile.dataset.assignee;
+
+            // Highlight in all grids
+            document.querySelectorAll('.cp-feed-tile').forEach(t => {
+                t.classList.toggle('is-selected', t.dataset.taskId === taskId);
+            });
+
+            // Update live inspector
+            if (inspTitle) inspTitle.textContent = title;
+            if (inspStatePill) {
+                inspStatePill.textContent = stateLabel;
+                inspStatePill.className = `cp-pill tone-${stateTone}`;
+            }
+            if (inspFormatPill) {
+                inspFormatPill.innerHTML = `<i class="fas ${getTypeIcon(type)}"></i> ${capitalize(type)}`;
+            }
+            if (inspDate) inspDate.textContent = date;
+            if (inspClient) inspClient.textContent = client;
+            if (inspAssignee) inspAssignee.textContent = assignee;
+
+            if (thumb) {
+                if (inspMediaImg) {
+                    inspMediaImg.src = thumb;
+                    inspMediaImg.style.display = 'block';
+                }
+                if (inspMediaEmpty) inspMediaEmpty.style.display = 'none';
+                if (inspZoomBtn) {
+                    inspZoomBtn.style.display = 'inline-flex';
+                    inspZoomBtn.onclick = () => openLightbox(thumb, 'image');
+                }
+            } else {
+                if (inspMediaImg) inspMediaImg.style.display = 'none';
+                if (inspMediaEmpty) inspMediaEmpty.style.display = 'flex';
+                if (inspZoomBtn) inspZoomBtn.style.display = 'none';
+            }
+
+            if (inspHeadlineText) inspHeadlineText.textContent = headline || 'No headline hook added.';
+            if (inspCaptionText) inspCaptionText.textContent = caption || 'No caption written yet.';
+            if (inspHashtagsText) inspHashtagsText.textContent = hashtags || 'No hashtags added.';
+
+            const onDrawerClick = () => openTask(taskId);
+            if (inspOpenDrawerBtn) inspOpenDrawerBtn.onclick = onDrawerClick;
+            if (inspOpenFullBtn) inspOpenFullBtn.onclick = onDrawerClick;
+            if (inspEditLink) inspEditLink.href = `/admin/tasks/${taskId}/edit`;
+        }
+
+        // Copy buttons
+        function copyWithFeedback(btnId, text) {
+            const btn = document.getElementById(btnId);
+            if (!btn || !text) return;
+            navigator.clipboard.writeText(text).then(() => {
+                const orig = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check" style="color:#22c55e"></i> Copied!';
+                setTimeout(() => btn.innerHTML = orig, 1800);
+            }).catch(() => {
+                showToast('Unable to copy text to clipboard.');
+            });
+        }
+
+        document.getElementById('inspCopyHookBtn')?.addEventListener('click', () => {
+            const text = inspHeadlineText?.textContent?.trim();
+            if (text && text !== 'No headline hook added.') copyWithFeedback('inspCopyHookBtn', text);
+        });
+        document.getElementById('inspCopyCaptionBtn')?.addEventListener('click', () => {
+            const text = inspCaptionText?.textContent?.trim();
+            if (text && text !== 'No caption written yet.') copyWithFeedback('inspCopyCaptionBtn', text);
+        });
+        document.getElementById('inspCopyTagsBtn')?.addEventListener('click', () => {
+            const text = inspHashtagsText?.textContent?.trim();
+            if (text && text !== 'No hashtags added.') copyWithFeedback('inspCopyTagsBtn', text);
+        });
+
+        // Click tile delegated listener
+        feedView.addEventListener('click', (e) => {
+            const tile = e.target.closest('.cp-feed-tile');
+            if (tile) {
+                selectTile(tile);
+            }
+        });
+
+        // 9-Grid Pager
+        function renderGrid9() {
+            if (!grid9Container) return;
+            const itemsPerPage = 9;
+            const totalPages = Math.ceil(allTiles.length / itemsPerPage) || 1;
+            if (current9Page > totalPages) current9Page = totalPages;
+            if (current9Page < 1) current9Page = 1;
+
+            const start = (current9Page - 1) * itemsPerPage;
+            const pagedTiles = allTiles.slice(start, start + itemsPerPage);
+
+            grid9Container.innerHTML = '';
+            pagedTiles.forEach(t => {
+                grid9Container.appendChild(t.cloneNode(true));
+            });
+
+            const indicator = document.getElementById('cpGrid9PageIndicator');
+            if (indicator) indicator.textContent = `Page ${current9Page} of ${totalPages}`;
+
+            const prevBtn = document.getElementById('cpGrid9Prev');
+            const nextBtn = document.getElementById('cpGrid9Next');
+            if (prevBtn) prevBtn.disabled = current9Page <= 1;
+            if (nextBtn) nextBtn.disabled = current9Page >= totalPages;
+        }
+
+        document.getElementById('cpGrid9Prev')?.addEventListener('click', () => {
+            if (current9Page > 1) {
+                current9Page--;
+                renderGrid9();
+            }
+        });
+        document.getElementById('cpGrid9Next')?.addEventListener('click', () => {
+            const totalPages = Math.ceil(allTiles.length / 9) || 1;
+            if (current9Page < totalPages) {
+                current9Page++;
+                renderGrid9();
+            }
+        });
+
+        // Studio Grid Renderer (Compact / Standard)
+        function renderStudioGrid(mode) {
+            if (!studioGridContainer) return;
+            studioGridContainer.className = `cp-studio-grid-scroll is-${mode}`;
+            studioGridContainer.innerHTML = '';
+
+            const limit = currentLimit === 'all' ? allTiles.length : parseInt(currentLimit, 10);
+            const slice = allTiles.slice(0, limit);
+
+            slice.forEach(t => {
+                studioGridContainer.appendChild(t.cloneNode(true));
+            });
+        }
+
+        // Apply Layout Mode
+        function setMode(mode) {
+            currentMode = mode;
+            layoutTabs.forEach(b => b.classList.toggle('is-active', b.dataset.feedMode === mode));
+
+            if (mode === 'phone') {
+                if (phoneWrapper) phoneWrapper.style.display = 'flex';
+                if (grid9Wrapper) grid9Wrapper.style.display = 'none';
+                if (studioGridWrapper) studioGridWrapper.style.display = 'none';
+            } else if (mode === 'grid9') {
+                if (phoneWrapper) phoneWrapper.style.display = 'none';
+                if (grid9Wrapper) grid9Wrapper.style.display = 'block';
+                if (studioGridWrapper) studioGridWrapper.style.display = 'none';
+                renderGrid9();
+            } else if (mode === 'compact' || mode === 'grid') {
+                if (phoneWrapper) phoneWrapper.style.display = 'none';
+                if (grid9Wrapper) grid9Wrapper.style.display = 'none';
+                if (studioGridWrapper) studioGridWrapper.style.display = 'block';
+                renderStudioGrid(mode === 'compact' ? 'compact' : 'standard');
+            }
+        }
+
+        layoutTabs.forEach(btn => {
+            btn.addEventListener('click', () => setMode(btn.dataset.feedMode));
+        });
+
+        // Apply Limit Filter
+        limitTabs.forEach(btn => {
+            btn.addEventListener('click', () => {
+                currentLimit = btn.dataset.feedLimit;
+                limitTabs.forEach(b => b.classList.toggle('is-active', b === btn));
+                if (currentMode === 'compact' || currentMode === 'grid') {
+                    renderStudioGrid(currentMode === 'compact' ? 'compact' : 'standard');
+                } else if (currentMode === 'phone') {
+                    const limit = currentLimit === 'all' ? allTiles.length : parseInt(currentLimit, 10);
+                    allTiles.forEach((tile, idx) => {
+                        tile.style.display = idx < limit ? '' : 'none';
+                    });
+                }
+            });
+        });
+
+        // Set default limit in phone grid
+        const defaultLimit = parseInt(currentLimit, 10);
+        allTiles.forEach((tile, idx) => {
+            tile.style.display = idx < defaultLimit ? '' : 'none';
+        });
+
+        // Auto select first tile on load
+        if (allTiles[0]) {
+            selectTile(allTiles[0]);
+        }
+    }
+
+    initFeedStudio();
 
     // Deep link direct open (?task=ID or ?day=YYYY-MM-DD)
     const params = new URL(window.location.href).searchParams;

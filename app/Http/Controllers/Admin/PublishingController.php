@@ -31,6 +31,29 @@ class PublishingController extends Controller
         return view('admin.publishing.show', $data);
     }
 
+    public function bulkPublish(Request $request)
+    {
+        $request->validate([
+            'task_ids'   => 'required|array',
+            'task_ids.*' => 'integer|exists:tasks,id',
+        ]);
+
+        $taskIds = $request->input('task_ids', []);
+        $count = $this->service->bulkPublish($taskIds);
+
+        $message = "Successfully published {$count} task" . ($count !== 1 ? 's' : '') . '!';
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'count'   => $count,
+                'message' => $message,
+            ]);
+        }
+
+        return back()->with('success', $message);
+    }
+
     public function publish(Request $request, Task $task)
     {
         $this->service->publish($task);

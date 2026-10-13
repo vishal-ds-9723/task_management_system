@@ -194,6 +194,18 @@ class TaskController extends Controller
             ];
         })->values();
 
+        $pausedPredecessor = null;
+        if ($task->is_urgent_task) {
+            $pauseRecord = \App\Models\TaskPause::where('replacement_task_id', $task->id)->with('task:id,title,status')->latest()->first();
+            if ($pauseRecord && $pauseRecord->task) {
+                $pausedPredecessor = [
+                    'id'     => $pauseRecord->task->id,
+                    'title'  => $pauseRecord->task->title,
+                    'status' => $pauseRecord->task->status,
+                ];
+            }
+        }
+
         return response()->json([
             'success' => true,
             'task' => [
@@ -203,6 +215,9 @@ class TaskController extends Controller
                 'type_class'               => $task->type_tag_class,
                 'platform'                 => is_array($task->platform) ? $task->platform : ($task->platform ? [$task->platform] : []),
                 'priority'                 => $task->priority,
+                'is_urgent_task'           => (bool) $task->is_urgent_task,
+                'urgent_requested_by'      => $task->urgent_requested_by,
+                'paused_predecessor'       => $pausedPredecessor,
                 'status'                   => $task->status,
                 'status_label'             => $task->status_label,
                 'status_class'             => $task->status_class,
@@ -866,7 +881,7 @@ class TaskController extends Controller
             ])
             ->withCount('comments');
 
-        if ($scope === 'my') {
+        if ($scope === 'my' && $request->input('status') !== 'urgent') {
             $query->where('created_by', $strategistId);
         } else {
             $query->strategistVisible();
@@ -877,7 +892,10 @@ class TaskController extends Controller
             $query->where('title', 'like', '%' . $search . '%');
         }
 
-        if ($request->filled('status') && $request->input('status') !== 'all') {
+        if ($request->input('status') === 'urgent' || $request->input('filter') === 'urgent') {
+            $query->where(fn ($q) => $q->where('tasks.is_urgent_task', true)->orWhere('tasks.priority', 'urgent'))
+                ->whereNotIn('tasks.status', ['completed', 'published']);
+        } elseif ($request->filled('status') && $request->input('status') !== 'all') {
             if ($request->input('status') === 'overdue') {
                 $query->whereNotIn('status', ['completed', 'published'])
                     ->whereNotNull('deadline')
@@ -956,10 +974,18 @@ class TaskController extends Controller
         $completedCount  = (clone $allTasks)->whereIn('status', ['completed', 'published'])->count();
         $overdueCount    = (clone $allTasks)->whereNotIn('status', ['completed', 'published'])
             ->whereNotNull('deadline')->where('deadline', '<', now())->count();
+        $urgentCount     = (clone $allTasks)->where(fn ($q) => $q->where('tasks.is_urgent_task', true)->orWhere('tasks.priority', 'urgent'))
+            ->whereNotIn('status', ['completed', 'published'])->count();
+
+        // System-wide active urgent tasks self-created by designers (for top situational awareness alert)
+        $systemUrgentCount = Task::where('is_urgent_task', true)
+            ->whereNotIn('status', ['completed', 'published'])
+            ->count();
 
         return view('strategist.tracking', compact(
             'tasks', 'clients', 'designers', 'strategists', 'scope',
-            'totalCount', 'todoCount', 'inProgressCount', 'reviewCount', 'inRevisionCount', 'completedCount', 'overdueCount'
+            'totalCount', 'todoCount', 'inProgressCount', 'reviewCount', 'inRevisionCount', 'completedCount', 'overdueCount',
+            'urgentCount', 'systemUrgentCount'
         ));
     }
 

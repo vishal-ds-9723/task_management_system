@@ -10,18 +10,37 @@ use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use App\Models\Client;
+use App\Models\User;
 
 class ApprovalService
 {
     use \App\Support\Concerns\StoresTaskMedia;
 
     /**
-     * Get pending approval tasks with filters
+     * Get pending approval tasks with accurate stats and filter datasets
      */
-    public function getPendingTasks(Request $request)
+    public function getPendingTasksData(Request $request): array
     {
-        // Urgent tasks follow the same approval flow as everything else
-        $query = Task::whereIn('status', ['review', 'pending_approval'])
+        $baseQuery = Task::whereIn('status', ['review', 'pending_approval']);
+
+        // Calculate accurate global stats across the database
+        $totalPending = (clone $baseQuery)->count();
+        $urgentCount = (clone $baseQuery)->where(function ($q) {
+            $q->where('is_urgent_task', true)->orWhere('priority', 'urgent');
+        })->count();
+        $withMediaCount = (clone $baseQuery)->has('media')->count();
+        $awaitingFilesCount = max(0, $totalPending - $withMediaCount);
+
+        $stats = [
+            'totalPending'       => $totalPending,
+            'urgentCount'        => $urgentCount,
+            'withMediaCount'     => $withMediaCount,
+            'awaitingFilesCount' => $awaitingFilesCount,
+        ];
+
+        // Filtered query for pagination
+        $query = (clone $baseQuery)
             ->with(['creator', 'assignee', 'client', 'media'])
             ->latest('updated_at');
 
@@ -31,11 +50,65 @@ class ApprovalService
                 $q->where('title', 'like', $search)
                   ->orWhere('caption', 'like', $search)
                   ->orWhere('brief', 'like', $search)
-                  ->orWhereHas('client', fn ($q2) => $q2->where('name', 'like', $search));
+                  ->orWhereHas('client', fn ($q2) => $q2->where('name', 'like', $search))
+                  ->orWhereHas('assignee', fn ($q3) => $q3->where('name', 'like', $search));
             });
         }
 
-        return $query->paginate(20)->withQueryString();
+        if ($request->filled('client_id')) {
+            $query->where('client_id', (int) $request->input('client_id'));
+        }
+
+        if ($request->filled('assignee_id')) {
+            $query->where('assigned_to', (int) $request->input('assignee_id'));
+        }
+
+        if ($request->input('urgent_only') === '1' || $request->input('urgent_only') === 'yes') {
+            $query->where(function ($q) {
+                $q->where('is_urgent_task', true)->orWhere('priority', 'urgent');
+            });
+        }
+
+        if ($request->filled('has_media')) {
+            if ($request->input('has_media') === 'yes') {
+                $query->has('media');
+            } elseif ($request->input('has_media') === 'no') {
+                $query->doesntHave('media');
+            }
+        }
+
+        $tasks = $query->paginate(20)->withQueryString();
+
+        $clients = Client::where('is_active', true)->orderBy('name')->get(['id', 'name', 'emoji', 'logo']);
+        $designers = User::whereIn('role', ['designer', 'developer'])->orderBy('name')->get(['id', 'name', 'role']);
+
+        return compact('tasks', 'stats', 'clients', 'designers');
+    }
+
+    /**
+     * Legacy method for backwards compatibility
+     */
+    public function getPendingTasks(Request $request)
+    {
+        return $this->getPendingTasksData($request)['tasks'];
+    }
+
+    /**
+     * Bulk approve multiple review tasks
+     */
+    public function bulkApprove(array $taskIds): int
+    {
+        $tasks = Task::whereIn('id', $taskIds)
+            ->whereIn('status', ['review', 'pending_approval'])
+            ->get();
+
+        $count = 0;
+        foreach ($tasks as $task) {
+            $this->approveTask($task);
+            $count++;
+        }
+
+        return $count;
     }
 
     /**

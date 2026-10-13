@@ -403,6 +403,42 @@ class TaskController extends Controller
         return back()->with('success', 'Post date change request declined.');
     }
 
-    // Delegate other methods to service as needed
-    // ... (add other methods like urgentTasks, approveDate, etc. using service)
+    public function bulkUpdateStatus(Request $request)
+    {
+        $taskIds = $request->input('task_ids', $request->input('ids', []));
+        $status = $request->input('status');
+
+        if (empty($taskIds) || !is_array($taskIds)) {
+            return response()->json(['success' => false, 'message' => 'No tasks selected.'], 422);
+        }
+
+        $validStatuses = ['todo', 'inprogress', 'review', 'pending_approval', 'completed', 'published'];
+        if (!in_array($status, $validStatuses, true)) {
+            return response()->json(['success' => false, 'message' => 'Invalid status selected.'], 422);
+        }
+
+        $count = $this->taskService->bulkUpdateStatus($taskIds, $status);
+
+        $statusLabels = [
+            'todo'             => 'To Do',
+            'inprogress'       => 'In Progress',
+            'review'           => 'Under Review',
+            'pending_approval' => 'Pending Approval',
+            'completed'        => 'Completed',
+            'published'        => 'Published',
+        ];
+        $targetLabel = $statusLabels[$status] ?? ucfirst($status);
+        $message = "Successfully moved {$count} task" . ($count !== 1 ? 's' : '') . " to {$targetLabel}!";
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'count'   => $count,
+                'status'  => $status,
+                'message' => $message,
+            ]);
+        }
+
+        return back()->with('success', $message);
+    }
 }

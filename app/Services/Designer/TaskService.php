@@ -63,7 +63,10 @@ class TaskService
             $task->is_focus = ($task->id === $firstFocusId);
         });
 
-        $clients = Client::where('is_active', true)->orderBy('name')->get();
+        $clients = Client::where('is_active', true)
+            ->where('name', 'not like', '%Internal%')
+            ->orderBy('name')
+            ->get();
         $strategists = User::whereIn('role', ['strategist', 'manager', 'editor', 'content_writer', 'admin'])->orderBy('name')->get();
         $designers = User::whereIn('role', ['designer', 'developer', 'editor', 'content_writer'])->orderBy('name')->get();
 
@@ -772,7 +775,7 @@ class TaskService
             ]);
         }
 
-        if ($request->ajax()) {
+        if ($request->ajax() || $request->wantsJson() || $request->expectsJson()) {
             return response()->json([
                 'success'      => true,
                 'message'      => 'Urgent task created' . ($pausedTask ? ' and "' . $pausedTask->title . '" paused.' : '.'),

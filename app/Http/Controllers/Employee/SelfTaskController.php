@@ -29,7 +29,7 @@ class SelfTaskController extends Controller
 
         $validated = $request->validate([
             'title'       => ['required', 'string', 'max:255'],
-            'client_id'   => ['nullable', 'integer', 'exists:clients,id'],
+            'client_id'   => ['required', 'integer', 'exists:clients,id'],
             'type'        => ['required', 'string', Rule::in($validTypes)],
             'priority'    => ['nullable', 'string', Rule::in($validPriorities)],
             'status'      => ['nullable', 'string', Rule::in($validStatuses)],
@@ -37,14 +37,7 @@ class SelfTaskController extends Controller
             'deadline'    => ['nullable', 'date'],
         ]);
 
-        $clientId = $validated['client_id'] ?? null;
-        if (!$clientId) {
-            $internalClient = Client::firstOrCreate(
-                ['name' => 'Internal / Agency Office'],
-                ['emoji' => '🏢', 'color' => '#6B7280', 'is_active' => true]
-            );
-            $clientId = $internalClient->id;
-        }
+        $clientId = (int) $validated['client_id'];
 
         $userId = Auth::id();
         $type = $validated['type'];
@@ -72,7 +65,7 @@ class SelfTaskController extends Controller
             $taskData['dev_deadline'] = $deadline;
         }
 
-        if (Task::isDesignType($type)) {
+        if (Task::isDesignType($type) || Auth::user()?->role === 'designer') {
             $taskData['design_deadline'] = $deadline;
         }
 
@@ -92,8 +85,8 @@ class SelfTaskController extends Controller
                     'type'        => $task->type,
                     'status'      => $task->status,
                     'priority'    => $task->priority,
-                    'client_name' => $task->client ? $task->client->name : 'Internal',
-                    'client_emoji'=> $task->client ? ($task->client->emoji ?? '🏢') : '🏢',
+                    'client_name' => $task->client ? $task->client->name : 'Client',
+                    'client_emoji'=> $task->client ? ($task->client->emoji ?? '💼') : '💼',
                 ],
             ]);
         }

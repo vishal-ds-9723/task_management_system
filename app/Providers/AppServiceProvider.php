@@ -39,6 +39,7 @@ class AppServiceProvider extends ServiceProvider
             }
 
             $createTaskClients = Client::where('is_active', true)
+                ->where('name', 'not like', '%Internal%')
                 ->orderBy('name')
                 ->get(['id', 'name', 'logo', 'emoji']);
 

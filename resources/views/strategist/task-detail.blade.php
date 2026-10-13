@@ -814,7 +814,11 @@
                 <span class="std-pill">
                     <i class="fa-solid fa-paperclip" style="font-size:10px;opacity:0.6"></i> {{ ucfirst($task->type) }}
                 </span>
-                @if($task->priority === 'urgent')
+                @if($isUrgentTask)
+                    <span class="std-pill" style="background:#EF444418;border-color:#EF444450;color:#EF4444;font-weight:800">
+                        <i class="fa-solid fa-bolt" style="font-size:10px"></i> Urgent Task · Designer Initiated
+                    </span>
+                @elseif($task->priority === 'urgent')
                     <span class="std-pill" style="background:#EF444414;border-color:#EF444430;color:#EF4444">
                         <i class="fa-solid fa-bolt" style="font-size:10px"></i> Urgent Priority
                     </span>
@@ -852,6 +856,56 @@
             </a>
         </div>
     </div>
+
+    @if($isUrgentTask)
+        @php
+            $urgentDelivered = in_array($task->status, ['completed', 'published'], true);
+            $urgentShared = in_array($task->status, ['review', 'pending_approval'], true);
+            $urgentActorName = $task->assignee?->name ?? $task->creator?->name ?? 'Designer';
+            $urgentBannerStyle = $urgentDelivered
+                ? 'background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);'
+                : ($urgentShared
+                    ? 'background:rgba(14,165,233,0.1);border:1px solid rgba(14,165,233,0.3);'
+                    : 'background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);');
+            $urgentBannerColor = $urgentDelivered ? '#10B981' : ($urgentShared ? '#0EA5E9' : '#EF4444');
+            $urgentBannerIcon = $urgentDelivered ? 'fa-truck-fast' : ($urgentShared ? 'fa-eye' : 'fa-bolt');
+            $urgentBannerTitle = $urgentDelivered
+                ? 'Urgent Task Completed & Delivered'
+                : ($urgentShared ? 'Urgent Work Submitted for Review' : 'Urgent Production In Progress');
+            $urgentBannerSubtitle = $urgentDelivered
+                ? ('Designer delivered this emergency task to client' . ($task->completed_at ? ' ' . $task->completed_at->diffForHumans() : '') . '.')
+                : ($urgentShared
+                    ? ('Designer completed the artwork and submitted for review. Please check deliverables and approve or request revision.')
+                    : 'This emergency task was initiated by the designer to handle an urgent client request. Work is actively in progress.');
+        @endphp
+        <div style="{{ $urgentBannerStyle }}border-radius:12px;padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:12px">
+                <div style="width:40px;height:40px;border-radius:10px;background:{{ $urgentBannerColor }};color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:0 4px 12px {{ $urgentBannerColor }}40">
+                    <i class="fas {{ $urgentBannerIcon }}"></i>
+                </div>
+                <div>
+                    <div style="font-size:14px;font-weight:800;color:{{ $urgentBannerColor }}">{{ $urgentBannerTitle }}</div>
+                    <div style="font-size:12px;color:var(--text2);margin-top:2px">{{ $urgentBannerSubtitle }}</div>
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+                <div style="font-size:11.5px;color:var(--text3);text-align:right">
+                    <div>Requested By: <strong style="color:var(--text)">{{ $task->urgent_requested_by ?: 'Client Emergency' }}</strong></div>
+                    <div>Handled By: <strong style="color:var(--text)">{{ $urgentActorName }}</strong></div>
+                </div>
+                @if($task->status === 'review')
+                    <form method="POST" action="{{ route('strategist.tasks.approve', $task) }}" style="margin:0">
+                        @csrf
+                        @method('PATCH')
+                        <input type="hidden" name="force" value="1">
+                        <button type="submit" class="btn-pri" style="background:#059669;border-color:#059669;font-size:12px;padding:8px 16px;border-radius:8px;box-shadow:0 2px 8px rgba(5,150,105,0.3);color:#fff;cursor:pointer">
+                            <i class="fa-solid fa-check-double"></i> Fast-Track Approve
+                        </button>
+                    </form>
+                @endif
+            </div>
+        </div>
+    @endif
 
     {{-- WORKFLOW LIFECYCLE STEPPER --}}
     <div class="std-stepper-card">

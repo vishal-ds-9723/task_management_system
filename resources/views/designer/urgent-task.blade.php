@@ -2,6 +2,41 @@
 
 @push('styles')
     <link href="{{ asset('css/pages/designer-theme.css') }}?v=3.0" rel="stylesheet">
+    <style>
+        .custom-client-select {
+            position: relative;
+            z-index: 50;
+        }
+        .custom-client-select.open {
+            z-index: 99999 !important;
+        }
+        .ccs-selected {
+            background: var(--dz-surface, #ffffff) !important;
+            border-color: var(--dz-border, #cbd5e1) !important;
+            color: var(--dz-text-main, #0f172a) !important;
+        }
+        .ccs-selected.open {
+            border-color: var(--dz-primary, #4f46e5) !important;
+        }
+        .ccs-dropdown {
+            background: var(--dz-surface, #ffffff) !important;
+            border-color: var(--dz-primary, #4f46e5) !important;
+            box-shadow: 0 16px 36px -4px rgba(15, 23, 42, 0.16) !important;
+        }
+        .ccs-option:hover {
+            background: var(--dz-surface-sub, #f1f5f9) !important;
+        }
+        .ccs-option.selected {
+            background: rgba(79, 70, 229, 0.08) !important;
+        }
+        .ccs-opt-name {
+            color: var(--dz-text-main, #0f172a) !important;
+        }
+        .field-has-error {
+            border-color: var(--dz-red, #EF4444) !important;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18) !important;
+        }
+    </style>
 @endpush
 
 @section('content')
@@ -49,7 +84,7 @@
                         <select name="urgent_requested_by" id="urgentRequestedBySelect" required class="filter-input" style="width:100%">
                             <option value="">Select requester...</option>
                             @foreach($urgentRequesters as $req)
-                                <option value="{{ $req->value }}">{{ $req->label }}</option>
+                                <option value="{{ $req->value }}">{{ $req->emoji ? ($req->emoji . ' ') : '' }}{{ $req->label }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -84,7 +119,7 @@
                                                     data-group="{{ $groupName }}"
                                                     data-is-social="{{ strtolower($groupName) === 'social media' ? '1' : '0' }}"
                                                     data-is-design="{{ in_array(strtolower($groupName), ['design work', 'creative & graphics design']) ? '1' : '0' }}">
-                                                {{ $urgentType->label }}
+                                                {{ $urgentType->emoji ? ($urgentType->emoji . ' ') : '' }}{{ $urgentType->label }}
                                             </option>
                                         @endforeach
                                     </optgroup>
@@ -305,8 +340,51 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('urgentTypeSelect')?.addEventListener('change', syncUrgentTaskFields);
     syncUrgentTaskFields();
 
+    // Clear client error styling when client is selected
+    const clientInput = form.querySelector('input[name="client_id"]');
+    if (clientInput) {
+        clientInput.addEventListener('change', function() {
+            const sel = form.querySelector('.custom-client-select .ccs-selected');
+            if (sel) sel.classList.remove('field-has-error');
+        });
+    }
+
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
+
+        // 1. Validate Client
+        const clientVal = form.querySelector('input[name="client_id"]')?.value;
+        if (!clientVal) {
+            const sel = form.querySelector('.custom-client-select .ccs-selected');
+            if (sel) {
+                sel.classList.add('field-has-error');
+                sel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            if (window.showToast) {
+                window.showToast('Please select a client for this urgent deliverable.', 'error');
+            } else {
+                alert('Please select a client for this urgent deliverable.');
+            }
+            return;
+        }
+
+        // 2. Validate Social Platforms if applicable
+        const typeSelect = document.getElementById('urgentTypeSelect');
+        const selectedOpt = typeSelect?.options[typeSelect.selectedIndex];
+        const isSocial = selectedOpt?.dataset.isSocial === '1';
+        if (isSocial) {
+            const checkedPlatforms = form.querySelectorAll('input[name="platform[]"]:checked');
+            if (checkedPlatforms.length === 0) {
+                document.getElementById('urgentPlatformsGroup')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (window.showToast) {
+                    window.showToast('Please select at least one target platform for this social deliverable.', 'warning');
+                } else {
+                    alert('Please select at least one target platform for this social deliverable.');
+                }
+                return;
+            }
+        }
+
         const btn = document.getElementById('urgentSubmitBtn');
         const origHTML = btn.innerHTML;
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating...';
@@ -328,12 +406,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     window.location.href = "{{ route('designer.dashboard') }}";
                 }
             } else {
-                const errors = data.errors ? Object.values(data.errors).flat().join(', ') : (data.message || 'Failed to create task');
-                alert(errors);
+                const errors = data.errors ? Object.values(data.errors).flat().join('\n') : (data.message || 'Failed to create task');
+                if (window.showToast) {
+                    window.showToast(errors, 'error');
+                } else {
+                    alert(errors);
+                }
                 btn.innerHTML = origHTML;
                 btn.disabled = false;
             }
         } catch (err) {
+            console.error('Urgent task submission error:', err);
             alert('Network error. Please try again.');
             btn.innerHTML = origHTML;
             btn.disabled = false;

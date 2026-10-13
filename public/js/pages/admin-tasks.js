@@ -45,40 +45,100 @@
         checkboxes.forEach(cb => cb.checked = checkbox.checked);
         updateBulkBar();
     }
+    window.selectAll = selectAll;
 
     function updateBulkBar() {
         const selected = document.querySelectorAll('.task-select:checked');
         const bar = document.getElementById('bulk-bar');
         const count = document.getElementById('bulk-count');
-        if (selected.length > 0) {
-            bar.style.display = 'flex';
-            count.textContent = selected.length + ' task' + (selected.length > 1 ? 's' : '') + ' selected';
-        } else {
-            bar.style.display = 'none';
+        if (bar && count) {
+            if (selected.length > 0) {
+                bar.style.display = 'flex';
+                count.textContent = selected.length + ' task' + (selected.length > 1 ? 's' : '') + ' selected';
+            } else {
+                bar.style.display = 'none';
+            }
         }
     }
+    window.updateBulkBar = updateBulkBar;
 
     function clearSelection() {
         document.querySelectorAll('.task-select, #select-all').forEach(cb => cb.checked = false);
         updateBulkBar();
     }
+    window.clearSelection = clearSelection;
 
     function bulkUpdate() {
-        const status = document.getElementById('bulk-status').value;
-        if (!status) { alert('Please select a status.'); return; }
+        const statusSelect = document.getElementById('bulk-status');
+        const status = statusSelect ? statusSelect.value : '';
+        if (!status) {
+            if (window.Swal) Swal.fire({ icon: 'warning', title: 'Status Required', text: 'Please select a status to move tasks to.' });
+            else alert('Please select a status.');
+            return;
+        }
         const ids = [...document.querySelectorAll('.task-select:checked')].map(cb => cb.value);
-        if (!ids.length) return;
-        fetch('/admin/tasks/bulk/update-status', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '' },
-            body: JSON.stringify({ ids, status })
-        }).then(r => r.json()).then(d => { if (d.success) location.reload(); });
-    }
+        if (!ids.length) {
+            if (window.Swal) Swal.fire({ icon: 'info', title: 'No Selection', text: 'Please select at least one task.' });
+            return;
+        }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        document.querySelectorAll('.task-select').forEach(cb => {
-            cb.addEventListener('change', updateBulkBar);
-        });
+        const executeBulk = () => {
+            fetch('/admin/tasks/bulk/update-status', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                },
+                body: JSON.stringify({ ids, status })
+            })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) {
+                    if (window.Swal) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Status Updated',
+                            text: d.message,
+                            timer: 1400,
+                            showConfirmButton: false
+                        }).then(() => location.reload());
+                    } else {
+                        location.reload();
+                    }
+                } else {
+                    if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: d.message || 'Bulk update failed.' });
+                    else alert(d.message || 'Bulk update failed.');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                if (window.Swal) Swal.fire({ icon: 'error', title: 'Error', text: 'Network request failed.' });
+            });
+        };
+
+        if (window.Swal) {
+            Swal.fire({
+                title: 'Update ' + ids.length + ' Task' + (ids.length > 1 ? 's' : '') + '?',
+                text: 'Move selected tasks to ' + status.replace('_', ' ').toUpperCase() + '?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#4F6DF0',
+                cancelButtonColor: '#6B7280',
+                confirmButtonText: 'Yes, Update'
+            }).then(res => {
+                if (res.isConfirmed) executeBulk();
+            });
+        } else {
+            if (confirm('Update status of ' + ids.length + ' tasks to ' + status + '?')) executeBulk();
+        }
+    }
+    window.bulkUpdate = bulkUpdate;
+
+    document.addEventListener('change', (e) => {
+        if (e.target && e.target.classList.contains('task-select')) {
+            updateBulkBar();
+        }
     });
 
     function dragStart(event, taskId) {

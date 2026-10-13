@@ -1,6 +1,9 @@
 {{-- Reusable Self-Task Creation Modal for Team Members (Designers, Developers, etc.) --}}
 @php
-    $modalClients = \App\Models\Client::where('is_active', true)->orderBy('name')->get();
+    $modalClients = \App\Models\Client::where('is_active', true)
+        ->where('name', 'not like', '%Internal%')
+        ->orderBy('name')
+        ->get();
     $modalTaskTypes = \App\Models\DropdownOption::getGrouped('task_type');
     $modalPriorities = \App\Models\DropdownOption::getOptions('priority');
     $modalStatuses = \App\Models\DropdownOption::getOptions('status');
@@ -30,23 +33,36 @@
                 {{-- Client & Category Grid --}}
                 <div class="stm-form-row">
                     <div class="stm-form-group">
-                        <label for="stmClientId" class="stm-label">Client / Entity</label>
-                        <select id="stmClientId" name="client_id" class="stm-input">
-                            <option value="">🏢 Internal / Agency Office</option>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                            <label for="stmClientId" class="stm-label" style="margin-bottom:0">Client <span class="stm-required">*</span></label>
+                            <input type="text" id="stmClientFilter" placeholder="Quick search..." style="font-size:11px;padding:2px 8px;border:1px solid #cbd5e1;border-radius:6px;width:120px;outline:none;background:#f8fafc" oninput="filterStmClients(this.value)">
+                        </div>
+                        <select id="stmClientId" name="client_id" class="stm-input" required>
+                            <option value="" disabled selected>-- Select Client --</option>
                             @foreach($modalClients as $c)
-                                <option value="{{ $c->id }}">{{ $c->emoji ?? '💼' }} {{ $c->name }}</option>
+                                <option value="{{ $c->id }}" data-name="{{ strtolower($c->name) }}">{{ $c->emoji ?? '💼' }} {{ $c->name }}</option>
                             @endforeach
                         </select>
                     </div>
 
                     <div class="stm-form-group">
-                        <label for="stmType" class="stm-label">Task Category <span class="stm-required">*</span></label>
-                        <select id="stmType" name="type" class="stm-input" required>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                            <label for="stmType" class="stm-label" style="margin-bottom:0">Task Category <span class="stm-required">*</span></label>
+                            <span id="stmTypeBadge" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;background:#eef2ff;color:#4f46e5;border:1px solid #e0e7ff;transition:all 0.15s ease">
+                                <i id="stmTypeIcon" class="fa-solid fa-image"></i>
+                                <span id="stmTypeLabel">Post</span>
+                            </span>
+                        </div>
+                        <select id="stmType" name="type" class="stm-input" required onchange="updateStmTypeBadge()">
                             @foreach($modalTaskTypes as $groupName => $types)
                                 <optgroup label="{{ $groupName }}">
                                     @foreach($types as $t)
-                                        <option value="{{ $t->value }}" {{ $t->value === 'post' ? 'selected' : '' }}>
-                                            {{ $t->icon ? ($t->icon . ' ') : '' }}{{ $t->label }}
+                                        <option value="{{ $t->value }}" 
+                                                data-icon="{{ $t->icon }}" 
+                                                data-color="{{ $t->color ?? '#4f46e5' }}" 
+                                                data-label="{{ $t->label }}"
+                                                {{ $t->value === 'post' ? 'selected' : '' }}>
+                                            {{ $t->emoji ? ($t->emoji . ' ') : '' }}{{ $t->label }}
                                         </option>
                                     @endforeach
                                 </optgroup>
@@ -62,7 +78,7 @@
                         <select id="stmPriority" name="priority" class="stm-input">
                             @foreach($modalPriorities as $p)
                                 <option value="{{ $p->value }}" {{ $p->value === 'normal' ? 'selected' : '' }}>
-                                    {{ $p->label }}
+                                    {{ $p->emoji ? ($p->emoji . ' ') : '' }}{{ $p->label }}
                                 </option>
                             @endforeach
                         </select>
@@ -272,6 +288,38 @@ textarea.stm-input {
 <script>
 window._selfTaskCallback = null;
 
+function filterStmClients(query) {
+    const q = (query || '').toLowerCase().trim();
+    const select = document.getElementById('stmClientId');
+    if (!select) return;
+    Array.from(select.options).forEach((opt, idx) => {
+        if (idx === 0) return; // Keep placeholder option
+        const name = (opt.dataset.name || opt.textContent).toLowerCase();
+        opt.hidden = q !== '' && !name.includes(q);
+    });
+}
+
+function updateStmTypeBadge() {
+    const select = document.getElementById('stmType');
+    const badge = document.getElementById('stmTypeBadge');
+    const iconEl = document.getElementById('stmTypeIcon');
+    const labelEl = document.getElementById('stmTypeLabel');
+    if (!select || !badge || !iconEl || !labelEl) return;
+
+    const opt = select.selectedOptions[0];
+    if (!opt) return;
+
+    const fa = opt.dataset.icon || 'fa-solid fa-layer-group';
+    const color = opt.dataset.color || '#4f46e5';
+    const label = opt.dataset.label || opt.textContent.trim().replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}\s]+/u, '').trim();
+
+    iconEl.className = fa;
+    labelEl.textContent = label;
+    badge.style.color = color;
+    badge.style.borderColor = color + '33';
+    badge.style.background = color + '15';
+}
+
 function openSelfTaskModal(options = {}) {
     const sidebar = document.getElementById('appSidebar');
     if (sidebar && sidebar.classList.contains('mobile-open')) {
@@ -283,6 +331,12 @@ function openSelfTaskModal(options = {}) {
     const form = document.getElementById('selfTaskModalForm');
     if (form) form.reset();
 
+    const clientFilterInput = document.getElementById('stmClientFilter');
+    if (clientFilterInput) {
+        clientFilterInput.value = '';
+        filterStmClients('');
+    }
+
     const err = document.getElementById('stmErrorAlert');
     if (err) { err.style.display = 'none'; err.textContent = ''; }
 
@@ -291,10 +345,15 @@ function openSelfTaskModal(options = {}) {
         deadlineInput.value = new Date().toISOString().split('T')[0];
     }
 
+    if (options.defaultClientId) {
+        const clientSelect = document.getElementById('stmClientId');
+        if (clientSelect) clientSelect.value = options.defaultClientId;
+    }
     if (options.defaultType) {
         const typeSelect = document.getElementById('stmType');
         if (typeSelect) typeSelect.value = options.defaultType;
     }
+    updateStmTypeBadge();
     if (options.defaultStatus) {
         const statusSelect = document.getElementById('stmStatus');
         if (statusSelect) statusSelect.value = options.defaultStatus;
@@ -340,6 +399,19 @@ async function handleSelfTaskSubmit(e) {
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
 
+    const clientId = form.querySelector('[name="client_id"]')?.value;
+    if (!clientId) {
+        if (err) {
+            err.textContent = 'Please select a client for this task.';
+            err.style.display = 'block';
+        } else {
+            alert('Please select a client for this task.');
+        }
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnHtml;
+        return;
+    }
+
     const formData = new FormData(form);
 
     try {
@@ -373,8 +445,8 @@ async function handleSelfTaskSubmit(e) {
         // If on daily log page, announce and add to select dropdowns
         if (typeof window.onSelfTaskCreatedInDailyLog === 'function') {
             window.onSelfTaskCreatedInDailyLog(task);
-        } else if (window.location.pathname.includes('/tasks')) {
-            // If on tasks board, reload page to reflect new task on board
+        } else if (window.location.pathname.includes('/tasks') || window.location.pathname.includes('/dashboard')) {
+            // If on tasks board or dashboard, reload page to reflect new task on board
             window.location.reload();
         } else {
             // General notification
@@ -420,13 +492,14 @@ document.addEventListener('dropdown:updated', async function(e) {
                 Object.entries(grouped).forEach(([grpName, items]) => {
                     html += `<optgroup label="${grpName}">`;
                     items.forEach(item => {
-                        const iconText = item.icon ? `${item.icon} ` : '';
-                        html += `<option value="${item.value}" ${item.value === currentVal ? 'selected' : ''}>${iconText}${item.label}</option>`;
+                        const emojiText = item.emoji ? `${item.emoji} ` : '';
+                        html += `<option value="${item.value}" data-icon="${item.icon || ''}" data-color="${item.color || '#4f46e5'}" data-label="${item.label}" ${item.value === currentVal ? 'selected' : ''}>${emojiText}${item.label}</option>`;
                     });
                     html += '</optgroup>';
                 });
                 html += '<option value="__manage__" style="color:#6366f1;font-weight:700">⚙️ + Manage / Add Category...</option>';
                 select.innerHTML = html;
+                updateStmTypeBadge();
             }
         } catch (err) { console.error(err); }
     }
@@ -441,7 +514,8 @@ document.addEventListener('dropdown:updated', async function(e) {
             if (data.options) {
                 let html = '';
                 data.options.forEach(p => {
-                    html += `<option value="${p.value}" ${p.value === currentVal ? 'selected' : ''}>${p.label}</option>`;
+                    const emoji = p.emoji ? `${p.emoji} ` : '';
+                    html += `<option value="${p.value}" ${p.value === currentVal ? 'selected' : ''}>${emoji}${p.label}</option>`;
                 });
                 html += '<option value="__manage__" style="color:#6366f1;font-weight:700">⚙️ + Manage...</option>';
                 select.innerHTML = html;
@@ -466,5 +540,10 @@ document.addEventListener('dropdown:updated', async function(e) {
             }
         } catch (err) { console.error(err); }
     }
+});
+
+// Initial badge setup on DOM ready
+document.addEventListener('DOMContentLoaded', function() {
+    updateStmTypeBadge();
 });
 </script>

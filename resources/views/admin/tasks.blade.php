@@ -84,6 +84,19 @@
             <div style="font-size: 12px; color: var(--text3); font-weight: 600; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Done</div>
         </a>
 
+        <a href="{{ route('admin.tasks', ['status' => 'urgent']) }}" class="task-stat-card {{ ($taskStats['urgent'] ?? 0) > 0 ? 'stat-card-alert' : '' }}" style="background: {{ ($taskStats['urgent'] ?? 0) > 0 ? '#fef2f2' : 'white' }}; border: 1.5px solid {{ ($taskStats['urgent'] ?? 0) > 0 ? '#fca5a5' : 'var(--border)' }}; border-radius: 14px; padding: 18px 16px; text-decoration: none; transition: all 0.2s; position: relative; overflow: hidden;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                <div style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #EF4444, #dc2626); display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-bolt" style="color: white; font-size: 15px;"></i>
+                </div>
+                @if(($taskStats['urgent'] ?? 0) > 0)
+                    <span style="font-size: 10px; font-weight: 700; color: #EF4444; background: #fee2e2; padding: 2px 8px; border-radius: 10px; animation: pulse-alert 2s infinite;">URGENT</span>
+                @endif
+            </div>
+            <div style="font-size: 26px; font-weight: 800; color: {{ ($taskStats['urgent'] ?? 0) > 0 ? '#EF4444' : 'var(--text)' }}; line-height: 1;">{{ $taskStats['urgent'] ?? 0 }}</div>
+            <div style="font-size: 12px; color: {{ ($taskStats['urgent'] ?? 0) > 0 ? '#EF4444' : 'var(--text3)' }}; font-weight: 600; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Urgent Tasks</div>
+        </a>
+
         <a href="{{ route('admin.tasks', ['overdue' => 'yes']) }}" class="task-stat-card {{ $taskStats['overdue'] > 0 ? 'stat-card-alert' : '' }}" style="background: {{ $taskStats['overdue'] > 0 ? '#fef2f2' : 'white' }}; border: 1.5px solid {{ $taskStats['overdue'] > 0 ? '#fca5a5' : 'var(--border)' }}; border-radius: 14px; padding: 18px 16px; text-decoration: none; transition: all 0.2s; position: relative; overflow: hidden;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                 <div style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #EF4444, #dc2626); display: flex; align-items: center; justify-content: center;">
@@ -559,6 +572,9 @@
             <table style="width: 100%; border-collapse: collapse;">
                 <thead>
                     <tr style="background: var(--card2); border-bottom: 2px solid var(--border);">
+                        <th style="padding: 11px 14px; text-align: center; width: 38px;">
+                            <input type="checkbox" id="select-all" class="task-checkbox" onchange="selectAll(this)" style="width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer;">
+                        </th>
                         <th style="padding: 11px 14px; text-align: center; font-weight: 700; font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.6px; width: 50px;">ID</th>
                         <th style="padding: 11px 14px; text-align: left; font-weight: 700; font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.6px;">Task</th>
                         <th style="padding: 11px 14px; text-align: left; font-weight: 700; font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.6px;">Client</th>
@@ -591,6 +607,9 @@
                             onmouseover="this.style.background='var(--primary)08'"
                             onmouseout="this.style.background='{{ $rowBg }}'">
 
+                            <td style="padding: 11px 14px; text-align: center;" onclick="event.stopPropagation()">
+                                <input type="checkbox" class="task-select" value="{{ $task->id }}" onchange="updateBulkBar()" style="width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer;">
+                            </td>
                             <td style="padding: 11px 14px; text-align: center; font-weight: 700; color: var(--text3); font-size: 12px;">
                                 #{{ $task->id }}
                             </td>
@@ -664,6 +683,10 @@
                             </td>
                             <td style="padding: 11px 14px; text-align: center;" onclick="event.stopPropagation()">
                                 <div style="display: flex; gap: 6px; justify-content: center;">
+                                    <button type="button" onclick="openAdminTaskDrawer({{ $task->id }})" title="Quick Inspect Task"
+                                        style="padding: 5px 9px; background: var(--card2); color: var(--text); border: 1px solid var(--border); border-radius: 5px; font-size: 12px; cursor: pointer; transition: all 0.15s;">
+                                        <i class="fas fa-sliders-h"></i>
+                                    </button>
                                     @if(in_array($task->status, ['review', 'pending_approval']) && $task->admin_approval_status !== 'approved')
                                         @php
                                             $missingCopy = empty($task->caption) || empty($task->hashtags);
@@ -697,7 +720,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="11" style="padding: 50px; text-align: center; color: var(--text3);">
+                            <td colspan="12" style="padding: 50px; text-align: center; color: var(--text3);">
                                 <i class="fas fa-search" style="font-size: 36px; margin-bottom: 12px; display: block; opacity: 0.4;"></i>
                                 <div style="font-size: 15px; font-weight: 600; margin-bottom: 6px; color: var(--text2);">No tasks found</div>
                                 <div style="font-size: 13px;">Try adjusting your filters</div>
@@ -711,19 +734,23 @@
             </table>
         </div>
 
-        <!-- Bulk Actions -->
-        <div id="bulk-bar" style="display:none; margin-top: 10px; padding: 10px 16px; background: var(--primary)10; border: 1px solid var(--primary)30; border-radius: 8px; align-items: center; gap: 12px;">
-            <span id="bulk-count" style="font-size: 13px; font-weight: 600; color: var(--primary);"></span>
-            <select id="bulk-status" style="padding: 7px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px;">
-                <option value="">Set Status...</option>
+        <!-- Floating Bulk Bar -->
+        <div id="bulk-bar" style="display:none; position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 12px 24px; align-items: center; gap: 14px; box-shadow: 0 12px 36px rgba(0,0,0,0.18); z-index: 900;">
+            <div style="font-size: 13px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-check-double" style="color: var(--primary);"></i>
+                <span id="bulk-count">0 tasks selected</span>
+            </div>
+            <select id="bulk-status" style="padding: 7px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; background: var(--bg); color: var(--text); font-weight: 500;">
+                <option value="">Move to Status...</option>
                 <option value="todo">To Do</option>
                 <option value="inprogress">In Progress</option>
-                <option value="review">Review</option>
+                <option value="review">Under Review</option>
+                <option value="pending_approval">Pending Approval</option>
                 <option value="completed">Completed</option>
                 <option value="published">Published</option>
             </select>
-            <button onclick="bulkUpdate()" style="padding: 7px 16px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">Apply</button>
-            <button onclick="clearSelection()" style="padding: 7px 14px; background: var(--card2); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 13px;">Cancel</button>
+            <button type="button" onclick="bulkUpdate()" style="padding: 7px 16px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; box-shadow: 0 2px 8px rgba(79,109,240,0.25);">Apply</button>
+            <button type="button" onclick="clearSelection()" style="padding: 7px 12px; background: var(--card2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--text2);">Cancel</button>
         </div>
 
         <!-- Pagination -->
@@ -802,6 +829,76 @@
         </div>
     </div>
 
+    {{-- Slide-Over Task Inspector Drawer (Zero-Redirect) --}}
+    <div id="adminTaskDrawerBackdrop" onclick="closeAdminTaskDrawer()" style="position: fixed; inset: 0; background: rgba(15,23,42,0.5); backdrop-filter: blur(3px); z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.25s ease;"></div>
+    <div id="adminTaskDrawer" style="position: fixed; top: 0; right: 0; bottom: 0; width: 560px; max-width: 92vw; background: var(--card); border-left: 1px solid var(--border); box-shadow: -8px 0 32px rgba(0,0,0,0.16); z-index: 1001; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.16,1,0.3,1); display: flex; flex-direction: column;">
+        <div style="padding: 18px 22px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; background: var(--card2);">
+            <div style="flex: 1; min-width: 0;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                    <span class="tag tag-blue" id="drawerTaskType" style="font-size: 10px; font-weight: 700;">POST</span>
+                    <span class="tag tag-gray" id="drawerTaskStatus" style="font-size: 10px; font-weight: 700;">TODO</span>
+                    <span id="drawerTaskUrgentBadge" style="display: none; padding: 2px 6px; font-size: 9px; font-weight: 800; background: #fee2e2; color: #dc2626; border-radius: 4px;">URGENT</span>
+                </div>
+                <h3 id="drawerTaskTitle" style="margin: 0; font-size: 16px; font-weight: 800; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Task Details</h3>
+                <div id="drawerTaskClient" style="font-size: 12px; color: var(--text3); margin-top: 2px;">Client Name</div>
+            </div>
+            <button type="button" class="btn-sec" style="padding: 6px 10px; border-radius: 8px; cursor: pointer;" onclick="closeAdminTaskDrawer()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div style="flex: 1; overflow-y: auto; padding: 22px; display: flex; flex-direction: column; gap: 18px;">
+            {{-- Deliverables --}}
+            <div>
+                <div style="font-size: 11px; font-weight: 800; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Deliverables Gallery</div>
+                <div id="drawerTaskMedia" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px;"></div>
+            </div>
+
+            {{-- Caption Copy Block --}}
+            <div style="background: var(--card2); border: 1px solid var(--border); border-radius: 12px; padding: 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 11px; font-weight: 800; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px;">Caption</span>
+                    <button type="button" class="btn-sec" style="padding: 4px 8px; font-size: 11px; border-radius: 6px; cursor: pointer;" onclick="copyDrawerCaption()">
+                        <i class="far fa-copy"></i> Copy
+                    </button>
+                </div>
+                <div id="drawerTaskCaption" style="font-size: 13px; color: var(--text); line-height: 1.5; white-space: pre-wrap; max-height: 120px; overflow-y: auto;">No caption provided.</div>
+            </div>
+
+            {{-- Hashtags Copy Block --}}
+            <div style="background: var(--card2); border: 1px solid var(--border); border-radius: 12px; padding: 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 11px; font-weight: 800; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px;">Hashtags</span>
+                    <button type="button" class="btn-sec" style="padding: 4px 8px; font-size: 11px; border-radius: 6px; cursor: pointer;" onclick="copyDrawerHashtags()">
+                        <i class="far fa-copy"></i> Copy
+                    </button>
+                </div>
+                <div id="drawerTaskHashtags" style="font-size: 12.5px; color: var(--primary); line-height: 1.4; white-space: pre-wrap;">No hashtags.</div>
+            </div>
+
+            {{-- Meta Grid --}}
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div style="padding: 12px; background: var(--card2); border: 1px solid var(--border); border-radius: 10px;">
+                    <div style="font-size: 10.5px; color: var(--text3); font-weight: 700; text-transform: uppercase;">Assignee</div>
+                    <div id="drawerTaskAssignee" style="font-size: 13px; font-weight: 600; color: var(--text); margin-top: 4px;">—</div>
+                </div>
+                <div style="padding: 12px; background: var(--card2); border: 1px solid var(--border); border-radius: 10px;">
+                    <div style="font-size: 10.5px; color: var(--text3); font-weight: 700; text-transform: uppercase;">Deadline</div>
+                    <div id="drawerTaskDeadline" style="font-size: 13px; font-weight: 600; color: var(--text); margin-top: 4px;">—</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="padding: 16px 22px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--card2);">
+            <a id="drawerTaskFullLink" href="#" style="font-size: 12px; text-decoration: none; color: var(--primary); font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fas fa-arrow-up-right-from-square"></i> Open Full Task View
+            </a>
+            <button type="button" class="task-btn-secondary" style="padding: 8px 16px; border-radius: 8px; cursor: pointer;" onclick="closeAdminTaskDrawer()">
+                Close
+            </button>
+        </div>
+    </div>
+
     </div><!-- /tasks-ajax-area -->
 </div>
 
@@ -835,6 +932,101 @@ function confirmApproveSwal(e, form) {
         }
     });
     return false;
+}
+
+let currentDrawerTaskId = null;
+let currentDrawerCaption = '';
+let currentDrawerHashtags = '';
+
+async function openAdminTaskDrawer(taskId) {
+    currentDrawerTaskId = taskId;
+    const backdrop = document.getElementById('adminTaskDrawerBackdrop');
+    const drawer = document.getElementById('adminTaskDrawer');
+    if (!backdrop || !drawer) return;
+
+    backdrop.style.opacity = '1';
+    backdrop.style.pointerEvents = 'auto';
+    drawer.style.transform = 'translateX(0)';
+
+    document.getElementById('drawerTaskTitle').textContent = 'Loading task #' + taskId + '...';
+    document.getElementById('drawerTaskClient').textContent = '—';
+    document.getElementById('drawerTaskType').textContent = '—';
+    document.getElementById('drawerTaskStatus').textContent = '—';
+    document.getElementById('drawerTaskCaption').textContent = 'Loading...';
+    document.getElementById('drawerTaskHashtags').textContent = '...';
+    document.getElementById('drawerTaskMedia').innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 20px; color: var(--text3); font-size: 13px;"><i class="fas fa-spinner fa-spin" style="margin-right: 6px;"></i>Loading deliverables...</div>';
+    document.getElementById('drawerTaskUrgentBadge').style.display = 'none';
+
+    try {
+        const res = await fetch(`/admin/tasks/${taskId}/quick-inspect`, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const d = await res.json();
+        if (!d || !d.task) return;
+
+        const t = d.task;
+        currentDrawerCaption = t.caption || '';
+        currentDrawerHashtags = t.hashtags || '';
+
+        document.getElementById('drawerTaskTitle').textContent = t.title || 'Untitled';
+        document.getElementById('drawerTaskClient').textContent = (t.client ? (t.client.emoji ? t.client.emoji + ' ' : '') + t.client.name : '—');
+        document.getElementById('drawerTaskType').textContent = (t.type || '').toUpperCase();
+        document.getElementById('drawerTaskStatus').textContent = (t.status || '').replace('_', ' ').toUpperCase();
+        document.getElementById('drawerTaskCaption').textContent = t.caption || 'No caption provided.';
+        document.getElementById('drawerTaskHashtags').textContent = t.hashtags || 'No hashtags.';
+        document.getElementById('drawerTaskAssignee').textContent = t.assignee ? t.assignee.name : 'Unassigned';
+        document.getElementById('drawerTaskDeadline').textContent = t.deadline ? new Date(t.deadline).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+        document.getElementById('drawerTaskFullLink').href = `/admin/tasks/${t.id}`;
+
+        if (t.is_urgent_task || t.priority === 'urgent') {
+            document.getElementById('drawerTaskUrgentBadge').style.display = 'inline-block';
+        }
+
+        const mediaContainer = document.getElementById('drawerTaskMedia');
+        if (d.deliverables && d.deliverables.length > 0) {
+            mediaContainer.innerHTML = d.deliverables.map(m => `
+                <div style="border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--card2); position: relative;">
+                    <a href="${m.url}" target="_blank" style="display: block; aspect-ratio: 1; overflow: hidden; background: #0f172a; display: flex; align-items: center; justify-content: center; text-decoration: none;">
+                        ${m.is_image ? `<img src="${m.url}" style="width: 100%; height: 100%; object-fit: cover;" alt="${m.name}">` : (m.is_video ? `<div style="color: white; text-align: center;"><i class="fas fa-play-circle" style="font-size: 32px; color: #ef4444;"></i><div style="font-size: 11px; margin-top: 4px;">Video</div></div>` : `<div style="color: var(--text2); text-align: center;"><i class="fas fa-file-alt" style="font-size: 28px;"></i></div>`)}
+                    </a>
+                    <div style="padding: 8px; font-size: 11px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        ${m.name}
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            mediaContainer.innerHTML = '<div style="grid-column: 1/-1; padding: 18px; border: 1.5px dashed var(--border); border-radius: 10px; text-align: center; color: var(--text3); font-size: 12px;">No deliverables uploaded yet.</div>';
+        }
+    } catch (err) {
+        console.error(err);
+        document.getElementById('drawerTaskTitle').textContent = 'Failed to load task details';
+    }
+}
+
+function closeAdminTaskDrawer() {
+    const backdrop = document.getElementById('adminTaskDrawerBackdrop');
+    const drawer = document.getElementById('adminTaskDrawer');
+    if (backdrop) {
+        backdrop.style.opacity = '0';
+        backdrop.style.pointerEvents = 'none';
+    }
+    if (drawer) {
+        drawer.style.transform = 'translateX(100%)';
+    }
+}
+
+function copyDrawerCaption() {
+    if (!currentDrawerCaption) return;
+    navigator.clipboard.writeText(currentDrawerCaption).then(() => {
+        if (window.Swal) Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Caption copied!', timer: 1200, showConfirmButton: false });
+    });
+}
+
+function copyDrawerHashtags() {
+    if (!currentDrawerHashtags) return;
+    navigator.clipboard.writeText(currentDrawerHashtags).then(() => {
+        if (window.Swal) Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Hashtags copied!', timer: 1200, showConfirmButton: false });
+    });
 }
 </script>
 <script src="{{ asset('js/pages/admin-tasks.js') }}"></script>

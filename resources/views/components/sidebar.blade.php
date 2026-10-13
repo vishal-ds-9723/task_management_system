@@ -55,6 +55,13 @@
             ->count()
         : 0;
 
+    // Urgent active tasks in production for strategist tracking badge
+    $urgentTasksCountForStrategist = $isStrategistPanel
+        ? \App\Models\Task::where(fn($q) => $q->where('is_urgent_task', true)->orWhere('priority', 'urgent'))
+            ->whereNotIn('status', ['completed', 'published'])
+            ->count()
+        : 0;
+
     // Unread chat messages for this user (clients do not have chat access)
     $unreadMessages = $role === 'client'
         ? 0
@@ -267,11 +274,18 @@
                 <span class="nav-text">Team Board</span>
                 <span class="nav-tooltip">Team Board · who is doing what</span>
             </a>
-            <a href="{{ route('strategist.tracking') }}" class="nav-item {{ request()->routeIs('strategist.tracking') ? 'active' : '' }}" title="Task Tracking">
-                <span class="icon"><i class="fas fa-route"></i></span>
+            <a href="{{ route('strategist.tracking') }}" class="nav-item {{ request()->routeIs('strategist.tracking') ? 'active' : '' }}" title="Task Tracking" style="{{ $urgentTasksCountForStrategist > 0 ? 'color:#DC2626' : '' }}">
+                <span class="icon" style="position:relative">
+                    <i class="fas fa-route"></i>
+                    @if($urgentTasksCountForStrategist > 0)
+                        <span class="urgent-away-pulse" style="background:#EF4444"></span>
+                    @endif
+                </span>
                 <span class="nav-text">Tracking</span>
-                <span class="nav-tooltip">Tracking</span>
-                @if($pendingAssignedCount > 0)
+                <span class="nav-tooltip">Tracking{{ $urgentTasksCountForStrategist > 0 ? ' · ' . $urgentTasksCountForStrategist . ' Urgent' : '' }}</span>
+                @if($urgentTasksCountForStrategist > 0)
+                    <span class="nav-badge" style="margin-left:auto;background:#EF4444;color:#fff;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700">{{ $urgentTasksCountForStrategist }}</span>
+                @elseif($pendingAssignedCount > 0)
                     <span class="nav-badge-dot"></span>
                 @endif
             </a>
@@ -415,6 +429,16 @@
                 <span class="icon"><i class="fa-solid fa-table-cells-large"></i></span>
                 <span class="nav-text">Dashboard</span>
                 <span class="nav-tooltip">Dashboard</span>
+            </a>
+            <a href="javascript:void(0)" onclick="openSelfTaskModal({ defaultType: 'logo' })" class="nav-item" title="Create Task">
+                <span class="icon"><i class="fas fa-plus-circle" style="color:var(--primary, #4F6DF0)"></i></span>
+                <span class="nav-text">Create Task</span>
+                <span class="nav-tooltip">Create Task</span>
+            </a>
+            <a href="{{ route('designer.urgent-task') }}" class="nav-item {{ request()->routeIs('designer.urgent-task*') ? 'active' : '' }}" title="Urgent Task">
+                <span class="icon"><i class="fas fa-bolt" style="color:var(--dz-red, #EF4444)"></i></span>
+                <span class="nav-text">Urgent Task</span>
+                <span class="nav-tooltip">Create Urgent Task</span>
             </a>
             <a href="{{ route('designer.tasks') }}" class="nav-item {{ request()->routeIs('designer.tasks') ? 'active' : '' }}" title="My Tasks">
                 <span class="icon"><i class="fa-solid fa-paintbrush"></i></span>
