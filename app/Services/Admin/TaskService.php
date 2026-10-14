@@ -323,28 +323,54 @@ class TaskService
         return $taskTitle;
     }
 
-    public function bulkUpdateStatus(array $data)
+    public function bulkUpdateStatus(array $data, ?string $status = null): int
     {
-        $tasks = Task::whereIn('id', $data['task_ids'])->get();
-        $icons = ['todo' => '🔄', 'inprogress' => '🔵', 'review' => '📋', 'completed' => '✅', 'published' => '📢'];
-        $labels = ['todo' => 'To Do', 'inprogress' => 'In Progress', 'review' => 'Review', 'completed' => 'Completed', 'published' => 'Published'];
+        if ($status !== null) {
+            $taskIds = $data;
+        } else {
+            $taskIds = $data['task_ids'] ?? [];
+            $status = $data['status'] ?? '';
+        }
+
+        $validStatuses = ['todo', 'inprogress', 'review', 'pending_approval', 'completed', 'published'];
+        if (!in_array($status, $validStatuses, true)) {
+            throw new \InvalidArgumentException('Invalid task status');
+        }
+
+        if (empty($taskIds)) {
+            return 0;
+        }
+
+        $tasks = Task::whereIn('id', $taskIds)->get();
+        $icons = ['todo' => '🔄', 'inprogress' => '🔵', 'review' => '📋', 'pending_approval' => '⏳', 'completed' => '✅', 'published' => '📢'];
+        $labels = ['todo' => 'To Do', 'inprogress' => 'In Progress', 'review' => 'Review', 'pending_approval' => 'Pending Approval', 'completed' => 'Completed', 'published' => 'Published'];
+        $count = 0;
 
         foreach ($tasks as $task) {
-            $this->logAudit('Bulk status update to ' . $data['status'], $task);
+            $oldStatus = $task->status;
+            $task->status = $status;
+            if (in_array($status, ['completed', 'published'], true) && is_null($task->completed_at)) {
+                $task->completed_at = now();
+            } elseif (!in_array($status, ['completed', 'published'], true)) {
+                $task->completed_at = null;
+            }
+            $task->save();
 
-            if ($task->assigned_to && $task->assigned_to !== Auth::id() && $task->status !== $data['status']) {
+            $this->logAudit('Bulk status update to ' . $status, $task, ['status' => $oldStatus]);
+
+            if ($task->assigned_to && $task->assigned_to !== Auth::id() && $oldStatus !== $status) {
                 Notification::create([
                     'user_id'  => $task->assigned_to,
                     'task_id'  => $task->id,
-                    'icon'     => $icons[$data['status']] ?? '🔔',
-                    'title'    => 'Task moved to ' . ($labels[$data['status']] ?? ucfirst($data['status'])),
+                    'icon'     => $icons[$status] ?? '🔔',
+                    'title'    => 'Task moved to ' . ($labels[$status] ?? ucfirst($status)),
                     'subtitle' => 'Admin updated "' . $task->title . '" (bulk update)',
                     'link'     => route('admin.tasks.show', $task),
                 ]);
             }
-        }
 
-        $count = Task::whereIn('id', $data['task_ids'])->update(['status' => $data['status']]);
+            $count++;
+        }
 
         return $count;
     }
@@ -519,40 +545,5 @@ private function logAudit($action, Task $task, $oldValues = null)
             'this_year' => $today->copy()->endOfYear()->endOfDay(),
             default => $today->copy()->endOfWeek()->endOfDay(),
         };
-    }
-
-    public function bulkUpdateStatus(array $taskIds, string $status): int
-    {
-        $validStatuses = ['todo', 'inprogress', 'review', 'pending_approval', 'completed', 'published'];
-        if (!in_array($status, $validStatuses, true)) {
-            throw new \InvalidArgumentException('Invalid task status');
-        }
-
-        $tasks = Task::whereIn('id', $taskIds)->get();
-        $count = 0;
-
-        foreach ($tasks as $task) {
-            $oldStatus = $task->status;
-            $task->status = $status;
-            if (in_array($status, ['completed', 'published'], true) && is_null($task->completed_at)) {
-                $task->completed_at = now();
-            } elseif (!in_array($status, ['completed', 'published'], true)) {
-                $task->completed_at = null;
-            }
-            $task->save();
-
-            AuditLog::create([
-                'task_id'    => $task->id,
-                'user_id'    => Auth::id(),
-                'action'     => 'status_changed',
-                'old_values' => ['status' => $oldStatus],
-                'new_values' => ['status' => $status],
-                'details'    => 'Status updated via bulk action by Admin',
-            ]);
-
-            $count++;
-        }
-
-        return $count;
     }
 }

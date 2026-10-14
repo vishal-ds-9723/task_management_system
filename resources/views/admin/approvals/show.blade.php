@@ -130,7 +130,7 @@
             <div class="card premium" style="margin-bottom:16px;padding:16px;border-color:rgba(239,68,68,0.22);background:linear-gradient(135deg, rgba(254,242,242,0.96) 0%, rgba(255,255,255,0.96) 100%)">
                 <div class="section-title"><i class="fas fa-bolt" style="opacity:0.75;color:#dc2626"></i> Urgent Task Context</div>
                 <div class="pill-wrap">
-                    <span class="pill" style="background:rgba(239,68,68,0.12);color:#dc2626">Created by {{ $task->creator?->name ?? 'Unknown user' }}</span>
+                    <span class="pill" style="background:rgba(239,68,68,0.12);color:#dc2626">Created by {{ $creatorRoleLabel }}: {{ $task->creator?->name ?? 'Unknown user' }}</span>
                     @if($task->urgent_requested_by)
                         <span class="pill" style="background:rgba(249,115,22,0.12);color:#ea580c">Requested by {{ $task->urgent_requested_by }}</span>
                     @endif
@@ -141,23 +141,99 @@
             </div>
         @endif
 
-        {{-- TIER 1 DOUBLE-CHECK AUDIT STAMP --}}
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;background:linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(59,130,246,0.06) 100%);border:1px solid rgba(16,185,129,0.3);border-radius:10px;margin-bottom:16px">
-            <div style="display:flex;align-items:center;gap:10px">
-                <div style="width:32px;height:32px;border-radius:50%;background:#10B981;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;box-shadow:0 2px 6px rgba(16,185,129,0.3)">
-                    <i class="fa-solid fa-check-double"></i>
-                </div>
-                <div>
-                    <div style="font-size:12.5px;font-weight:700;color:#065F46;display:flex;align-items:center;gap:6px">
-                        <span>Tier 1 Verification Complete</span>
-                        <span style="font-size:10px;font-weight:800;padding:1px 7px;border-radius:99px;background:#10B981;color:#fff">VERIFIED</span>
+        {{-- WORKFLOW / AUDIT STAMP --}}
+        @php
+            $isTier1Verified = ($task->status === 'pending_approval');
+            $isTier2Approved = in_array($task->status, ['completed', 'published'], true);
+            $isAwaitingTier1 = in_array($task->status, ['review', 'inprogress', 'todo'], true);
+
+            // Resolve the actual strategist identity (never misattribute a designer as a strategist)
+            $strategistUser = null;
+            if ($task->creator && $task->creator->role === 'strategist') {
+                $strategistUser = $task->creator;
+            } else {
+                $strategistAudit = $task->relationLoaded('auditLogs')
+                    ? $task->auditLogs->first(fn($log) => $log->user?->role === 'strategist')
+                    : $task->auditLogs()->whereHas('user', fn($q) => $q->where('role', 'strategist'))->latest()->first();
+
+                if ($strategistAudit && $strategistAudit->user) {
+                    $strategistUser = $strategistAudit->user;
+                } elseif ($task->relationLoaded('client') && $task->client) {
+                    $strategistUser = $task->client->users->firstWhere('role', 'strategist');
+                }
+
+                if (!$strategistUser) {
+                    $strategistUser = \App\Models\User::where('role', 'strategist')->first();
+                }
+            }
+            $strategistName = $strategistUser?->name;
+        @endphp
+
+        @if($isTier2Approved)
+            {{-- Tier 2 Final Sign-Off Completed --}}
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;background:linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(59,130,246,0.06) 100%);border:1px solid rgba(16,185,129,0.3);border-radius:10px;margin-bottom:16px">
+                <div style="display:flex;align-items:center;gap:10px">
+                    <div style="width:32px;height:32px;border-radius:50%;background:#10B981;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;box-shadow:0 2px 6px rgba(16,185,129,0.3)">
+                        <i class="fa-solid fa-circle-check"></i>
                     </div>
-                    <div style="font-size:11px;color:#047857;margin-top:1px">
-                        Verified & approved by Strategist <strong>{{ $task->creator?->name ?? 'Strategist' }}</strong> · Ready for Admin Tier 2 Final Sign-Off
+                    <div>
+                        <div style="font-size:12.5px;font-weight:700;color:#065F46;display:flex;align-items:center;gap:6px">
+                            <span>Tier 2 Final Sign-Off Complete</span>
+                            <span style="font-size:10px;font-weight:800;padding:1px 7px;border-radius:99px;background:#10B981;color:#fff">COMPLETED</span>
+                        </div>
+                        <div style="font-size:11px;color:#047857;margin-top:1px">
+                            Approved by Admin <strong>{{ $task->adminApprover?->name ?? 'Admin' }}</strong> {{ $task->admin_approved_at ? 'on ' . $task->admin_approved_at->format('d M Y, h:i A') : '' }} · Final sign-off complete
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        @elseif($isTier1Verified)
+            {{-- Tier 1 Verified by Strategist, Ready for Tier 2 Admin --}}
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;background:linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(59,130,246,0.06) 100%);border:1px solid rgba(16,185,129,0.3);border-radius:10px;margin-bottom:16px">
+                <div style="display:flex;align-items:center;gap:10px">
+                    <div style="width:32px;height:32px;border-radius:50%;background:#10B981;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;box-shadow:0 2px 6px rgba(16,185,129,0.3)">
+                        <i class="fa-solid fa-check-double"></i>
+                    </div>
+                    <div>
+                        <div style="font-size:12.5px;font-weight:700;color:#065F46;display:flex;align-items:center;gap:6px">
+                            <span>Tier 1 Verification Complete</span>
+                            <span style="font-size:10px;font-weight:800;padding:1px 7px;border-radius:99px;background:#10B981;color:#fff">VERIFIED</span>
+                        </div>
+                        <div style="font-size:11px;color:#047857;margin-top:1px">
+                            @if($isUrgentTask && $task->creator && $task->creator->role !== 'strategist')
+                                Verified & approved by Strategist <strong>{{ $strategistName ?? 'Strategist' }}</strong> · Urgent task raised by {{ $creatorRoleLabel }} <strong>{{ $task->creator->name }}</strong> · Ready for Admin Tier 2 Final Sign-Off
+                            @elseif($task->creator && $task->creator->role === 'strategist')
+                                Verified & approved by Strategist <strong>{{ $task->creator->name }}</strong> · Ready for Admin Tier 2 Final Sign-Off
+                            @else
+                                Verified & approved by Strategist <strong>{{ $strategistName ?? 'Strategist' }}</strong> · Ready for Admin Tier 2 Final Sign-Off
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @else
+            {{-- Tier 1 Pending / Awaiting Strategist Review or Direct Admin Action --}}
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;background:linear-gradient(135deg, rgba(245,158,11,0.08) 0%, rgba(239,68,68,0.04) 100%);border:1px solid rgba(245,158,11,0.3);border-radius:10px;margin-bottom:16px">
+                <div style="display:flex;align-items:center;gap:10px">
+                    <div style="width:32px;height:32px;border-radius:50%;background:#F59E0B;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;box-shadow:0 2px 6px rgba(245,158,11,0.3)">
+                        <i class="fa-solid fa-clock"></i>
+                    </div>
+                    <div>
+                        <div style="font-size:12.5px;font-weight:700;color:#92400E;display:flex;align-items:center;gap:6px">
+                            <span>Tier 1 Verification Pending</span>
+                            <span style="font-size:10px;font-weight:800;padding:1px 7px;border-radius:99px;background:#F59E0B;color:#fff">IN REVIEW</span>
+                        </div>
+                        <div style="font-size:11px;color:#B45309;margin-top:1px">
+                            @if($isUrgentTask)
+                                Urgent task created by {{ $creatorRoleLabel }} <strong>{{ $task->creator?->name ?? 'Designer' }}</strong> · Awaiting Strategist Tier 1 Review (or Admin can directly approve below)
+                            @else
+                                Deliverable submitted by <strong>{{ $task->assignee?->name ?? ($task->creator?->name ?? 'Designer') }}</strong> · Awaiting Strategist Tier 1 Review · Admin can directly approve below
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
 
         {{-- MEDIA VIEWER --}}
         @php

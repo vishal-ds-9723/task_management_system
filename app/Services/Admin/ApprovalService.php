@@ -116,7 +116,17 @@ class ApprovalService
      */
     public function getTaskForApproval(Task $task)
     {
-        $task->load('creator', 'assignee', 'client.socialMediaLinks', 'comments.user', 'socialMediaLink', 'media');
+        $task->load([
+            'creator',
+            'assignee',
+            'client.socialMediaLinks',
+            'client.users',
+            'comments.user',
+            'socialMediaLink',
+            'media',
+            'adminApprover',
+            'auditLogs.user',
+        ]);
         return $task;
     }
 

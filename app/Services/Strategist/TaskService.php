@@ -258,9 +258,20 @@ class TaskService
             return back()->with('error', $errorMsg);
         }
 
+        $oldStatus = $task->status;
         $task->update([
             'status' => 'pending_approval',
             'revision_target' => null,
+        ]);
+
+        AuditLog::create([
+            'user_id'    => Auth::id(),
+            'task_id'    => $task->id,
+            'action'     => 'tier1_approved',
+            'details'    => 'Tier 1 verified & approved by ' . (Auth::user()?->name ?? 'Strategist'),
+            'old_values' => ['status' => $oldStatus],
+            'new_values' => ['status' => 'pending_approval'],
+            'ip_address' => $request->ip(),
         ]);
 
         $admins = User::where('role', 'admin')->get();
