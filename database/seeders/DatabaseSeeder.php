@@ -251,6 +251,8 @@ class DatabaseSeeder extends Seeder
             TaskApprovalFakeDataSeeder::class,
             TeamCalendarSeeder::class,
             ContentPlanSeeder::class,
+            DesignerUrgentTaskSeeder::class,
         ]);
     }
 }
+
