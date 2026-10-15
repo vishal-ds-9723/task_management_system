@@ -16,9 +16,14 @@
                 <i class="fas fa-volume-up" id="tmsSoundIcon"></i>
                 <span id="tmsSoundLabel">Sound: ON</span>
             </button>
-            <button type="button" class="notif-tool-btn notif-test-btn" onclick="testTmsSound()" title="Play a test notification chime in your browser">
+            <div class="notif-volume-wrap" title="Adjust notification chime volume">
+                <i class="fas fa-volume-down" style="font-size:10px;color:var(--text3,#9ca3af)"></i>
+                <input type="range" id="tmsSoundVolSlider" min="0" max="100" value="85" oninput="setTmsVolume(this.value)" class="notif-vol-slider" aria-label="Notification Volume">
+                <span id="tmsSoundVolValue" style="font-size:10px;font-weight:700;color:var(--text2,#4b5563);min-width:24px">85%</span>
+            </div>
+            <button type="button" class="notif-tool-btn notif-test-btn" onclick="testTmsSound('chime')" title="Play a test notification chime in your browser">
                 <i class="fas fa-play"></i>
-                <span>Test Chime</span>
+                <span>Test</span>
             </button>
         </div>
         <div class="notif-toolbar-right">
@@ -126,13 +131,55 @@
     background: #ecfdf5;
     border-color: rgba(16, 185, 129, 0.3);
 }
+.notif-volume-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 6px;
+    background: var(--card, #ffffff);
+    border: 1px solid var(--border, #d1d5db);
+    border-radius: 6px;
+}
+.notif-vol-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 48px;
+    height: 4px;
+    border-radius: 2px;
+    background: #cbd5e1;
+    outline: none;
+    cursor: pointer;
+    vertical-align: middle;
+}
+.notif-vol-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--primary, #4f46e5);
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.notif-vol-slider::-moz-range-thumb {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--primary, #4f46e5);
+    cursor: pointer;
+    border: none;
+}
 body.dark-mode .notif-toolbar {
     background: rgba(255, 255, 255, 0.03);
     border-bottom-color: var(--border, #374151);
 }
-body.dark-mode .notif-tool-btn {
+body.dark-mode .notif-tool-btn,
+body.dark-mode .notif-volume-wrap {
     background: var(--card, #1f2937);
     color: var(--text2, #9ca3af);
     border-color: var(--border, #374151);
+}
+body.dark-mode .notif-vol-slider {
+    background: #4b5563;
 }
 </style>

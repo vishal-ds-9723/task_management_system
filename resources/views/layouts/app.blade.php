@@ -22,6 +22,7 @@
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#4f46e5">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="{{ asset('js/tms-audio.js') }}?v=2.0"></script>
     @stack('styles')
     <script>
         // Read sidebar expansion state synchronously, before first paint (desktop only).
@@ -258,13 +259,19 @@
             <div id="flashToast" style="position:fixed;bottom:24px;right:24px;background:linear-gradient(135deg,var(--teal),#059669);color:#fff;padding:14px 22px;border-radius:12px;font-weight:700;z-index:1000;font-size:13.5px;box-shadow:0 8px 32px rgba(16,185,129,0.30);display:flex;align-items:center;gap:8px;animation:toastSlideIn 0.4s ease">
                 <span style="font-size:16px"><i class="fas fa-check"></i></span> {{ session('success') }}
             </div>
-            <script>setTimeout(() => { const t=document.getElementById('flashToast'); if(t){t.style.opacity='0';t.style.transform='translateY(10px)';t.style.transition='all 0.3s ease';setTimeout(()=>t.remove(),300);} }, 3000);</script>
+            <script>
+                window.TMSAudio?.play('success');
+                setTimeout(() => { const t=document.getElementById('flashToast'); if(t){t.style.opacity='0';t.style.transform='translateY(10px)';t.style.transition='all 0.3s ease';setTimeout(()=>t.remove(),300);} }, 3000);
+            </script>
         @endif
         @if(session('error'))
             <div id="flashToastErr" style="position:fixed;bottom:24px;right:24px;background:linear-gradient(135deg,var(--red),#DC2626);color:#fff;padding:14px 22px;border-radius:12px;font-weight:700;z-index:1000;font-size:13.5px;box-shadow:0 8px 32px rgba(239,68,68,0.30);display:flex;align-items:center;gap:8px;animation:toastSlideIn 0.4s ease">
                 <span style="font-size:16px"><i class="fas fa-times"></i></span> {{ session('error') }}
             </div>
-            <script>setTimeout(() => { const t=document.getElementById('flashToastErr'); if(t){t.style.opacity='0';t.style.transform='translateY(10px)';t.style.transition='all 0.3s ease';setTimeout(()=>t.remove(),300);} }, 4000);</script>
+            <script>
+                window.TMSAudio?.play('urgent');
+                setTimeout(() => { const t=document.getElementById('flashToastErr'); if(t){t.style.opacity='0';t.style.transform='translateY(10px)';t.style.transition='all 0.3s ease';setTimeout(()=>t.remove(),300);} }, 4000);
+            </script>
         @endif
 
         {{-- Page Content --}}
@@ -765,141 +772,16 @@ window.addEventListener('pageshow', () => {
     let isInitialLoad = true;
     let isPolling = false;
 
-    // ─────────── 1. WEB AUDIO API CHIME & CHROME AUTOPLAY UNLOCKER ───────────
-    const TMSAudio = {
-        ctx: null,
-        unlocked: false,
-        lastChimeTime: 0,
+    // ─────────── 1. AUDIO ENGINE INTEGRATION ───────────
+    // Powered by window.TMSAudio (loaded from /js/tms-audio.js)
+    if (window.TMSAudio) {
+        window.TMSAudio.unlock();
+    }
 
-        getCtx() {
-            if (!this.ctx) {
-                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-                if (AudioContextClass) {
-                    this.ctx = new AudioContextClass();
-                }
-            }
-            return this.ctx;
-        },
-
-        unlock() {
-            const ctx = this.getCtx();
-            if (ctx && ctx.state === 'suspended') {
-                ctx.resume().then(() => {
-                    this.unlocked = true;
-                    updateSoundUi();
-                }).catch(() => {});
-            } else if (ctx && ctx.state === 'running') {
-                this.unlocked = true;
-            }
-        },
-
-        /**
-         * Generates a studio-grade two-tone harmonic chime
-         * Tone 1: 587.33 Hz (D5) - warm bell onset
-         * Tone 2: 880.00 Hz (A5) - crisp upper chime with overtone shimmer
-         */
-        playChime(isTest) {
-            // Check user sound preference
-            const isSoundEnabled = localStorage.getItem('tms_sound_enabled') !== 'false';
-            if (!isSoundEnabled && !isTest) return;
-
-            // Throttle consecutive chimes (minimum 1.5s between plays) unless testing
-            const nowTime = Date.now();
-            if (!isTest && (nowTime - this.lastChimeTime < 1500)) return;
-            this.lastChimeTime = nowTime;
-
-            this.unlock();
-            const ctx = this.getCtx();
-
-            if (ctx && ctx.state === 'running') {
-                try {
-                    const t = ctx.currentTime;
-
-                    // Note 1: 587.33 Hz (D5)
-                    const osc1 = ctx.createOscillator();
-                    const gain1 = ctx.createGain();
-                    osc1.type = 'sine';
-                    osc1.frequency.setValueAtTime(587.33, t);
-                    gain1.gain.setValueAtTime(0.0001, t);
-                    gain1.gain.exponentialRampToValueAtTime(0.24, t + 0.02);
-                    gain1.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
-                    osc1.connect(gain1);
-                    gain1.connect(ctx.destination);
-                    osc1.start(t);
-                    osc1.stop(t + 0.30);
-
-                    // Note 2: 880.00 Hz (A5) - starts 90ms after Note 1
-                    const osc2 = ctx.createOscillator();
-                    const gain2 = ctx.createGain();
-                    osc2.type = 'sine';
-                    osc2.frequency.setValueAtTime(880.00, t + 0.09);
-                    gain2.gain.setValueAtTime(0.0001, t + 0.09);
-                    gain2.gain.exponentialRampToValueAtTime(0.30, t + 0.12);
-                    gain2.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
-                    osc2.connect(gain2);
-                    gain2.connect(ctx.destination);
-                    osc2.start(t + 0.09);
-                    osc2.stop(t + 0.58);
-
-                    // Subtle Harmonic Shimmer (1760 Hz, A6)
-                    const osc3 = ctx.createOscillator();
-                    const gain3 = ctx.createGain();
-                    osc3.type = 'sine';
-                    osc3.frequency.setValueAtTime(1760.00, t + 0.09);
-                    gain3.gain.setValueAtTime(0.0001, t + 0.09);
-                    gain3.gain.exponentialRampToValueAtTime(0.05, t + 0.12);
-                    gain3.gain.exponentialRampToValueAtTime(0.0001, t + 0.40);
-                    osc3.connect(gain3);
-                    gain3.connect(ctx.destination);
-                    osc3.start(t + 0.09);
-                    osc3.stop(t + 0.42);
-
-                    return;
-                } catch (e) {
-                    // Fall back to HTML5 Audio if Web Audio API threw
-                }
-            }
-
-            // Fallback: HTML5 Audio element
-            try {
-                let audio = document.getElementById('tmsNotificationAudio');
-                if (!audio) {
-                    audio = document.createElement('audio');
-                    audio.id = 'tmsNotificationAudio';
-                    audio.src = '/sounds/notification.wav';
-                    audio.preload = 'auto';
-                    document.body.appendChild(audio);
-                }
-                audio.currentTime = 0;
-                audio.play().catch(() => {});
-            } catch (_) {}
-        }
-    };
-
-    // Attach user gesture unlockers for Chrome Autoplay Policy
-    ['click', 'pointerdown', 'keydown'].forEach(evt => {
-        document.addEventListener(evt, () => TMSAudio.unlock(), { passive: true, once: false });
-    });
-
-    // ─────────── 2. SOUND UI CONTROLS ───────────
+    // ─────────── 2. SOUND & DESKTOP CONTROLS ───────────
     function updateSoundUi() {
-        const isSoundEnabled = localStorage.getItem('tms_sound_enabled') !== 'false';
-        const toggleBtn = document.getElementById('tmsSoundToggleBtn');
-        const icon = document.getElementById('tmsSoundIcon');
-        const label = document.getElementById('tmsSoundLabel');
-
-        if (toggleBtn) {
-            if (isSoundEnabled) {
-                toggleBtn.classList.remove('muted');
-                toggleBtn.classList.add('active');
-                if (icon) icon.className = 'fas fa-volume-up';
-                if (label) label.textContent = 'Sound: ON';
-            } else {
-                toggleBtn.classList.remove('active');
-                toggleBtn.classList.add('muted');
-                if (icon) icon.className = 'fas fa-volume-mute';
-                if (label) label.textContent = 'Sound: OFF';
-            }
+        if (window.TMSAudio && typeof window.TMSAudio.updateUi === 'function') {
+            window.TMSAudio.updateUi();
         }
 
         // Desktop permission button state
@@ -923,17 +805,22 @@ window.addEventListener('pageshow', () => {
     }
 
     window.toggleTmsSound = function() {
-        const current = localStorage.getItem('tms_sound_enabled') !== 'false';
-        const next = !current;
-        localStorage.setItem('tms_sound_enabled', next ? 'true' : 'false');
+        if (window.TMSAudio) {
+            window.TMSAudio.toggle();
+        }
         updateSoundUi();
-        if (next) {
-            TMSAudio.playChime(true);
+    };
+
+    window.setTmsVolume = function(val) {
+        if (window.TMSAudio) {
+            window.TMSAudio.setVolume(val / 100);
         }
     };
 
-    window.testTmsSound = function() {
-        TMSAudio.playChime(true);
+    window.testTmsSound = function(profile = 'chime') {
+        if (window.TMSAudio) {
+            window.TMSAudio.play(profile, true);
+        }
         const btn = document.querySelector('.notif-test-btn');
         if (btn) {
             const originalHtml = btn.innerHTML;
@@ -955,14 +842,16 @@ window.addEventListener('pageshow', () => {
                         body: 'You will receive notifications and sound alerts here even when Chrome is minimized.',
                         icon: '/images/icon.png'
                     });
-                    TMSAudio.playChime(true);
+                    if (window.TMSAudio) window.TMSAudio.play('chime', true);
                 } catch (_) {}
             }
         });
     };
 
     window.playTmsNotificationChime = function(force) {
-        TMSAudio.playChime(!!force);
+        if (window.TMSAudio) {
+            window.TMSAudio.play('chime', !!force);
+        }
     };
 
     // ─────────── 3. DESKTOP NOTIFICATIONS ───────────
@@ -1126,8 +1015,18 @@ window.addEventListener('pageshow', () => {
                 // Register newly seen IDs
                 freshItems.forEach(n => knownNotificationIds.add(n.id));
 
-                // 🔔 1. PLAY THE CHIME!
-                TMSAudio.playChime(false);
+                // Check if any fresh item is urgent
+                const hasUrgent = freshItems.some(n => {
+                    const text = ((n.type || '') + ' ' + (n.title || '') + ' ' + (n.subtitle || '')).toLowerCase();
+                    return text.includes('urgent') || text.includes('approval') || text.includes('escalat') || text.includes('overdue');
+                });
+
+                // 🔔 1. PLAY THE SOUND!
+                if (window.TMSAudio) {
+                    window.TMSAudio.play(hasUrgent ? 'urgent' : 'chime');
+                } else if (typeof window.playTmsNotificationChime === 'function') {
+                    window.playTmsNotificationChime();
+                }
 
                 // 🖥️ 2. TRIGGER NATIVE DESKTOP NOTIFICATION (if tab is hidden or minimized)
                 const leadItem = freshItems[0] || notifs[0] || { title: 'New Notification', subtitle: `${newCount} unread tasks` };
@@ -2139,8 +2038,12 @@ function updateGlobalReminders() {
 
                 // Add "due" class if any reminders are overdue
                 const hasDue = globalReminders.some(r => r.is_due);
+                const prevHadDue = badge.classList.contains('due');
                 if (hasDue) {
                     badge.classList.add('due');
+                    if (!prevHadDue && window.TMSAudio) {
+                        window.TMSAudio.play('urgent');
+                    }
                 } else {
                     badge.classList.remove('due');
                 }
@@ -2417,7 +2320,9 @@ remindersCheckInterval = setInterval(updateGlobalReminders, 30000); // Check eve
             icon: '/images/logo.png'
         };
         new Notification(notificationTitle, notificationOptions);
-        if (typeof window.playTmsNotificationChime === 'function') {
+        if (window.TMSAudio) {
+            window.TMSAudio.play('chime');
+        } else if (typeof window.playTmsNotificationChime === 'function') {
             window.playTmsNotificationChime();
         }
     });

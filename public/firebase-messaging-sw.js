@@ -33,7 +33,9 @@ messaging.onBackgroundMessage(function(payload) {
     const notificationTitle = payload.notification.title;
     const notificationOptions = {
         body: payload.notification.body,
-        icon: '/images/logo.png'
+        icon: '/images/logo.png',
+        silent: false,
+        vibrate: [200, 100, 200]
     };
 
     self.registration.showNotification(notificationTitle, notificationOptions);

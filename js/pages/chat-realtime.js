@@ -42,6 +42,11 @@
         if (now - lastDing < 1500) return;
         lastDing = now;
 
+        if (window.TMSAudio) {
+            window.TMSAudio.play('message');
+            return;
+        }
+
         const ctx = getCtx();
         if (!ctx) return;
         const o = ctx.createOscillator();

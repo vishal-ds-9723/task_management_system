@@ -20,6 +20,12 @@
     const TOAST_DURATIONS = { success: 3500, error: 5000, info: 4000, warning: 4500 };
 
     window.showToast = function (message, type = 'success', subtitle = '', duration = null) {
+        // Play notification sound according to toast profile
+        if (window.TMSAudio) {
+            const profile = (type === 'error' || type === 'warning') ? 'urgent' : (type === 'success' ? 'success' : 'chime');
+            window.TMSAudio.play(profile);
+        }
+
         const ms = duration || TOAST_DURATIONS[type] || 3500;
         const id = 'toast-' + Date.now();
 
