@@ -2573,6 +2573,18 @@ table.studio-datatable tbody tr:last-child td {
     border-color: rgba(16, 185, 129, 0.35);
 }
 
+/* Table View: Row hover and clickable pointer */
+.table-task-row {
+    cursor: pointer !important;
+    transition: background-color 0.15s ease;
+}
+.table-task-row td {
+    cursor: pointer !important;
+}
+.table-task-row:hover td {
+    background-color: #F8FAFC !important;
+}
+
 /* Table View: Prominent Soft Green Tint Row with Emerald Left Accent */
 .table-task-row.is-done-row {
     background: rgba(240, 253, 244, 0.55) !important;

@@ -1,9 +1,14 @@
 @extends('layouts.app')
 
 @push('styles')
-    <link rel="stylesheet" href="{{ asset('css/task-detail.css') }}?v=7.0">
-    <link rel="stylesheet" href="{{ asset('css/animations.css') }}?v=7.0">
-    <link rel="stylesheet" href="{{ asset('css/pages/designer-theme.css') }}?v=7.0">
+    @php
+        $tdVer = @filemtime(public_path('css/task-detail.css')) ?: (@filemtime(base_path('css/task-detail.css')) ?: '8.1');
+        $dtVer = @filemtime(public_path('css/pages/designer-theme.css')) ?: (@filemtime(base_path('css/pages/designer-theme.css')) ?: '8.1');
+        $anVer = @filemtime(public_path('css/animations.css')) ?: (@filemtime(base_path('css/animations.css')) ?: '8.1');
+    @endphp
+    <link rel="stylesheet" href="{{ asset('css/task-detail.css') }}?v={{ $tdVer }}">
+    <link rel="stylesheet" href="{{ asset('css/animations.css') }}?v={{ $anVer }}">
+    <link rel="stylesheet" href="{{ asset('css/pages/designer-theme.css') }}?v={{ $dtVer }}">
 @endpush
 
 @section('content')

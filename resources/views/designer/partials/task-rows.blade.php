@@ -30,11 +30,17 @@
     @endphp
     <tr class="table-task-row {{ $isDone ? 'is-done-row' : '' }}"
         data-task-id="{{ $task->id }}"
+        data-href="{{ route('designer.tasks.show', $task) }}"
         data-status="{{ $statusSlug }}"
         data-status-group="{{ $statusGroup }}"
         data-medium="{{ $typeGroup }}"
         data-client-id="{{ $task->client_id ?? '' }}"
-        data-revision="{{ $task->revision_count > 0 && !in_array($task->status, ['completed', 'published']) ? '1' : '0' }}">
+        data-revision="{{ $task->revision_count > 0 && !in_array($task->status, ['completed', 'published']) ? '1' : '0' }}"
+        tabindex="0"
+        role="link"
+        aria-label="Open deliverable {{ $task->title }}"
+        onclick="if(!event.target.closest('a, button, input, select, textarea')) { if(event.ctrlKey || event.metaKey || event.button === 1) { window.open('{{ route('designer.tasks.show', $task) }}', '_blank'); } else { window.location.href = '{{ route('designer.tasks.show', $task) }}'; } }"
+        style="cursor:pointer">
         
         {{-- ID Column --}}
         <td>

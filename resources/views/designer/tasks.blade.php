@@ -1,8 +1,32 @@
 @extends('layouts.app')
 
 @push('styles')
-    <link rel="stylesheet" href="{{ asset('css/pages/designer-theme.css') }}?v=7.0">
+    @php
+        $dtVer = @filemtime(public_path('css/pages/designer-theme.css')) ?: (@filemtime(base_path('css/pages/designer-theme.css')) ?: '8.1');
+    @endphp
+    <link rel="stylesheet" href="{{ asset('css/pages/designer-theme.css') }}?v={{ $dtVer }}">
     <link rel="stylesheet" href="https://cdn.datatables.net/2.0.8/css/dataTables.dataTables.min.css">
+    <style>
+        table.studio-datatable tbody tr.table-task-row,
+        .table-task-row {
+            cursor: pointer !important;
+            transition: background-color 0.14s cubic-bezier(0.23, 1, 0.32, 1) !important;
+        }
+        table.studio-datatable tbody tr.table-task-row td,
+        .table-task-row td {
+            cursor: pointer !important;
+        }
+        table.studio-datatable tbody tr.table-task-row:hover td {
+            background-color: #F8FAFC !important;
+        }
+        table.studio-datatable tbody tr.table-task-row.is-done-row:hover td {
+            background-color: #ECFDF5 !important;
+        }
+        .table-task-row:focus-visible {
+            outline: 2px solid var(--dz-primary, #4F46E5) !important;
+            outline-offset: -2px;
+        }
+    </style>
 @endpush
 
 @section('content')
@@ -844,7 +868,57 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 10. Start Real-Time AJAX Live Sync Background Worker
     initStudioLiveSync();
+
+    // 11. Wire Row Click Navigation for Table Mode
+    initTableRowClicks();
 });
+
+// Ensure wherever user clicks in a table row, it opens the task detail page
+function initTableRowClicks() {
+    const table = document.getElementById('designerTasksTable');
+    if (!table || table.dataset.rowClickBound) return;
+    table.dataset.rowClickBound = 'true';
+
+    table.addEventListener('click', function(e) {
+        const row = e.target.closest('tr.table-task-row');
+        if (!row) return;
+
+        // Skip if clicked on interactive inputs/buttons
+        if (e.target.closest('button, input, select, textarea, label')) {
+            return;
+        }
+
+        // If clicked on an anchor tag directly, native navigation will execute
+        if (e.target.closest('a')) {
+            return;
+        }
+
+        const href = row.getAttribute('data-href');
+        if (href) {
+            if (e.ctrlKey || e.metaKey || e.button === 1) {
+                window.open(href, '_blank');
+            } else {
+                window.location.href = href;
+            }
+        }
+    });
+
+    table.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            const row = e.target.closest('tr.table-task-row');
+            if (row && (document.activeElement === row || !document.activeElement.closest('a, button, input'))) {
+                const href = row.getAttribute('data-href');
+                if (href) {
+                    if (e.ctrlKey || e.metaKey) {
+                        window.open(href, '_blank');
+                    } else {
+                        window.location.href = href;
+                    }
+                }
+            }
+        }
+    });
+}
 
 // Support back-forward cache (bfcache) navigation
 window.addEventListener('pageshow', function(event) {
