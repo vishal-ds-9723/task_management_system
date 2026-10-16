@@ -899,8 +899,14 @@ class TaskController extends Controller
         }
 
         if ($request->filled('search')) {
-            $search = $request->input('search');
-            $query->where('title', 'like', '%' . $search . '%');
+            $search = trim((string) $request->input('search'));
+            $query->where(function ($q) use ($search) {
+                $q->where('tasks.title', 'like', '%' . $search . '%')
+                  ->orWhere('tasks.brief', 'like', '%' . $search . '%')
+                  ->orWhere('tasks.caption', 'like', '%' . $search . '%')
+                  ->orWhereHas('client', fn ($cq) => $cq->where('name', 'like', '%' . $search . '%'))
+                  ->orWhereHas('assignee', fn ($aq) => $aq->where('name', 'like', '%' . $search . '%'));
+            });
         }
 
         if ($request->input('status') === 'urgent' || $request->input('filter') === 'urgent') {
@@ -908,40 +914,43 @@ class TaskController extends Controller
                 ->whereNotIn('tasks.status', ['completed', 'published']);
         } elseif ($request->filled('status') && $request->input('status') !== 'all') {
             if ($request->input('status') === 'overdue') {
-                $query->whereNotIn('status', ['completed', 'published'])
-                    ->whereNotNull('deadline')
-                    ->where('deadline', '<', now());
+                $query->whereNotIn('tasks.status', ['completed', 'published'])
+                    ->whereNotNull('tasks.deadline')
+                    ->where('tasks.deadline', '<', now());
             } elseif ($request->input('status') === 'in_revision' || $request->input('status') === 'revision') {
-                $query->where('status', 'inprogress')
-                    ->where('revision_count', '>', 0);
+                $query->where('tasks.status', 'inprogress')
+                    ->where('tasks.revision_count', '>', 0);
+            } elseif ($request->input('status') === 'completed') {
+                $query->whereIn('tasks.status', ['completed', 'published']);
             } else {
-                $query->where('status', $request->input('status'));
+                $query->where('tasks.status', $request->input('status'));
             }
         }
 
-        if ($request->filled('client')) {
-            $query->where('client_id', $request->input('client'));
+        $clientId = $request->input('client') ?: $request->input('client_id');
+        if (!empty($clientId) && $clientId !== 'all') {
+            $query->where('tasks.client_id', $clientId);
         }
 
-        if ($request->filled('creator_id')) {
-            $query->where('created_by', $request->input('creator_id'));
+        if ($request->filled('creator_id') && $request->input('creator_id') !== 'all') {
+            $query->where('tasks.created_by', $request->input('creator_id'));
         }
 
-        if ($request->filled('assigned_to')) {
-            $query->where('assigned_to', $request->input('assigned_to'));
+        if ($request->filled('assigned_to') && $request->input('assigned_to') !== 'all') {
+            $query->where('tasks.assigned_to', $request->input('assigned_to'));
         }
 
         if ($request->filled('type') && $request->input('type') !== 'all') {
-            $query->where('type', $request->input('type'));
+            $query->where('tasks.type', $request->input('type'));
         }
 
         if ($request->filled('date_from')) {
-            $query->whereNotNull('deadline')
-                ->whereDate('deadline', '>=', $request->input('date_from'));
+            $query->whereNotNull('tasks.deadline')
+                ->whereDate('tasks.deadline', '>=', $request->input('date_from'));
         }
         if ($request->filled('date_to')) {
-            $query->whereNotNull('deadline')
-                ->whereDate('deadline', '<=', $request->input('date_to'));
+            $query->whereNotNull('tasks.deadline')
+                ->whereDate('tasks.deadline', '<=', $request->input('date_to'));
         }
 
         if ($focusedTaskId) {
@@ -992,6 +1001,22 @@ class TaskController extends Controller
         $systemUrgentCount = Task::where('is_urgent_task', true)
             ->whereNotIn('status', ['completed', 'published'])
             ->count();
+
+        if ($request->ajax() || $request->wantsJson() || $request->boolean('ajax')) {
+            return response()->json([
+                'success' => true,
+                'content_html' => view('strategist.partials.tracking-content', compact('tasks', 'scope'))->render(),
+                'stats_html' => view('strategist.partials.tracking-stats', compact(
+                    'totalCount', 'todoCount', 'inProgressCount', 'reviewCount', 'inRevisionCount',
+                    'completedCount', 'overdueCount', 'urgentCount', 'systemUrgentCount', 'scope'
+                ))->render(),
+                'urgent_alert_html' => ($scope === 'my' && $systemUrgentCount > 0)
+                    ? view('strategist.partials.tracking-urgent-alert', compact('systemUrgentCount', 'scope'))->render()
+                    : '',
+                'total' => $tasks->total(),
+                'subtitle' => 'Live production oversight — ' . $tasks->total() . ' total task' . ($tasks->total() !== 1 ? 's' : ''),
+            ]);
+        }
 
         return view('strategist.tracking', compact(
             'tasks', 'clients', 'designers', 'strategists', 'scope',

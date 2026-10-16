@@ -94,6 +94,41 @@
     box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
 }
 
+/* ── Scope Toggle Buttons ───────────────────────────────────── */
+.trk-scope-toggle {
+    display: inline-flex;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 3px;
+    gap: 3px;
+    box-shadow: var(--shadow-sm);
+}
+.trk-scope-btn {
+    padding: 6px 14px;
+    border-radius: 9px;
+    font-size: 12px;
+    font-weight: 700;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    border: none;
+    background: transparent;
+    color: var(--text2);
+    cursor: pointer;
+}
+.trk-scope-btn:hover {
+    color: var(--text);
+    background: rgba(99, 102, 241, 0.05);
+}
+.trk-scope-btn.is-active {
+    background: var(--primary) !important;
+    color: #fff !important;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+}
+
 /* ── Summary Stats Row ──────────────────────────────────────── */
 .trk-stats-row {
     display: grid;
@@ -324,6 +359,31 @@
     border-radius: 16px;
     box-shadow: var(--shadow-sm);
     overflow: hidden;
+    position: relative;
+    transition: opacity 0.18s ease;
+}
+.trk-table-card.trk-is-loading {
+    opacity: 0.55;
+    pointer-events: none;
+}
+.trk-loading-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #6366f1, #3b82f6, #ec4899, #6366f1);
+    background-size: 200% 100%;
+    animation: trkLoadingSlide 1s infinite linear;
+    z-index: 50;
+    display: none;
+}
+.trk-table-card.trk-is-loading .trk-loading-bar {
+    display: block;
+}
+@keyframes trkLoadingSlide {
+    0% { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
 }
 .trk-table-wrap {
     overflow-x: auto;

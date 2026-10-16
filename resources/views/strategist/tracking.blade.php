@@ -117,15 +117,14 @@
     </div>
     <div class="trk-header-right" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         {{-- Scope Toggle --}}
-        <div class="trk-scope-toggle" style="display:inline-flex;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:4px;gap:4px;box-shadow:var(--shadow-sm)">
-            <a href="{{ route('strategist.tracking', array_merge(request()->except('scope'), ['scope' => 'all'])) }}" 
-               style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:all 0.2s; {{ ($scope ?? 'all') === 'all' ? 'background:var(--primary);color:#fff;box-shadow:0 2px 8px rgba(99,102,241,0.35);' : 'color:var(--text2);background:transparent;' }}">
+        {{-- Scope Toggle --}}
+        <div class="trk-scope-toggle">
+            <button type="button" class="trk-scope-btn {{ ($scope ?? 'all') === 'all' ? 'is-active' : '' }}" data-scope="all" onclick="setTrackingScope('all')">
                 <i class="fa-solid fa-users"></i> All Tasks
-            </a>
-            <a href="{{ route('strategist.tracking', array_merge(request()->except('scope'), ['scope' => 'my'])) }}" 
-               style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:all 0.2s; {{ ($scope ?? 'all') === 'my' ? 'background:var(--primary);color:#fff;box-shadow:0 2px 8px rgba(99,102,241,0.35);' : 'color:var(--text2);background:transparent;' }}">
+            </button>
+            <button type="button" class="trk-scope-btn {{ ($scope ?? 'all') === 'my' ? 'is-active' : '' }}" data-scope="my" onclick="setTrackingScope('my')">
                 <i class="fa-solid fa-user-pen"></i> My Created
-            </a>
+            </button>
         </div>
 
         {{-- View Mode Toggle (Dense Table vs Card Grid) --}}
@@ -144,105 +143,30 @@
 </div>
 
 {{-- Summary Stats Row (Enhanced with In Revision card) --}}
-<div class="trk-stats-row">
-    <a href="javascript:void(0)" onclick="filterByStatus('')" class="trk-stat {{ !request('status') || request('status') === 'all' ? 'trk-stat-active' : '' }}">
-        <div class="trk-stat-icon" style="background:var(--blue-dim);color:var(--blue)"><i class="fa-solid fa-layer-group"></i></div>
-        <div class="trk-stat-body">
-            <div class="trk-stat-val">{{ $totalCount }}</div>
-            <div class="trk-stat-label">Total</div>
-        </div>
-    </a>
-    <a href="javascript:void(0)" onclick="filterByStatus('todo')" class="trk-stat {{ request('status') === 'todo' ? 'trk-stat-active' : '' }}">
-        <div class="trk-stat-icon" style="background:var(--card2);color:var(--text3)"><i class="fa-solid fa-clipboard-list"></i></div>
-        <div class="trk-stat-body">
-            <div class="trk-stat-val">{{ $todoCount }}</div>
-            <div class="trk-stat-label">To Do</div>
-        </div>
-    </a>
-    <a href="javascript:void(0)" onclick="filterByStatus('inprogress')" class="trk-stat {{ request('status') === 'inprogress' ? 'trk-stat-active' : '' }}">
-        <div class="trk-stat-icon" style="background:var(--blue-dim);color:var(--blue)"><i class="fa-solid fa-person-running"></i></div>
-        <div class="trk-stat-body">
-            <div class="trk-stat-val">{{ $inProgressCount }}</div>
-            <div class="trk-stat-label">In Progress</div>
-        </div>
-    </a>
-    <a href="javascript:void(0)" onclick="filterByStatus('review')" class="trk-stat {{ request('status') === 'review' ? 'trk-stat-active' : '' }}">
-        <div class="trk-stat-icon" style="background:var(--yellow-dim);color:var(--yellow)"><i class="fa-solid fa-flask"></i></div>
-        <div class="trk-stat-body">
-            <div class="trk-stat-val">{{ $reviewCount }}</div>
-            <div class="trk-stat-label">Review</div>
-        </div>
-    </a>
-    {{-- In Revision Quick Filter --}}
-    <a href="javascript:void(0)" onclick="filterByStatus('in_revision')" class="trk-stat trk-stat-revision {{ request('status') === 'in_revision' ? 'trk-stat-active' : '' }}" title="Tasks actively being revised by designer">
-        <div class="trk-stat-icon" style="background:rgba(245,158,11,0.12);color:#D97706"><i class="fa-solid fa-rotate-left"></i></div>
-        <div class="trk-stat-body">
-            <div class="trk-stat-val" style="color:#D97706">{{ $inRevisionCount ?? 0 }}</div>
-            <div class="trk-stat-label">In Revision</div>
-        </div>
-    </a>
-    <a href="javascript:void(0)" onclick="filterByStatus('completed')" class="trk-stat {{ request('status') === 'completed' ? 'trk-stat-active' : '' }}">
-        <div class="trk-stat-icon" style="background:var(--teal-dim);color:var(--teal)"><i class="fa-solid fa-circle-check"></i></div>
-        <div class="trk-stat-body">
-            <div class="trk-stat-val">{{ $completedCount }}</div>
-            <div class="trk-stat-label">Done</div>
-        </div>
-    </a>
-    @if(($overdueCount ?? 0) > 0)
-    <a href="javascript:void(0)" onclick="filterByStatus('overdue')" class="trk-stat trk-stat-danger {{ request('status') === 'overdue' ? 'trk-stat-active' : '' }}">
-        <div class="trk-stat-icon" style="background:var(--red-dim);color:var(--red)"><i class="fa-solid fa-triangle-exclamation"></i></div>
-        <div class="trk-stat-body">
-            <div class="trk-stat-val" style="color:var(--red)">{{ $overdueCount }}</div>
-            <div class="trk-stat-label">Overdue</div>
-        </div>
-    </a>
-    @endif
-    @if(($urgentCount ?? 0) > 0 || ($systemUrgentCount ?? 0) > 0)
-    <a href="javascript:void(0)" onclick="filterByStatus('urgent')" class="trk-stat trk-stat-urgent {{ request('status') === 'urgent' ? 'trk-stat-active' : '' }}" style="border-color:rgba(239,68,68,0.3)" title="Urgent tasks requiring fast-track attention">
-        <div class="trk-stat-icon" style="background:rgba(239,68,68,0.15);color:#EF4444;position:relative">
-            <i class="fa-solid fa-bolt"></i>
-            <span class="trk-pulse-dot" style="position:absolute;top:2px;right:2px;background:#EF4444"></span>
-        </div>
-        <div class="trk-stat-body">
-            <div class="trk-stat-val" style="color:#EF4444">{{ $urgentCount > 0 ? $urgentCount : $systemUrgentCount }}</div>
-            <div class="trk-stat-label" style="color:#EF4444">Urgent</div>
-        </div>
-    </a>
-    @endif
+<div class="trk-stats-row" id="trkStatsRow">
+    @include('strategist.partials.tracking-stats')
 </div>
 
 {{-- Situational Awareness Banner: Active Urgent Designer Tasks while in My Created Scope --}}
-@if(($scope ?? 'all') === 'my' && ($systemUrgentCount ?? 0) > 0)
-    <div class="trk-urgent-alert-banner" style="display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,rgba(239,68,68,0.12),rgba(249,115,22,0.08));border:1.5px solid rgba(239,68,68,0.35);border-radius:12px;padding:12px 18px;margin-bottom:16px;box-shadow:0 4px 15px rgba(239,68,68,0.08);flex-wrap:wrap;gap:10px">
-        <div style="display:flex;align-items:center;gap:12px">
-            <div style="width:36px;height:36px;border-radius:10px;background:#EF4444;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 4px 10px rgba(239,68,68,0.35);flex-shrink:0">
-                <i class="fa-solid fa-bolt"></i>
-            </div>
-            <div>
-                <div style="font-size:13.5px;font-weight:800;color:var(--text)">
-                    ⚡ {{ $systemUrgentCount }} Urgent Designer-Initiated Task{{ $systemUrgentCount > 1 ? 's' : '' }} Active
-                </div>
-                <div style="font-size:11.5px;color:var(--text2);margin-top:2px">
-                    A designer started an emergency task that is not in your personal "My Created" view.
-                </div>
-            </div>
-        </div>
-        <a href="{{ route('strategist.tracking', ['scope' => 'all', 'status' => 'urgent']) }}" class="trk-header-btn trk-btn-primary" style="background:#EF4444;font-size:11.5px;padding:7px 14px;border:none;box-shadow:0 2px 8px rgba(239,68,68,0.3)">
-            <i class="fa-solid fa-bolt"></i> View Urgent Tasks
-        </a>
-    </div>
-@endif
+<div id="trkUrgentAlertContainer">
+    @include('strategist.partials.tracking-urgent-alert')
+</div>
 
 {{-- Filter Bar --}}
 <div class="trk-filter-bar">
-    <form method="GET" action="{{ route('strategist.tracking') }}" class="trk-filter-form" id="trkFilterForm">
-        <input type="hidden" name="scope" value="{{ $scope ?? 'all' }}">
-        <div class="trk-search-wrap">
+    <form method="GET" action="{{ route('strategist.tracking') }}" class="trk-filter-form" id="trkFilterForm" onsubmit="event.preventDefault(); submitFilterFormAjax();">
+        <input type="hidden" name="scope" id="trkScopeInput" value="{{ $scope ?? 'all' }}">
+        
+        <div class="trk-search-wrap" style="position:relative">
             <i class="fa-solid fa-magnifying-glass trk-search-icon"></i>
-            <input type="text" name="search" id="trkSearchInput" placeholder="Search tasks, copy, or brief in real-time…" value="{{ request('search') }}" class="trk-search-input" autocomplete="off">
+            <input type="text" name="search" id="trkSearchInput" placeholder="Search tasks, brief, copy, or client in real-time…" value="{{ request('search') }}" class="trk-search-input" autocomplete="off" style="padding-right:32px">
+            <button type="button" id="trkSearchClearBtn" style="display:{{ request('search') ? 'block' : 'none' }};position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);cursor:pointer;padding:4px;font-size:12px;line-height:1" title="Clear search">
+                <i class="fa-solid fa-circle-xmark"></i>
+            </button>
         </div>
+
         <div class="trk-filter-selects">
-            <select name="sort" class="trk-select" onchange="submitFilterFormAjax()">
+            <select name="sort" class="trk-select" id="trkSortSelect">
                 <option value="deadline_asc" {{ request('sort', 'deadline_asc') == 'deadline_asc' ? 'selected' : '' }}>Deadline ↑</option>
                 <option value="deadline_desc" {{ request('sort') == 'deadline_desc' ? 'selected' : '' }}>Deadline ↓</option>
                 <option value="post_date_asc" {{ request('sort') == 'post_date_asc' ? 'selected' : '' }}>Post Date ↑</option>
@@ -250,7 +174,7 @@
                 <option value="oldest" {{ request('sort') == 'oldest' ? 'selected' : '' }}>Oldest First</option>
                 <option value="newest" {{ request('sort') == 'newest' ? 'selected' : '' }}>Newest First</option>
             </select>
-            <select name="creator_id" class="trk-select" onchange="submitFilterFormAjax()">
+            <select name="creator_id" class="trk-select" id="trkCreatorSelect">
                 <option value="">All Strategists</option>
                 @foreach($strategists ?? [] as $st)
                     <option value="{{ $st->id }}" {{ request('creator_id') == $st->id ? 'selected' : '' }}>
@@ -258,7 +182,7 @@
                     </option>
                 @endforeach
             </select>
-            <select name="assigned_to" class="trk-select" onchange="submitFilterFormAjax()">
+            <select name="assigned_to" class="trk-select" id="trkAssigneeSelect">
                 <option value="">All Assignees</option>
                 @foreach($designers ?? [] as $ds)
                     <option value="{{ $ds->id }}" {{ request('assigned_to') == $ds->id ? 'selected' : '' }}>
@@ -266,7 +190,7 @@
                     </option>
                 @endforeach
             </select>
-            <select name="status" class="trk-select" id="trkStatusSelect" onchange="submitFilterFormAjax()">
+            <select name="status" class="trk-select" id="trkStatusSelect">
                 <option value="all">All Status</option>
                 <option value="urgent" {{ request('status') == 'urgent' ? 'selected' : '' }}>⚡ Urgent Tasks</option>
                 <option value="todo" {{ request('status') == 'todo' ? 'selected' : '' }}>To Do</option>
@@ -277,9 +201,9 @@
                 <option value="overdue" {{ request('status') == 'overdue' ? 'selected' : '' }}>Overdue</option>
             </select>
             <div class="trk-select-wrap" style="min-width:180px">
-                <x-client-select :clients="$clients" name="client" :value="request('client')" placeholder="All Clients" width="100%" />
+                <x-client-select :clients="$clients" name="client" :value="request('client')" placeholder="All Clients" width="100%" :onchange="'submitFilterFormAjax()'" />
             </div>
-            <select name="type" class="trk-select" onchange="submitFilterFormAjax()">
+            <select name="type" class="trk-select" id="trkTypeSelect">
                 <option value="all">All Types</option>
                 <option value="reel" {{ request('type') == 'reel' ? 'selected' : '' }}>Reel</option>
                 <option value="post" {{ request('type') == 'post' ? 'selected' : '' }}>Post</option>
@@ -294,310 +218,34 @@
                 <option value="maintenance" {{ request('type') == 'maintenance' ? 'selected' : '' }}>Maintenance</option>
                 <option value="others" {{ request('type') == 'others' ? 'selected' : '' }}>Others</option>
             </select>
-            <select name="per_page" class="trk-select trk-select-sm" onchange="submitFilterFormAjax()">
+            <select name="per_page" class="trk-select trk-select-sm" id="trkPerPageSelect">
                 <option value="25" {{ request('per_page', '25') == '25' ? 'selected' : '' }}>25 / page</option>
                 <option value="50" {{ request('per_page') == '50' ? 'selected' : '' }}>50 / page</option>
                 <option value="100" {{ request('per_page') == '100' ? 'selected' : '' }}>100 / page</option>
             </select>
         </div>
+
         <div class="trk-date-range">
             <div class="trk-date-field">
                 <label class="trk-date-label">From</label>
-                <input type="date" name="date_from" value="{{ request('date_from') }}" class="trk-date-input" onchange="submitFilterFormAjax()">
+                <input type="date" name="date_from" id="trkDateFrom" value="{{ request('date_from') }}" class="trk-date-input">
             </div>
             <div class="trk-date-field">
                 <label class="trk-date-label">To</label>
-                <input type="date" name="date_to" value="{{ request('date_to') }}" class="trk-date-input" onchange="submitFilterFormAjax()">
+                <input type="date" name="date_to" id="trkDateTo" value="{{ request('date_to') }}" class="trk-date-input">
             </div>
         </div>
-        <button type="submit" class="trk-filter-btn"><i class="fa-solid fa-filter"></i> Filter</button>
-        @if(request()->hasAny(['search', 'status', 'client', 'creator_id', 'assigned_to', 'type', 'date_from', 'date_to', 'sort', 'per_page']))
-            <a href="javascript:void(0)" onclick="clearAllFilters()" class="trk-clear-btn" id="trkClearBtn"><i class="fa-solid fa-xmark"></i> Clear</a>
-        @endif
+
+        <button type="submit" class="trk-filter-btn" id="trkFilterBtn"><i class="fa-solid fa-filter"></i> Filter</button>
+        <button type="button" onclick="clearAllFilters()" class="trk-clear-btn" id="trkClearBtn" style="display:none">
+            <i class="fa-solid fa-xmark"></i> Clear
+        </button>
     </form>
 </div>
 
 {{-- Main Container (Switches between Table and Card Grid) --}}
 <div class="trk-table-card" id="trkMainContainer">
-    {{-- TABLE VIEW --}}
-    <div class="trk-table-wrap" id="trkTableView">
-        <table class="trk-table" id="trkDataTable">
-            <thead>
-                <tr>
-                    <th style="min-width:240px">Task &amp; Brief</th>
-                    <th>Client</th>
-                    <th>Type</th>
-                    <th>Assigned To</th>
-                    <th>Status</th>
-                    <th>Priority</th>
-                    <th>Deadline</th>
-                    <th style="width:130px;text-align:center">Actions</th>
-                </tr>
-            </thead>
-            <tbody id="trkTableBody">
-                @forelse($tasks as $task)
-                    @php
-                        $isDevTask = in_array($task->type, ['website', 'software', 'maintenance']);
-                        $isTimerRunning = ($task->status === 'inprogress' && !$task->is_paused && !empty($task->started_at));
-                        $isClientApproved = $task->isClientApproved();
-                    @endphp
-                    <tr id="task-row-{{ $task->id }}" class="trk-data-row {{ (string) request('task') === (string) $task->id ? 'trk-row-highlight' : '' }}" onclick="openTaskInspector({{ $task->id }})" data-task-id="{{ $task->id }}" data-search-text="{{ strtolower($task->title . ' ' . ($task->client?->name ?? '') . ' ' . ($task->assignee?->name ?? '') . ' ' . $task->type) }}">
-                        <td>
-                            <div class="trk-task-title">
-                                <span>{{ $task->title }}</span>
-                                @if($task->is_urgent_task)
-                                    <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:6px;font-size:10px;font-weight:800;background:rgba(239,68,68,0.15);color:#EF4444;border:1px solid rgba(239,68,68,0.35);letter-spacing:0.2px">
-                                        <i class="fa-solid fa-bolt"></i> Urgent Designer
-                                    </span>
-                                @endif
-                                @if($isTimerRunning)
-                                    <span class="trk-live-pulse" title="Designer is working on this task right now!">
-                                        <span class="trk-pulse-dot"></span> Active Now
-                                    </span>
-                                @endif
-                            </div>
-                            <div class="trk-task-meta">
-                                @if($task->is_urgent_task && $task->urgent_requested_by)
-                                    <span style="font-size:10.5px;font-weight:700;color:#DC2626;display:inline-flex;align-items:center;gap:3px">
-                                        <i class="fa-solid fa-bullhorn" style="font-size:9px"></i> Req: {{ $task->urgent_requested_by }}
-                                    </span>
-                                @endif
-
-                                @if($isDevTask)
-                                    @if($task->tech_stack)
-                                        <span><i class="fas fa-code" style="font-size:9px;opacity:.7"></i> {{ $task->tech_stack }}</span>
-                                    @endif
-                                    @if($task->dev_deadline)
-                                        <span><i class="fas fa-laptop-code" style="font-size:9px;opacity:.7"></i> Dev: {{ $task->dev_deadline->format('d M') }}</span>
-                                    @endif
-                                @else
-                                    @if(is_array($task->platform))
-                                        <span>{{ implode(', ', array_map('ucfirst', $task->platform)) }}</span>
-                                    @elseif($task->platform)
-                                        <span>{{ ucfirst($task->platform) }}</span>
-                                    @endif
-                                @endif
-
-                                @if($task->comments_count > 0)
-                                    <span class="trk-comment-badge"><i class="fas fa-comment" style="font-size:10px"></i> {{ $task->comments_count }}</span>
-                                @endif
-
-                                @if($task->creator)
-                                    <span class="trk-creator-pill">
-                                        <i class="fa-solid fa-user-pen" style="font-size:9px"></i> By: {{ $task->creator->name }}
-                                    </span>
-                                @endif
-
-                                @if($task->requires_client_approval)
-                                    <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;background:{{ $isClientApproved ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.1)' }};color:{{ $isClientApproved ? '#059669' : '#EF4444' }};border:1px solid {{ $isClientApproved ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.2)' }}">
-                                        <i class="fa-solid {{ $isClientApproved ? 'fa-check' : 'fa-clock' }}" style="font-size:8px"></i> Client: {{ $isClientApproved ? 'Yes' : 'Pending' }}
-                                    </span>
-                                @endif
-                            </div>
-                        </td>
-                        <td>
-                            <div class="trk-client-cell">
-                                <x-client-branding :client="$task->client" size="26px" radius="6px" :showName="true" fit="contain" />
-                            </div>
-                        </td>
-                        <td><span class="tag {{ $task->type_tag_class }}">{{ ucfirst($task->type) }}</span></td>
-                        <td>
-                            @if($task->assignee)
-                                <div class="trk-assignee-cell">
-                                    <div class="av-sm" style="background:{{ $task->assignee->avatar_color ?? '#555' }}">{{ $task->assignee->initial }}</div>
-                                    <span>{{ $task->assignee->name }}</span>
-                                </div>
-                            @else
-                                <span class="trk-unassigned"><i class="fa-solid fa-circle-exclamation"></i> Unassigned</span>
-                            @endif
-                        </td>
-                        <td>
-                            <span class="status {{ $task->status_class }}">{{ $task->status_label }}</span>
-                            @if($task->revision_count > 0)
-                                <span class="wf-rev-badge" style="animation:none;margin-left:4px" title="{{ $task->revision_count }} revision{{ $task->revision_count > 1 ? 's' : '' }} requested">
-                                    <i class="fa-solid fa-rotate-left"></i> Rev #{{ $task->revision_count }}
-                                </span>
-                            @endif
-                        </td>
-                        <td>
-                            @if($task->is_urgent_task || $task->priority === 'urgent')
-                                <span class="trk-priority trk-prio-urgent" style="background:#EF4444;color:#fff;box-shadow:0 2px 8px rgba(239,68,68,0.35);display:inline-flex;align-items:center;gap:4px">
-                                    <i class="fa-solid fa-bolt" style="font-size:9px"></i> Urgent
-                                </span>
-                            @elseif($task->priority === 'high')
-                                <span class="trk-priority trk-prio-high">High</span>
-                            @else
-                                <span class="trk-priority trk-prio-normal">Normal</span>
-                            @endif
-                        </td>
-                        <td>
-                            @if($task->deadline)
-                                <div class="trk-deadline {{ $task->isOverdue() ? 'trk-deadline-overdue' : '' }}">
-                                    <i class="fa-regular {{ $task->isOverdue() ? 'fa-clock' : 'fa-calendar' }}"></i>
-                                    {{ $task->deadline->format('d M Y') }}
-                                    @if($task->isOverdue()) <span class="trk-overdue-tag">Overdue</span> @endif
-                                </div>
-                            @else
-                                <span class="trk-no-deadline">—</span>
-                            @endif
-                        </td>
-                        <td>
-                            <div class="trk-actions" onclick="event.stopPropagation()">
-                                <button type="button" class="trk-action-btn trk-action-view" title="Quick Drawer Inspector" onclick="openTaskInspector({{ $task->id }})">
-                                    <i class="fa-solid fa-eye"></i>
-                                </button>
-                                @if($task->status === 'review')
-                                    <button type="button" class="trk-action-btn" style="color:#059669;border-color:rgba(5,150,105,0.3);background:rgba(5,150,105,0.08)" title="Fast-Track: Approve & Send to Admin" onclick="approveTaskFromTracking({{ $task->id }}, '{{ addslashes($task->title) }}', event)">
-                                        <i class="fa-solid fa-check-double"></i>
-                                    </button>
-                                @endif
-                                <a href="{{ route('strategist.tasks.show', $task) }}" class="trk-action-btn" title="Open Full Task Details">
-                                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                                </a>
-                                <a href="{{ route('strategist.tasks.edit', $task) }}" class="trk-action-btn" title="Edit Task" data-no-loader>
-                                    <i class="fa-solid fa-pen-to-square"></i>
-                                </a>
-                                <button type="button" class="trk-action-btn" title="Reassign" onclick="openReassignModal({{ $task->id }}, '{{ addslashes($task->title) }}', {{ $task->assigned_to ?? 'null' }})">
-                                    <i class="fa-solid fa-arrows-rotate"></i>
-                                </button>
-                                @if($task->assignee && !in_array($task->status, ['completed', 'published']))
-                                    <button type="button" class="trk-action-btn trk-action-followup" title="Nudge Designer via Live Alert" onclick="nudgeTask({{ $task->id }}, '{{ addslashes($task->assignee->name) }}', event)">
-                                        <i class="fa-solid fa-bell"></i>
-                                    </button>
-                                @endif
-                                <button type="button" class="trk-action-btn trk-action-delete" title="Delete Task" onclick="deleteTaskAjax({{ $task->id }}, '{{ addslashes($task->title) }}', event)">
-                                    <i class="fa-solid fa-trash-can"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="8" class="trk-empty">
-                            <div class="trk-empty-box">
-                                <div class="trk-empty-icon"><i class="fa-solid fa-inbox"></i></div>
-                                <div class="trk-empty-title">No tasks found</div>
-                                <div class="trk-empty-sub">Try adjusting your filters or create a new task</div>
-                            </div>
-                        </td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
-
-    {{-- CARD GRID VIEW (Alternative visual layout) --}}
-    <div class="trk-cards-grid" id="trkGridView" style="display:none">
-        @forelse($tasks as $task)
-            @php
-                $isTimerRunning = ($task->status === 'inprogress' && !$task->is_paused && !empty($task->started_at));
-                $thumb = $task->getPreviewThumbnail();
-            @endphp
-            <div class="trk-card trk-data-row" onclick="openTaskInspector({{ $task->id }})" data-task-id="{{ $task->id }}" data-search-text="{{ strtolower($task->title . ' ' . ($task->client?->name ?? '') . ' ' . ($task->assignee?->name ?? '') . ' ' . $task->type) }}">
-                <div class="trk-card-top">
-                    <div style="min-width:0;flex:1">
-                        <div class="trk-card-title">{{ $task->title }}</div>
-                        <div style="font-size:11.5px;color:var(--text3);display:flex;align-items:center;gap:6px">
-                            <span>{{ $task->client?->emoji ?? '🏢' }} {{ $task->client?->name ?? 'Unknown Client' }}</span>
-                            @if($task->revision_count > 0)
-                                <span class="wf-rev-badge"><i class="fa-solid fa-rotate-left"></i> Rev #{{ $task->revision_count }}</span>
-                            @endif
-                        </div>
-                    </div>
-                    @if($isTimerRunning)
-                        <span class="trk-live-pulse"><span class="trk-pulse-dot"></span> Active</span>
-                    @endif
-                </div>
-
-                <div class="trk-card-badge-row">
-                    <span class="tag {{ $task->type_tag_class }}">{{ ucfirst($task->type) }}</span>
-                    <span class="status {{ $task->status_class }}">{{ $task->status_label }}</span>
-                    @if($task->is_urgent_task)
-                        <span class="trk-priority trk-prio-urgent" style="background:#EF4444;color:#fff;box-shadow:0 2px 8px rgba(239,68,68,0.35);display:inline-flex;align-items:center;gap:3px"><i class="fa-solid fa-bolt" style="font-size:9px"></i> Urgent Designer</span>
-                    @elseif($task->priority === 'urgent')
-                        <span class="trk-priority trk-prio-urgent">Urgent</span>
-                    @elseif($task->priority === 'high')
-                        <span class="trk-priority trk-prio-high">High</span>
-                    @endif
-                </div>
-
-                @if($task->is_urgent_task && $task->urgent_requested_by)
-                    <div style="font-size:11px;font-weight:700;color:#DC2626;padding:2px 0 4px;display:flex;align-items:center;gap:4px">
-                        <i class="fa-solid fa-bullhorn" style="font-size:9px"></i> Req: {{ $task->urgent_requested_by }}
-                    </div>
-                @endif
-
-                <div class="trk-card-middle">
-                    <div style="display:flex;align-items:center;gap:8px">
-                        @if($task->assignee)
-                            <div class="av-sm" style="background:{{ $task->assignee->avatar_color ?? '#555' }}">{{ $task->assignee->initial }}</div>
-                            <span style="font-size:12px;font-weight:600">{{ $task->assignee->name }}</span>
-                        @else
-                            <span class="trk-unassigned"><i class="fa-solid fa-circle-exclamation"></i> Unassigned</span>
-                        @endif
-                    </div>
-                    <div style="text-align:right">
-                        @if($task->deadline)
-                            <div style="font-size:11.5px;font-weight:700;color:{{ $task->isOverdue() ? '#EF4444' : 'var(--text)' }}">
-                                <i class="fa-regular fa-calendar"></i> {{ $task->deadline->format('d M') }}
-                            </div>
-                        @else
-                            <span style="font-size:11px;color:var(--text3)">No Deadline</span>
-                        @endif
-                    </div>
-                </div>
-
-                <div class="trk-card-foot" onclick="event.stopPropagation()">
-                    <button type="button" class="trk-btn-ghost" style="padding:5px 12px;font-size:11px;border-radius:6px" onclick="openTaskInspector({{ $task->id }})">
-                        <i class="fa-solid fa-eye"></i> Inspect
-                    </button>
-                    <div style="display:flex;gap:4px">
-                        @if($task->status === 'review')
-                            <button type="button" class="trk-action-btn" style="color:#059669;border-color:rgba(5,150,105,0.3);background:rgba(5,150,105,0.08)" title="Fast-Track: Approve & Send to Admin" onclick="approveTaskFromTracking({{ $task->id }}, '{{ addslashes($task->title) }}', event)">
-                                <i class="fa-solid fa-check-double"></i>
-                            </button>
-                        @endif
-                        @if($task->assignee && !in_array($task->status, ['completed', 'published']))
-                            <button type="button" class="trk-action-btn trk-action-followup" title="Nudge Designer" onclick="nudgeTask({{ $task->id }}, '{{ addslashes($task->assignee->name) }}', event)">
-                                <i class="fa-solid fa-bell"></i>
-                            </button>
-                        @endif
-                        <a href="{{ route('strategist.tasks.edit', $task) }}" class="trk-action-btn" title="Edit" data-no-loader>
-                            <i class="fa-solid fa-pen-to-square"></i>
-                        </a>
-                    </div>
-                </div>
-            </div>
-        @empty
-            <div class="trk-empty" style="grid-column:1/-1">
-                <div class="trk-empty-box">
-                    <div class="trk-empty-icon"><i class="fa-solid fa-inbox"></i></div>
-                    <div class="trk-empty-title">No tasks found</div>
-                </div>
-            </div>
-        @endforelse
-    </div>
-
-    {{-- Pagination & Footer --}}
-    @if($tasks->hasPages())
-        <div class="trk-pagination">
-            {{ $tasks->links('vendor.pagination.custom') }}
-        </div>
-    @endif
-    @if($tasks->total() > 0)
-        <div class="trk-table-footer">
-            <span class="trk-table-footer-text">Page {{ $tasks->currentPage() }} of {{ $tasks->lastPage() }} &middot; {{ $tasks->total() }} task{{ $tasks->total() !== 1 ? 's' : '' }}</span>
-            <div class="trk-perpage-footer">
-                <label class="trk-perpage-label">Show</label>
-                <select class="trk-perpage-select" onchange="changePerPage(this.value)">
-                    <option value="25" {{ request('per_page', '25') == '25' ? 'selected' : '' }}>25</option>
-                    <option value="50" {{ request('per_page') == '50' ? 'selected' : '' }}>50</option>
-                    <option value="100" {{ request('per_page') == '100' ? 'selected' : '' }}>100</option>
-                </select>
-                <label class="trk-perpage-label">per page</label>
-            </div>
-        </div>
-    @endif
+    @include('strategist.partials.tracking-content')
 </div>
 
 {{-- ═══════════════════════════════════════════════════════════════
@@ -759,7 +407,7 @@
                 <div id="reassignTaskTitle" class="trk-modal-sub"></div>
             </div>
         </div>
-        <form id="reassignForm" method="POST">
+        <form id="reassignForm" method="POST" onsubmit="submitReassignFormAjax(event)">
             @csrf
             @method('PATCH')
             <label class="trk-modal-label">Select Team Member</label>
@@ -1091,7 +739,8 @@ async function approveTaskFromTracking(taskId, taskTitle, event) {
         const data = await res.json();
         if (data.success) {
             showStrategistToast('success', data.message || 'Task approved and sent to Admin!');
-            setTimeout(() => location.reload(), 700);
+            closeTaskInspector();
+            submitFilterFormAjax();
         } else {
             showStrategistToast('error', data.message || 'Failed to approve task.');
         }
@@ -1271,28 +920,106 @@ async function deleteTaskAjax(taskId, title, event) {
     }
 }
 
-// ── 10. Real-time Live DOM Search & Filter Logic ─────────────────
+// ── 9b. Submit Reassign via AJAX ────────────────────────────────
+async function submitReassignFormAjax(e) {
+    e.preventDefault();
+    const form = document.getElementById('reassignForm');
+    const formData = new FormData(form);
+
+    try {
+        const response = await fetch(form.action, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+            },
+            body: formData,
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            showStrategistToast('success', data.message || 'Task reassigned successfully!');
+            closeReassignModal();
+            closeTaskInspector();
+            submitFilterFormAjax();
+        } else {
+            showStrategistToast('error', data.message || 'Failed to reassign task.');
+        }
+    } catch (err) {
+        showStrategistToast('error', 'Network error reassigning task.');
+    }
+}
+
+// ── 10. Real-time Live AJAX Search & Filter Engine ────────────────
+let trkFilterAbortController = null;
+let trkSearchDebounceTimer = null;
+
 document.addEventListener('DOMContentLoaded', function() {
     // Restore preferred view mode (table vs card grid)
     const savedMode = localStorage.getItem('trk_view_mode') || 'table';
     setTrackingViewMode(savedMode);
 
-    // Instant client-side row search as user types
+    // Initial check for clear button visibility
+    updateClearButtonVisibility();
+
+    // Debounced real-time server search as user types
     const searchInput = document.getElementById('trkSearchInput');
+    const searchClearBtn = document.getElementById('trkSearchClearBtn');
+
     if (searchInput) {
         searchInput.addEventListener('input', function() {
-            const query = (this.value || '').trim().toLowerCase();
-            const rows = document.querySelectorAll('.trk-data-row');
-            rows.forEach(r => {
-                const text = r.getAttribute('data-search-text') || '';
-                if (!query || text.includes(query)) {
-                    r.style.display = '';
-                } else {
-                    r.style.display = 'none';
-                }
-            });
+            const hasVal = this.value.trim().length > 0;
+            if (searchClearBtn) searchClearBtn.style.display = hasVal ? 'block' : 'none';
+
+            clearTimeout(trkSearchDebounceTimer);
+            trkSearchDebounceTimer = setTimeout(() => {
+                submitFilterFormAjax();
+            }, 300);
+        });
+
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                clearTimeout(trkSearchDebounceTimer);
+                submitFilterFormAjax();
+            }
         });
     }
+
+    if (searchClearBtn) {
+        searchClearBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (searchInput) {
+                searchInput.value = '';
+                searchClearBtn.style.display = 'none';
+                clearTimeout(trkSearchDebounceTimer);
+                submitFilterFormAjax();
+            }
+        });
+    }
+
+    // Form change event listener (captures sort, creator, assignee, status, type, dates, per_page)
+    const form = document.getElementById('trkFilterForm');
+    if (form) {
+        form.addEventListener('change', function(e) {
+            // Avoid triggering on search input change event since handled on input
+            if (e.target && e.target.id === 'trkSearchInput') return;
+            submitFilterFormAjax();
+        });
+    }
+
+    // Intercept pagination clicks inside trkMainContainer via delegation
+    document.addEventListener('click', function(e) {
+        const pageLink = e.target.closest('#trkMainContainer .pg-links a, #trkMainContainer .trk-pagination a');
+        if (pageLink && pageLink.href) {
+            e.preventDefault();
+            submitFilterFormAjax(pageLink.href);
+            const tableCard = document.getElementById('trkMainContainer');
+            if (tableCard) {
+                tableCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+    });
 
     // Escape key closes modals / drawer
     document.addEventListener('keydown', function(e) {
@@ -1304,63 +1031,241 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+// Popstate event listener for browser history (back/forward navigation)
+window.addEventListener('popstate', function(e) {
+    if (e.state && e.state.trkUrl) {
+        submitFilterFormAjax(e.state.trkUrl, false);
+    } else {
+        submitFilterFormAjax(window.location.href, false);
+    }
+});
+
+function setTrackingScope(scopeVal) {
+    const form = document.getElementById('trkFilterForm');
+    if (!form) return;
+    const scopeInput = document.getElementById('trkScopeInput');
+    if (scopeInput) scopeInput.value = scopeVal;
+
+    document.querySelectorAll('.trk-scope-btn').forEach(btn => {
+        if (btn.dataset.scope === scopeVal) {
+            btn.classList.add('is-active');
+        } else {
+            btn.classList.remove('is-active');
+        }
+    });
+
+    submitFilterFormAjax();
+}
+
 function filterByStatus(statusVal) {
     const sel = document.getElementById('trkStatusSelect');
     if (sel) sel.value = statusVal || 'all';
     submitFilterFormAjax();
 }
 
-function clearAllFilters() {
-    const form = document.getElementById('trkFilterForm');
-    if (!form) return;
-    form.querySelectorAll('input[type="text"]').forEach(el => el.value = '');
-    form.querySelectorAll('input[type="date"]').forEach(el => el.value = '');
-    form.querySelectorAll('select').forEach(el => el.selectedIndex = 0);
+function changePerPage(val) {
+    const perPageSelect = document.getElementById('trkPerPageSelect');
+    if (perPageSelect) perPageSelect.value = val;
     submitFilterFormAjax();
 }
 
-function submitFilterFormAjax() {
+function updateClearButtonVisibility() {
+    const form = document.getElementById('trkFilterForm');
+    const clearBtn = document.getElementById('trkClearBtn');
+    if (!form || !clearBtn) return;
+
+    const search = (document.getElementById('trkSearchInput')?.value || '').trim();
+    const sort = document.getElementById('trkSortSelect')?.value || 'deadline_asc';
+    const creator = document.getElementById('trkCreatorSelect')?.value || '';
+    const assignee = document.getElementById('trkAssigneeSelect')?.value || '';
+    const status = document.getElementById('trkStatusSelect')?.value || 'all';
+    const client = form.querySelector('input[name="client"]')?.value || '';
+    const type = document.getElementById('trkTypeSelect')?.value || 'all';
+    const perPage = document.getElementById('trkPerPageSelect')?.value || '25';
+    const dateFrom = document.getElementById('trkDateFrom')?.value || '';
+    const dateTo = document.getElementById('trkDateTo')?.value || '';
+
+    const hasActiveFilter = search !== '' ||
+        (sort !== 'deadline_asc' && sort !== '') ||
+        creator !== '' ||
+        assignee !== '' ||
+        (status !== 'all' && status !== '') ||
+        client !== '' ||
+        (type !== 'all' && type !== '') ||
+        dateFrom !== '' ||
+        dateTo !== '' ||
+        perPage !== '25';
+
+    clearBtn.style.display = hasActiveFilter ? 'inline-flex' : 'none';
+}
+
+function clearAllFilters() {
     const form = document.getElementById('trkFilterForm');
     if (!form) return;
-    const formData = new FormData(form);
-    const queryString = new URLSearchParams(formData).toString();
-    const url = `${form.action}${form.action.includes('?') ? '&' : '?'}${queryString}`;
 
-    fetch(url, {
+    // Reset search
+    const searchInput = document.getElementById('trkSearchInput');
+    if (searchInput) searchInput.value = '';
+    const searchClearBtn = document.getElementById('trkSearchClearBtn');
+    if (searchClearBtn) searchClearBtn.style.display = 'none';
+
+    // Reset dates
+    const dFrom = document.getElementById('trkDateFrom');
+    if (dFrom) dFrom.value = '';
+    const dTo = document.getElementById('trkDateTo');
+    if (dTo) dTo.value = '';
+
+    // Reset selects
+    const sortSel = document.getElementById('trkSortSelect');
+    if (sortSel) sortSel.value = 'deadline_asc';
+
+    const creatorSel = document.getElementById('trkCreatorSelect');
+    if (creatorSel) creatorSel.selectedIndex = 0;
+
+    const assigneeSel = document.getElementById('trkAssigneeSelect');
+    if (assigneeSel) assigneeSel.selectedIndex = 0;
+
+    const statusSel = document.getElementById('trkStatusSelect');
+    if (statusSel) statusSel.value = 'all';
+
+    const typeSel = document.getElementById('trkTypeSelect');
+    if (typeSel) typeSel.value = 'all';
+
+    const perPageSel = document.getElementById('trkPerPageSelect');
+    if (perPageSel) perPageSel.value = '25';
+
+    // Reset custom client-select
+    const clientInput = form.querySelector('input[name="client"]');
+    if (clientInput) {
+        clientInput.value = '';
+        const wrapper = clientInput.closest('.custom-client-select');
+        if (wrapper) {
+            const sel = wrapper.querySelector('.ccs-selected');
+            if (sel) {
+                sel.innerHTML = '<span class="ccs-placeholder">All Clients</span><i class="fa-solid fa-chevron-down ccs-arrow"></i>';
+            }
+            wrapper.querySelectorAll('.ccs-option').forEach(o => {
+                if (o.dataset.value === '') o.classList.add('selected');
+                else o.classList.remove('selected');
+            });
+        }
+    }
+
+    updateClearButtonVisibility();
+    submitFilterFormAjax();
+}
+
+function submitFilterFormAjax(customUrl = null, updateHistory = true) {
+    const form = document.getElementById('trkFilterForm');
+    if (!form) return;
+
+    let targetUrl;
+    if (customUrl) {
+        targetUrl = customUrl;
+    } else {
+        const formData = new FormData(form);
+        const params = new URLSearchParams();
+        for (const [key, value] of formData.entries()) {
+            if (value !== '' && value !== null) {
+                params.append(key, value);
+            }
+        }
+        const qs = params.toString();
+        targetUrl = `${form.action}${qs ? '?' + qs : ''}`;
+    }
+
+    // Cancel pending request if any
+    if (trkFilterAbortController) {
+        trkFilterAbortController.abort();
+    }
+    trkFilterAbortController = new AbortController();
+
+    const mainContainer = document.getElementById('trkMainContainer');
+    if (mainContainer) {
+        mainContainer.classList.add('trk-is-loading');
+    }
+
+    fetch(targetUrl, {
+        signal: trkFilterAbortController.signal,
         headers: {
             'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'text/html',
+            'Accept': 'application/json',
         }
     })
-    .then(res => res.text())
-    .then(html => {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
+    .then(async res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+            return await res.json();
+        } else {
+            const htmlText = await res.text();
+            return { isHtml: true, html: htmlText };
+        }
+    })
+    .then(data => {
+        if (data.isHtml) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(data.html, 'text/html');
 
-        // Swap stats row
-        const newStats = doc.querySelector('.trk-stats-row');
-        if (newStats) document.querySelector('.trk-stats-row').innerHTML = newStats.innerHTML;
+            const newContent = doc.getElementById('trkMainContainer');
+            if (newContent && mainContainer) mainContainer.innerHTML = newContent.innerHTML;
 
-        // Swap table body
-        const newBody = doc.getElementById('trkTableBody');
-        if (newBody) document.getElementById('trkTableBody').innerHTML = newBody.innerHTML;
+            const newStats = doc.getElementById('trkStatsRow');
+            if (newStats) {
+                const curStats = document.getElementById('trkStatsRow');
+                if (curStats) curStats.innerHTML = newStats.innerHTML;
+            }
 
-        // Swap grid view
-        const newGrid = doc.getElementById('trkGridView');
-        if (newGrid) document.getElementById('trkGridView').innerHTML = newGrid.innerHTML;
+            const newAlert = doc.getElementById('trkUrgentAlertContainer');
+            if (newAlert) {
+                const curAlert = document.getElementById('trkUrgentAlertContainer');
+                if (curAlert) curAlert.innerHTML = newAlert.innerHTML;
+            }
 
-        // Swap subtitle & pagination
-        const newSub = doc.getElementById('trackingSubtitle');
-        if (newSub) document.getElementById('trackingSubtitle').innerHTML = newSub.innerHTML;
+            const newSub = doc.getElementById('trackingSubtitle');
+            if (newSub) {
+                const curSub = document.getElementById('trackingSubtitle');
+                if (curSub) curSub.innerHTML = newSub.innerHTML;
+            }
+        } else if (data.success) {
+            if (mainContainer && data.content_html !== undefined) {
+                mainContainer.innerHTML = data.content_html;
+            }
+            if (data.stats_html !== undefined) {
+                const statsRow = document.getElementById('trkStatsRow');
+                if (statsRow) statsRow.innerHTML = data.stats_html;
+            }
+            if (data.urgent_alert_html !== undefined) {
+                const alertContainer = document.getElementById('trkUrgentAlertContainer');
+                if (alertContainer) alertContainer.innerHTML = data.urgent_alert_html;
+            }
+            if (data.subtitle !== undefined) {
+                const subEl = document.getElementById('trackingSubtitle');
+                if (subEl) subEl.textContent = data.subtitle;
+            }
+        }
 
-        const newPag = doc.querySelector('.trk-pagination');
-        const currPag = document.querySelector('.trk-pagination');
-        if (newPag && currPag) currPag.innerHTML = newPag.innerHTML;
+        // Restore active view mode (table vs cards)
+        const currentMode = localStorage.getItem('trk_view_mode') || 'table';
+        setTrackingViewMode(currentMode);
 
-        window.history.pushState({ path: url }, '', url);
+        // Update clear button
+        updateClearButtonVisibility();
+
+        // Push URL to browser history
+        if (updateHistory) {
+            window.history.pushState({ trkUrl: targetUrl }, '', targetUrl);
+        }
     })
     .catch(err => {
+        if (err.name === 'AbortError') return;
         console.error('Filter AJAX error:', err);
+        showStrategistToast('error', 'Error refreshing task tracking.');
+    })
+    .finally(() => {
+        if (mainContainer) {
+            mainContainer.classList.remove('trk-is-loading');
+        }
     });
 }
 </script>
