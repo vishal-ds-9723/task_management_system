@@ -2,12 +2,16 @@
 
 @push('styles')
     @php
-        $tdVer = @filemtime(public_path('css/task-detail.css')) ?: (@filemtime(base_path('css/task-detail.css')) ?: '8.1');
-        $dtVer = @filemtime(public_path('css/pages/designer-theme.css')) ?: (@filemtime(base_path('css/pages/designer-theme.css')) ?: '8.1');
-        $anVer = @filemtime(public_path('css/animations.css')) ?: (@filemtime(base_path('css/animations.css')) ?: '8.1');
+        $tdVer = @filemtime(public_path('css/task-detail.css')) ?: (@filemtime(base_path('css/task-detail.css')) ?: '9.2');
+        $dtVer = @filemtime(public_path('css/pages/designer-theme.css')) ?: (@filemtime(base_path('css/pages/designer-theme.css')) ?: '9.2');
+        $anVer = @filemtime(public_path('css/animations.css')) ?: (@filemtime(base_path('css/animations.css')) ?: '9.2');
     @endphp
+    {{-- On Hostinger shared hosting, public_html might serve from root or public/ directory. Loading both guarantees the modern 40KB stylesheet is loaded and bypasses CDN cache --}}
+    <link rel="stylesheet" href="{{ asset('public/css/task-detail.css') }}?v={{ $tdVer }}">
     <link rel="stylesheet" href="{{ asset('css/task-detail.css') }}?v={{ $tdVer }}">
+    <link rel="stylesheet" href="{{ asset('public/css/animations.css') }}?v={{ $anVer }}">
     <link rel="stylesheet" href="{{ asset('css/animations.css') }}?v={{ $anVer }}">
+    <link rel="stylesheet" href="{{ asset('public/css/pages/designer-theme.css') }}?v={{ $dtVer }}">
     <link rel="stylesheet" href="{{ asset('css/pages/designer-theme.css') }}?v={{ $dtVer }}">
 @endpush
 
